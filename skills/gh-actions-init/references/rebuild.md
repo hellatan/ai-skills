@@ -2,6 +2,8 @@
 
 A ChatOps re-trigger: commenting `/rebuild` on a PR re-runs its failed CI (or kicks off CI fresh when none ran). Companion to `release-please.md` and `develop-to-main-pr.md`.
 
+**Naming:** everything reads as the command — the file is `rebuild.yml`, the workflow `name:` is `rebuild`, the comment is `/rebuild`. Never `ci-rebuild-on-comment.yml` (a legacy name this reference used to scaffold).
+
 ## Why this exists
 
 GitHub does not fire workflows for events created by the default `GITHUB_TOKEN` (its guard against recursive Actions loops), and runs on PRs authored by `github-actions[bot]` sit in `action_required` waiting for a manual approval click. The root fix — wired in by default via the `RELEASE_PLEASE_TOKEN` PAT in `release-please.yml` and `develop-to-main-pr.yml` (see `release-please.md`) — is to author those PRs as a real user. This workflow is the universal manual fallback: re-run CI from any PR with a single comment, covering flaky runs, repos where the secret isn't set up yet, or an expired PAT.
@@ -20,7 +22,9 @@ So: PAT for the two PR-**authoring** workflows, `GITHUB_TOKEN` for this **re-tri
 - **Default-on for gitflow repos** (those with a `develop` branch) — that's where the bot-PR flows exist.
 - Skip for `main`-only repos (no bot-PR gap to cover).
 - The file must live on the **default branch** (`develop`) to be active, since `issue_comment` workflows only run from the default branch.
-- Skip if `.github/workflows/ci-rebuild-on-comment.yml` already exists.
+- Skip if `.github/workflows/rebuild.yml` already exists. If the repo has the workflow
+  under the legacy name `ci-rebuild-on-comment.yml`, **rename it** to `rebuild.yml`
+  (and align `name:` to `rebuild`) instead of adding a second copy.
 
 ## Security
 
@@ -55,10 +59,10 @@ Two implementation notes:
 
 ## Workflow
 
-`.github/workflows/ci-rebuild-on-comment.yml`:
+`.github/workflows/rebuild.yml`:
 
 ```yaml
-name: CI rebuild on comment
+name: rebuild
 
 on:
   issue_comment:
@@ -105,6 +109,11 @@ jobs:
         if: steps.gate.outputs.ok == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # gh resolves the target repo from the git remote by default; this job
+          # has no checkout, so without GH_REPO every repo-scoped gh call below
+          # dies with "not a git repository". github.repository gives gh the
+          # repo directly, no checkout needed.
+          GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.issue.number }}
         run: |
           head="$(gh pr view "$PR" --json headRefName -q .headRefName)"

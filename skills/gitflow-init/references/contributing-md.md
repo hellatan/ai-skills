@@ -87,7 +87,7 @@ remembers the last method used, so check it before clicking.
   "conventions are in `CLAUDE.md`" is fine for detail that only agents need.
 - **The `/rebuild` line matters.** It's the main discoverability path for that feature —
   someone who doesn't know it exists will never type it. Only include it if the repo
-  actually has `ci-rebuild-on-comment.yml` (see
-  `gh-actions-init/references/rebuild-on-comment.md`).
+  actually has `rebuild.yml` (see
+  `gh-actions-init/references/rebuild.md`).
 - Don't document branch protection specifics that may not be enabled — free-tier private
   repos can't have it (see `branch-protection.md`).

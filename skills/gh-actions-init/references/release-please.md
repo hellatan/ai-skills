@@ -82,7 +82,7 @@ Caveats:
 - A fine-grained PAT belongs to a person and **expires** (≤1 yr) — renew on the schedule you pick. A **GitHub App token** avoids expiry and scales across repos (more setup; better for shared/long-lived repos). Either works.
 - If the secret is missing, the `token:` input renders empty and the workflow fails with an auth error on its first `main` push — the fix is to add the secret, not to fall back to `GITHUB_TOKEN`.
 
-The `/rebuild` comment workflow (`rebuild-on-comment.md`) remains the manual fallback for re-running flaky or stuck CI, but it is no longer the primary way to get checks on release PRs.
+The `/rebuild` comment workflow (`rebuild.md`) remains the manual fallback for re-running flaky or stuck CI, but it is no longer the primary way to get checks on release PRs.
 
 ## Config — single package (most common)
 
