@@ -46,6 +46,14 @@ jobs:
         if: steps.check.outputs.ahead != '0'
         run: |
           {
+            echo "## ⚠️ Merge with \"Create a merge commit\" — NOT squash"
+            echo ""
+            echo "\`develop\`'s commits must stay ancestors of \`main\`. Squashing collapses"
+            echo "them into one new commit, so git no longer sees them as merged and the"
+            echo "branches diverge from a stale merge base."
+            echo ""
+            echo "---"
+            echo ""
             echo "## Pending release"
             echo ""
             echo "This PR is auto-opened and auto-refreshed whenever \`develop\` advances."
