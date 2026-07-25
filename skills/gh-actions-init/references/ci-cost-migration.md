@@ -40,8 +40,8 @@ sequentially the window is negligible.
 ## Verify the saving with real numbers
 
 Don't estimate — GitHub reports billed minutes per run. Full before/after procedure
-(the `runs/{id}/timing` endpoint, baseline/after tables, the pricing constant) lives in
-`getoffthecouch:docs/ci-actions-cost-measurement.md`. In short:
+(the `runs/{id}/timing` endpoint, baseline/after tables, the pricing constants, and the
+gotchas) is in `ci-cost-verification.md`. In short:
 
 ```bash
 # billed Ubuntu ms for one run

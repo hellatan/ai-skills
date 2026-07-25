@@ -208,6 +208,7 @@ One PAT secret (`RELEASE_PLEASE_TOKEN`) covers both PR-authoring workflows; `/re
 - `references/detection.md` — how to read stack + existing workflows + version state + branch model
 - `references/ci-structure.md` — per-stack lint + typecheck + format:check + build jobs; extend-vs-create logic
 - `references/ci-cost-migration.md` — retrofit an existing repo to the deduplicated `push` triggers (non-breaking); notes on the separate, breaking job-consolidation change
+- `references/ci-cost-verification.md` — prove a cost change worked using GitHub's own billed minutes (`runs/{id}/timing`): before/after tables, pricing constants, and the gotchas (a `0` billable reading is not "free")
 - `references/release-please.md` — workflow, config, manifest; monorepo variant; tag-pattern gotchas
 - `references/develop-to-main-pr.md` — `develop-to-main-pr.yml`: auto-opens/refreshes the draft `develop → main` release PR (gitflow without staging)
 - `references/rebuild-on-comment.md` — `ci-rebuild-on-comment.yml`: `/rebuild` PR-comment re-runs failed CI (gitflow); pairs with the PAT setup
