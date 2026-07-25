@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.8.0](https://github.com/hellatan/claude-skills/compare/v1.7.0...v1.8.0) (2026-07-25)
+
+
+### Features
+
+* **gh-actions-init:** scaffold release verification + failure alerting ([#89](https://github.com/hellatan/claude-skills/issues/89)) ([801b132](https://github.com/hellatan/claude-skills/commit/801b1323bc694556e48af09bcf2c68966c578fa8))
+
+
+### Bug Fixes
+
+* **ci-drift-audit:** detect workflows by behaviour, not filename ([#88](https://github.com/hellatan/claude-skills/issues/88)) ([5d67588](https://github.com/hellatan/claude-skills/commit/5d675887e0cadfb3b74fe9373ece47c523b4c141))
+
 ## [1.7.0](https://github.com/hellatan/claude-skills/compare/v1.6.0...v1.7.0) (2026-07-25)
 
 
