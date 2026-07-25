@@ -23,7 +23,7 @@ gh api -X PUT repos/{owner}/{repo}/actions/permissions/workflow \
 
 If this PR were opened by `github-actions[bot]` via the default `GITHUB_TOKEN`, it would get no CI: GitHub doesn't fire workflows for `GITHUB_TOKEN`-created events (recursion guard), and any run that does start sits in `action_required` waiting for a manual "Approve and run" click (bot-authored PRs aren't trusted). So the workflow below authors the PR with the **`RELEASE_PLEASE_TOKEN`** repo secret — the same fine-grained PAT (Contents + Pull requests: read/write) that `release-please.yml` uses. See `release-please.md` for the secret setup; one secret covers both workflows. Surface it as a blocking setup step if it's missing.
 
-`/rebuild` (`rebuild-on-comment.md`) remains the manual fallback for re-running flaky CI.
+`/rebuild` (`rebuild.md`) remains the manual fallback for re-running flaky CI.
 
 ## Workflow
 
