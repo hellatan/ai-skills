@@ -93,9 +93,13 @@ yq '.on | has("workflow_dispatch")' ci.yml
 **Why.** ChatOps re-trigger for flaky runs and the bot-PR CI gap. Cheaper than the
 alternative (an empty commit = a whole fresh run).
 
-**Detect.** `.github/workflows/rebuild.yml` exists. The legacy name
-`ci-rebuild-on-comment.yml` counts as present-but-drifted: report it as a rename
-(→ `rebuild.yml`, workflow `name: rebuild`), not as a missing workflow.
+**Detect — by behaviour, not filename.** Scan every file in `.github/workflows/` for one
+triggered `on: issue_comment` that gates on `/rebuild`. Then check whether it sits at the
+canonical `.github/workflows/rebuild.yml`; any other name (the known legacy one is
+`ci-rebuild-on-comment.yml`) is **present-but-drifted** — report it as a rename
+(→ `rebuild.yml`, workflow `name: rebuild`), not as a missing workflow. Matching on the
+filename alone reports a renamed-but-present workflow as absent, and a drifted one as
+clean — see the warning under check 6 for how that played out in practice.
 
 **Scope.** Default-on for **gitflow repos** (those with a `develop` branch) — skip for
 `main`-only repos, which have no bot-PR gap. Don't report its absence as drift there.
@@ -114,17 +118,31 @@ workflow it dispatches must have `workflow_dispatch:` (check 4).
 remembering to open one by hand. Its generated body also carries the no-squash warning,
 which is the only thing between a routine merge and permanent branch divergence.
 
-**Detect.** `.github/workflows/develop-to-main-pr.yml` exists. Two drift shapes, both
-**present-but-drifted** rather than missing:
+**Detect — by behaviour, never by filename.** Scan *every* file in
+`.github/workflows/` for one that runs `gh pr create` with both `--base main` and
+`--head develop`. That workflow is the promotion workflow whatever it happens to be
+called. Only after identifying it that way, check whether it sits at the canonical path
+`.github/workflows/develop-to-main-pr.yml`.
 
-- **Legacy filename** `develop-to-main.yml` (workflow `name: develop-to-main`) — report as
-  a rename, the same way check 5 handles the old `/rebuild` name. Older copies of this
-  generation also exit early when a PR is already open, so they never refresh the body and
-  never close a stale PR once `develop` falls level with `main`.
+> ⚠️ **Filename matching is how this check fails.** A fleet-wide sweep that grepped for
+> `develop-to-main*` silently skipped the one repo whose promotion workflow was named
+> `auto-promote.yml`. That repo was the only one left without the no-squash warning, and
+> a filename-scoped audit reported it as clean. At least three names have existed in the
+> wild (`develop-to-main-pr.yml`, `develop-to-main.yml`, `auto-promote.yml`), so treat the
+> name as unknown and match on what the workflow *does*.
+
+Three drift shapes, all **present-but-drifted** rather than missing:
+
+- **Non-canonical filename** — anything that isn't `develop-to-main-pr.yml`. Report as a
+  rename (→ `develop-to-main-pr.yml`, workflow `name: develop → main PR`), the same way
+  check 5 handles the old `/rebuild` name.
 - **Body missing the no-squash warning** — the generated body must lead with
   `## ⚠️ Merge with "Create a merge commit" — NOT squash`. Grep the workflow for
   `NOT squash`. Report this even when the filename is correct; a repo scaffolded before
   the warning existed passes a presence-only check while still carrying the risk.
+- **Opens but never refreshes** — older generations `exit 0` when a PR is already open, so
+  the body goes stale as soon as `develop` advances, and a stale PR is never closed once
+  `develop` falls level with `main`. Detect: no `gh pr edit` call, or no close step.
 
 **Why that warning is load-bearing.** Squash-merging the promotion PR collapses `develop`'s
 commits into one *new* commit on `main`, so git stops seeing them as merged. Every later
