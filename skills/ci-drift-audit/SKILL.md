@@ -28,7 +28,8 @@ User says any of:
 ## What this skill does NOT own
 
 - **The baseline itself.** The correct CI shape is defined by `gh-actions-init`
-  (`references/ci-structure.md`, `ci-cost-migration.md`, `rebuild.md`) and
+  (`references/ci-structure.md`, `ci-cost-migration.md`, `rebuild.md`,
+  `develop-to-main-pr.md`) and
   `testing-init` (`references/ci-test-job.md`). This skill only *checks* against them —
   when the baseline changes, update it there and add a check here.
 - **Branch protection / required checks** — `gitflow-init` owns that.
@@ -153,5 +154,5 @@ The list will grow. Keep each check:
 
 - `references/checks.md` — each check: rationale, detection, fix, severity
 - `references/repo-list.md` — where the audited set comes from: discovery vs explicit list, conventional paths, token caveats
-- Baseline sources: `gh-actions-init/references/{ci-structure,ci-cost-migration,rebuild}.md`,
+- Baseline sources: `gh-actions-init/references/{ci-structure,ci-cost-migration,rebuild,develop-to-main-pr}.md`,
   `testing-init/references/ci-test-job.md`
