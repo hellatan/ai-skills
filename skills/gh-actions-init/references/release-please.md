@@ -16,7 +16,7 @@ Automates versioning, changelogs, tags, and GitHub releases via PRs driven by co
 
 ## Workflow
 
-`.github/workflows/release-please.yml`:
+`.github/workflows/release-please.yml` (with the `verify-tag` steps folded in — see `references/release-verification.md` for what they do):
 
 ```yaml
 name: release-please
@@ -29,11 +29,18 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v5
+      - uses: actions/checkout@v4 # required for the local ./.github/actions/discord-alert composite
+
+      - id: release
+        uses: googleapis/release-please-action@v5
         with:
           # Author the release PR as a non-bot identity (a PAT in repo secrets,
           # not the built-in GITHUB_TOKEN). PRs opened by github-actions[bot]
@@ -49,7 +56,16 @@ jobs:
           target-branch: main
           config-file: .github/release-please-config.json
           manifest-file: .github/.release-please-manifest.json
+
+      # verify-tag: a merged release PR MUST produce a tag. These steps (Evaluate
+      # release outcome / Alert gh_errors / Fail the run) catch a release-please
+      # step failure AND the silent case where a release PR merges, the step
+      # reports success, but no tag is created. Full step bodies + the companion
+      # release-health.yml + discord-alert composite are in
+      # references/release-verification.md — scaffold them together.
 ```
+
+The three `verify-tag` steps that complete this job, plus the companion `release-health.yml` and `discord-alert` composite, live in `references/release-verification.md`. Scaffold them **alongside** release-please (same skip condition). They no-op safely if the `DISCORD_GH_ERRORS_WEBHOOK` secret is unset.
 
 Both `branches:` (the trigger) and `target-branch:` (the branch release-please
 manages) must point at the release branch — `main` here. **Setting
