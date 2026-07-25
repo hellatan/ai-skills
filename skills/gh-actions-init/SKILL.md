@@ -187,6 +187,7 @@ Next steps:
 5. (If you want branch protection on main/develop) Set it up via GitHub UI or `gh api repos/{owner}/{repo}/branches/{branch}/protection`
 6. Make your first conventional commit (`feat:`, `fix:`, etc.) — release-please tracks these for the next release PR
 7. (If develop→main auto-PR was scaffolded) Confirm Actions can open PRs — `project-scaffold` enables this; for an existing repo run the `gh api ... actions/permissions/workflow` command in `references/develop-to-main-pr.md`
+8. (If develop→main auto-PR was scaffolded) Merge the `develop → main` promotion PR with **"Create a merge commit"**, never squash — squashing breaks `develop`'s ancestry into `main` and hides the conventional commits release-please needs, and undoing it takes a force-push of `main`. The generated PR body says so at the top; see "Never squash the promotion PR" in `references/develop-to-main-pr.md`
 ```
 
 ---

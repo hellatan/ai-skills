@@ -73,6 +73,20 @@ jobs:
         if: steps.check.outputs.ahead != '0'
         run: |
           {
+            echo "## ⚠️ Merge with \"Create a merge commit\" — NOT squash"
+            echo ""
+            echo "\`develop\`'s commits must stay ancestors of \`main\`. Squashing collapses"
+            echo "them into one new commit, so git no longer sees them as merged: \`main\` and"
+            echo "\`develop\` diverge from a stale merge base, \`git log main..develop\` reports"
+            echo "already-released commits forever, and later promotions 3-way merge against"
+            echo "the wrong base. Recovering means a force-push of \`main\`."
+            echo ""
+            echo "GitHub's merge button remembers whichever method you last used — and squash"
+            echo "is often the right pick for feature → \`develop\` PRs, so the wrong method is"
+            echo "one click away here. Check it reads **Create a merge commit** before merging."
+            echo ""
+            echo "---"
+            echo ""
             echo "## Pending release"
             echo ""
             echo "This PR is auto-opened and auto-refreshed whenever \`develop\` advances."
@@ -154,9 +168,41 @@ If the cosmetic drift bothers you, or you turn that setting on:
 
 - **Back-merge after each release** — `main` → `develop` via a PR (never a direct push to
   either branch). One extra step per release, keeps them genuinely in sync.
-- **Don't** switch the promotion merge to squash/rebase without checking what depends on it.
-  In repos where a push to `main` fires the release workflow, the merge commit *is* the
-  trigger — changing it silently breaks releases.
+- **Don't** "fix" the drift by switching the promotion merge to squash — see below. Rebase
+  has the same problem. In repos where a push to `main` fires the release workflow, the merge
+  commit is also the trigger, so changing it silently breaks releases too.
+
+## Never squash the promotion PR
+
+The promotion PR must be merged with **"Create a merge commit"**. This is the one merge
+method rule in the pipeline, and it's worth stating loudly because getting it wrong is
+recoverable only by rewriting `main`.
+
+Squashing rewrites `develop`'s commits into a single *new* commit on `main`. The content
+lands correctly, which is what makes it easy to miss — but the original commits are no
+longer ancestors of `main`, so:
+
+- `git log main..develop` reports already-released commits as unmerged, forever.
+- The two branches diverge from a stale merge base, so later promotions 3-way merge against
+  the wrong base and can conflict on files neither branch "changed" since the real split.
+- `main` no longer contains the conventional-commit messages release-please parses — a
+  squash commit titled `chore(release): develop → main` hides the `feat:`/`fix:` commits
+  underneath it, so the version bump and changelog entries can silently go missing.
+
+Recovery is a force-push of `main` back to the pre-squash commit followed by a real merge —
+fine on a solo repo, disruptive anywhere with other clones.
+
+**Why it happens.** GitHub's merge button remembers the last method used per repo, and
+squash is frequently the right choice for feature → `develop` PRs. So the wrong method sits
+pre-selected on the promotion PR. Don't rely on remembering:
+
+- The workflow above leads the generated PR body with the warning, so it's on screen at the
+  moment of clicking.
+- Say it in `CONTRIBUTING.md` too (`gitflow-init/references/contributing-md.md` covers this
+  in its Releases section).
+- Disabling squash repo-wide would prevent it outright, but only do that if nothing else in
+  the repo depends on squash-merging — some workflows squash single-commit PRs deliberately
+  (e.g. to get GitHub to sign the result server-side when the author has no signing key).
 
 ## Notes for the report
 
