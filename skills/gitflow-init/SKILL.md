@@ -1,6 +1,6 @@
 ---
 name: gitflow-init
-description: Set up the main + develop (+ optional stage) branch model on an existing repo, push the new branches, apply branch protection, and switch the GitHub default branch to develop. Use when the user wants to "set up gitflow", "add a develop branch", "configure branch protection", "set up a PR-flow workflow", or otherwise bring this project's git workflow conventions to a repo that doesn't have them yet. Detects current branch state, idempotent — won't recreate branches that exist or stomp on existing protection rules without consent.
+description: Set up the main + develop (+ optional stage) branch model on an existing repo, push the new branches, apply branch protection, switch the GitHub default branch to develop, and write a CONTRIBUTING.md documenting the branch/PR/commit conventions. Use when the user wants to "set up gitflow", "add a develop branch", "configure branch protection", "add a CONTRIBUTING.md", "document our branching/PR conventions", "set up a PR-flow workflow", or otherwise bring this project's git workflow conventions to a repo that doesn't have them yet. Detects current branch state, idempotent — won't recreate branches that exist or stomp on existing protection rules without consent.
 ---
 
 # gitflow-init
@@ -122,12 +122,23 @@ gh repo edit --default-branch develop
 
 PRs default to merging into `develop`. `main` only gets touched by release flows.
 
-### 8. Report back
+### 8. Write `CONTRIBUTING.md`
+
+The human-facing counterpart to `CLAUDE.md`, documenting the branch model this skill just
+applied. Default-on; skip if the file already exists (offer to extend it instead). Template
+and placement rules: `references/contributing-md.md`.
+
+Note there is **no org-wide default for user accounts** — a `.github` org repo can supply
+one, but only for organizations. Personal-account repos each need their own file, which is
+why this is scaffolded rather than hand-copied.
+
+### 9. Report back
 
 Print:
 - ✅ What was created (branches)
 - ✅ What was protected (or skipped with reason)
 - ✅ Default branch state
+- ✅ `CONTRIBUTING.md` written (or skipped — already present)
 - 📋 Next steps:
 
 ```
@@ -142,6 +153,8 @@ Next steps:
 ## Reference files
 
 - `references/branch-protection.md` — `gh api` protection script + 403 fallback message
+- `references/contributing-md.md` — `CONTRIBUTING.md` template, placement, and why user
+  accounts get no org-wide default
 
 ## Why these defaults
 
