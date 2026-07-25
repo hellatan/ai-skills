@@ -75,9 +75,36 @@ Python equivalent: `pytest -m integration`.
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps
+      # Cache the browser binaries (~100MB+) across runs, keyed on the lockfile so the
+      # cache busts when the pinned Playwright version changes. On a hit we skip the
+      # download and only apt-install the OS deps (those aren't cacheable — they're
+      # system packages, not files under the cached path).
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps
       - run: npm run test:e2e
 ```
+
+Notes:
+- **The cache is the cost lever in this job.** Downloading browsers on every run is
+  1–2 min of billed time that a cache hit removes. Don't drop the two conditional
+  install steps down to a single `npx playwright install --with-deps` — that
+  re-downloads even on a hit.
+- `install-deps` (hit) installs only the OS packages; `install --with-deps` (miss)
+  fetches browsers *and* OS packages.
+- Narrow to one browser (`... install --with-deps chromium`, and likewise for
+  `install-deps chromium`) if the Playwright config only projects Chromium — smaller
+  cache, faster miss path.
+- Key on `package-lock.json` (or the lockfile the project actually uses — `yarn.lock`,
+  `pnpm-lock.yaml`). Keying on nothing means a stale cache after a Playwright bump;
+  keying on the whole repo means a needless miss on every commit.
 
 ## Path 2: No `.github/workflows/ci.yml` yet
 
