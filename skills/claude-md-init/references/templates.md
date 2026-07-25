@@ -24,6 +24,16 @@ When the project ships with `docs/architecture.html` (which `/project-scaffold` 
 
 This makes the visual map discoverable to any contributor or Claude session working on the repo. Skip the bullet when retrofitting a CLAUDE.md into a repo that has no `docs/architecture.html`.
 
+## Living-doc note (every template)
+
+Add this line right under the project one-liner (after the `@.claude/rules/git-workflow.md` directive, when present) in every generated CLAUDE.md:
+
+```markdown
+> **Living doc:** when you learn a durable, non-obvious fact about this repo (a gotcha, convention, or footgun), add it to the matching section of this file in the same PR — don't leave it in chat.
+```
+
+Without it, hard-won repo knowledge surfaces in a session, gets used once, and evaporates; this line makes CLAUDE.md the designated landing place. The same lean rules still apply — durable and non-obvious only, and the 50–120 line budget is the backstop against the note becoming a dumping-ground license.
+
 ## Conventions every template should include
 
 These cross-cutting conventions caused real breakage on past scaffolds. They're already baked into every template's `## Conventions` block below (with stack-appropriate wording; the env-lazy rule is omitted where nothing imports app code at build time, e.g. research) — keep them when customizing. The canonical rationale lives here, once:
@@ -43,6 +53,8 @@ For frontend/Next.js templates, also include the **styling convention** matching
 <One-line description of what this repo is and what stack.>
 
 @.claude/rules/git-workflow.md
+
+> **Living doc:** when you learn a durable, non-obvious fact about this repo (a gotcha, convention, or footgun), add it to the matching section of this file in the same PR — don't leave it in chat.
 
 ## Lifecycle
 
