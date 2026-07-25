@@ -26,7 +26,32 @@ So: PAT for the two PR-**authoring** workflows, `GITHUB_TOKEN` for this **re-tri
 
 - Restricted to trusted commenters via `author_association` ∈ {OWNER, MEMBER, COLLABORATOR}, so outside contributors can't trigger it.
 - It **never checks out PR-head code** — it only calls `gh run rerun` / `gh workflow run`, so there is no code-execution ("pwn request") vector despite running with repo secrets.
-- An exact-match gate (trimmed body must equal `/rebuild`) stops prose that merely mentions `/rebuild` from firing a build.
+- A prefix-command gate (the comment must *begin* with `/rebuild` as a whole word) stops prose that merely mentions `/rebuild` from firing a build.
+
+## Command matching
+
+The gate matches `^/rebuild` as a **whole word**, so trailing prose is fine:
+
+| Comment | Fires? |
+| --- | --- |
+| `/rebuild` | ✅ |
+| `/rebuild please` / `/rebuild — flaky e2e` | ✅ trailing prose is allowed |
+| `/rebuilding the docs` | ❌ word boundary fails |
+| `should I /rebuild this?` | ❌ doesn't start the job at all |
+
+Deliberately **not** an exact-body match. Requiring the body to equal `/rebuild` exactly
+meant a comment like `/rebuild please` started the job, failed the gate, and exited with
+nothing visible on the PR — a silent no-op for someone plainly asking for a rebuild.
+Accepting the prefix removes that failure mode entirely (and one round trip) instead of
+papering over it with an explanatory reply.
+
+Two implementation notes:
+
+- `[^a-zA-Z0-9_]|$` emulates a `\b` word boundary — bash's ERE has no `\b`.
+- `${trimmed,,}` lowercases for a case-insensitive match, but the **job-level** `if` still
+  uses a case-sensitive `startsWith`, so `/Rebuild` never starts the job. GitHub
+  expressions have no regex or lowercase function, and loosening that filter would start
+  billable jobs on looser matches. Lowercase `/rebuild` is the real-world case.
 
 ## Workflow
 
@@ -57,17 +82,17 @@ jobs:
       startsWith(github.event.comment.body, '/rebuild')
     runs-on: ubuntu-latest
     steps:
-      - name: Enforce exact match
+      - name: Enforce command match
         id: gate
         env:
           BODY: ${{ github.event.comment.body }}
         run: |
-          trimmed="$(printf '%s' "$BODY" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-          if [[ "$trimmed" == "/rebuild" ]]; then
+          trimmed="$(printf '%s' "$BODY" | tr -d '\r' | sed -e 's/^[[:space:]]*//')"
+          if [[ "${trimmed,,}" =~ ^/rebuild([^a-zA-Z0-9_]|$) ]]; then
             echo "ok=true" >> "$GITHUB_OUTPUT"
           else
             echo "ok=false" >> "$GITHUB_OUTPUT"
-            echo "Comment was not exactly '/rebuild' — ignoring."
+            echo "Comment began with '/rebuild' but not as a whole word — ignoring."
           fi
 
       - name: Acknowledge with 👀
