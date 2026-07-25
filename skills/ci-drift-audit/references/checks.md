@@ -108,7 +108,39 @@ workflow it dispatches must have `workflow_dispatch:` (check 4).
 
 ---
 
-## 6. Job consolidation (`checks`) — informational only
+## 6. `develop → main` promotion workflow — low (missing no-squash warning: medium)
+
+**Why.** Nothing else opens the release PR, so without it every release waits on someone
+remembering to open one by hand. Its generated body also carries the no-squash warning,
+which is the only thing between a routine merge and permanent branch divergence.
+
+**Detect.** `.github/workflows/develop-to-main-pr.yml` exists. Two drift shapes, both
+**present-but-drifted** rather than missing:
+
+- **Legacy filename** `develop-to-main.yml` (workflow `name: develop-to-main`) — report as
+  a rename, the same way check 5 handles the old `/rebuild` name. Older copies of this
+  generation also exit early when a PR is already open, so they never refresh the body and
+  never close a stale PR once `develop` falls level with `main`.
+- **Body missing the no-squash warning** — the generated body must lead with
+  `## ⚠️ Merge with "Create a merge commit" — NOT squash`. Grep the workflow for
+  `NOT squash`. Report this even when the filename is correct; a repo scaffolded before
+  the warning existed passes a presence-only check while still carrying the risk.
+
+**Why that warning is load-bearing.** Squash-merging the promotion PR collapses `develop`'s
+commits into one *new* commit on `main`, so git stops seeing them as merged. Every later
+promotion PR then opens against a stale merge base and reads as permanently "behind", and
+the gap compounds each release. This is real divergence — distinct from the harmless
+cosmetic behind-ness caused by the merge commit itself, which `develop-to-main-pr.md`
+explains.
+
+**Scope.** Gitflow repos without a `stage` branch. Skip `main`-only repos, and skip repos
+with a staging topology (`develop → stage → main` needs a different two-workflow setup).
+
+**Fix.** `gh-actions-init/references/develop-to-main-pr.md`.
+
+---
+
+## 7. Job consolidation (`checks`) — informational only
 
 **Why informational.** Merging the light jobs into one `checks` job saves real minutes
 (one `npm ci` + checkout instead of several, less per-job rounding), but it **renames the
