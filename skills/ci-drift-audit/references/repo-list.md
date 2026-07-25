@@ -3,9 +3,32 @@
 Where the audited set comes from, and where an adopter keeps it. The skill itself never
 contains repo names — it's public, and repo lists are not.
 
+## The audit host repo
+
+Everything below lives in **one private repo you nominate as the audit host** — the repo
+whose Actions run the schedule and whose secrets hold the token. It is not a special kind
+of repo and nothing needs creating from scratch if you already have a candidate:
+
+- an existing private ops / infra / automation repo (most common — the audit is a few files
+  in `.github/`, it doesn't take the repo over)
+- a personal "workspace" or hub repo you already keep active
+- failing those, a new private repo — name it something obvious like `ci-audit`
+
+Two requirements, both hard:
+
+1. **Private.** The repo list names your private repos, drift reports describe their CI, and
+   the token can read them. See the "Where the audit runs" section in `SKILL.md`.
+2. **Active enough to keep running.** Scheduled workflows are auto-disabled after **60 days
+   of no repository activity** — but that rule applies to **public** repos, so a private
+   host is not at risk from inactivity. It *is* still worth picking a repo you'd notice
+   breaking.
+
+One host audits many repos. You do not put anything in the audited repos themselves — they
+stay untouched, which is what keeps this read-only.
+
 ## Conventional paths
 
-In the **private host repo** that runs the audit:
+In the private host repo:
 
 ```
 .github/ci-drift-audit/
