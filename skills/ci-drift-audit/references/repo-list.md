@@ -46,11 +46,33 @@ A repo created six months from now is never audited, nothing says so, and the re
 reads "all green" — coverage silently shrinks relative to the fleet. Discovery makes new
 repos opt-*out* instead of opt-*in*.
 
-**Token caveat.** Discovery is bounded by what the token can enumerate. A fine-grained PAT
-scoped to "only select repositories" may not list them via the user endpoint — in which case
-either grant "all repositories" (read-only Contents + Metadata is a modest risk for an
-audit) or use explicit-list mode. Verify which behaviour you get before relying on it;
-don't assume.
+**Token caveat — match the token scope to the mode.** Discovery is bounded by what the
+token can enumerate, which makes one combination quietly broken:
+
+| Token scope | Repo source | Verdict |
+| --- | --- | --- |
+| All repositories (read-only) | discovery | ✅ new repos covered automatically |
+| Selected repositories | explicit `repos.txt` | ✅ both narrow; the set is visible in git |
+| Selected repositories | discovery | ⚠️ **looks automatic, silently isn't** |
+
+In that third row, a repo created after the token was issued isn't in its scope, so
+discovery never returns it and it goes unaudited with no signal. That's the failure
+discovery exists to prevent, relocated from a file in version control to a setting in the
+GitHub UI — strictly worse, because nobody reviews token scope in a PR.
+
+Pick a coherent pair. If you want discovery's "new repos are opt-out" property, the token
+needs **all repositories** with read-only Contents + Metadata. If you'd rather keep the
+token narrow, use explicit-list mode so the audited set at least stays reviewable.
+
+Verify enumeration before relying on it — don't assume:
+
+```bash
+GH_TOKEN=<the-audit-token> gh repo list <owner> --limit 200 --json nameWithOwner \
+  -q '.[].nameWithOwner' | wc -l
+```
+
+If that returns fewer repos than expected (or zero), the token can't enumerate and
+discovery mode will silently under-report.
 
 ## Mode 2: explicit list
 
