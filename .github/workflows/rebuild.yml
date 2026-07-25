@@ -1,4 +1,4 @@
-name: CI rebuild on comment
+name: rebuild
 
 on:
   issue_comment:
@@ -45,6 +45,11 @@ jobs:
         if: steps.gate.outputs.ok == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # gh resolves the target repo from the git remote by default; this job
+          # has no checkout, so without GH_REPO it dies with "not a git
+          # repository" (every gh call below is repo-scoped). github.repository
+          # gives gh the repo directly, no checkout needed.
+          GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.issue.number }}
         run: |
           head="$(gh pr view "$PR" --json headRefName -q .headRefName)"
