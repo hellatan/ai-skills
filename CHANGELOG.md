@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.6.0](https://github.com/hellatan/claude-skills/compare/v1.5.1...v1.6.0) (2026-07-25)
+
+
+### Features
+
+* **ci-drift-audit:** add skill defining the CI baseline drift checks ([#71](https://github.com/hellatan/claude-skills/issues/71)) ([0973a9c](https://github.com/hellatan/claude-skills/commit/0973a9c62f5aa37860207da0d3f909c998a828ec))
+* **claude-md-init:** add living-doc note to every template ([#72](https://github.com/hellatan/claude-skills/issues/72)) ([3805d57](https://github.com/hellatan/claude-skills/commit/3805d570e66e6362ea844896e20ae2d31835edf7))
+* **claude-md-init:** add toolbox/scripts-repo template for manifest-less repos ([#70](https://github.com/hellatan/claude-skills/issues/70)) ([785e852](https://github.com/hellatan/claude-skills/commit/785e852b0ad49ce369ee00756123f53f1265bbce))
+* **gh-actions-init:** bake the cost-verification procedure into the skill ([#74](https://github.com/hellatan/claude-skills/issues/74)) ([97706b4](https://github.com/hellatan/claude-skills/commit/97706b489ed81bb2f847759d8d847961033e52c4))
+* **gh-actions-init:** match /rebuild as a prefix command, not exact body ([#68](https://github.com/hellatan/claude-skills/issues/68)) ([0cae3f5](https://github.com/hellatan/claude-skills/commit/0cae3f58eeb33500f63a2580b446d6cb7b231031))
+* **gitflow-init:** scaffold CONTRIBUTING.md as step 8 ([#73](https://github.com/hellatan/claude-skills/issues/73)) ([bfb1f5c](https://github.com/hellatan/claude-skills/commit/bfb1f5c2b3006ffc8191cefc6a85db6d145f0842))
+* **testing-init:** cache Playwright browsers in the e2e CI job ([#67](https://github.com/hellatan/claude-skills/issues/67)) ([6d0c129](https://github.com/hellatan/claude-skills/commit/6d0c1299634fc1f6f7852f0ac0c2a57be2b9847d))
+
 ## [1.5.1](https://github.com/hellatan/claude-skills/compare/v1.5.0...v1.5.1) (2026-07-20)
 
 
