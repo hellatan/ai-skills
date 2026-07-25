@@ -51,6 +51,9 @@ gh api repos/<owner>/<repo>/actions/runs/<RUN_ID>/timing --jq '.billable.UBUNTU.
 After the change, confirm **no** CI run fires on the `push` to `develop` (only the
 promotion PR runs), and that the promotion PR still runs the full suite.
 
+To keep it from regressing across repos over time, `ci-drift-audit` checks this (and the
+rest of the baseline) on a schedule — see that skill.
+
 ## Also non-breaking: cache the e2e browser download
 
 If the repo has a Playwright e2e job, caching the browser binaries removes 1–2 min of
