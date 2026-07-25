@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/hellatan/claude-skills/compare/v1.6.0...v1.7.0) (2026-07-25)
+
+
+### Features
+
+* **ci-drift-audit:** check the develop → main promotion workflow ([#85](https://github.com/hellatan/claude-skills/issues/85)) ([0c1b436](https://github.com/hellatan/claude-skills/commit/0c1b436518357d0c48296acf85aa855522da67e8))
+
 ## [1.6.0](https://github.com/hellatan/claude-skills/compare/v1.5.1...v1.6.0) (2026-07-25)
 
 
