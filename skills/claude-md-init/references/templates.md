@@ -326,6 +326,57 @@ Use the matching backend template above as a starting point and:
 
 ---
 
+## Toolbox / scripts repo (no manifest)
+
+For repos with no `package.json` / `pyproject.toml` at all — shell-script tools, editor-pasted
+sources (e.g. Pine Script indicators), declarative config/data repos where committing *is*
+deploying. There's no install/build/test loop to document, so this template swaps
+"Canonical commands" for "How work ships" and spends the line budget on gotchas.
+
+If the repo has one rule that most often bites (a deploy model, a two-lane commit
+convention, a "never edit X directly"), promote it to the first section with a heading that
+names it — don't bury it mid-file.
+
+```markdown
+# <PROJECT_NAME>
+
+<One-liner: what the repo holds and where its output lands.>
+
+## Lifecycle
+
+- <Branch model. Many toolbox repos are main-only: feature branches off `main`, PRs target
+  `main`. If the repo has `develop`, use the universal preamble's lifecycle instead.>
+- <Versioning/release if any — often none: merging is shipping.>
+
+## Project map
+
+- <2–6 bullets for top-level dirs/files. Load-bearing script(s) first.>
+
+## How work ships
+
+<The actual delivery mechanism, one bullet per path, e.g.:>
+- <`./publish.sh <file>` — what it does end-to-end, and how to verify it worked>
+- <"paste into <external editor/tool>" — plus the pre-save check that prevents pasting into
+  the wrong target>
+- <"commit `<dir>/*.yml` to <branch>" — and what picks it up, where, when>
+
+## Gotchas
+
+- <Only non-obvious, hard-won facts: footguns, environment quirks, silent-failure modes.
+  Mine the git fix/revert history and the `docs/architecture.html` failure-modes table.>
+```
+
+Notes:
+- These repos live or die on the Gotchas section — the "commands" are usually trivial; the
+  sharp edges are not.
+- Include the `BREAKING CHANGE:` / `feat!:` convention bullet only if the repo runs release
+  tooling; drop it otherwise.
+- Same retrofit rules as every template: skip `@.claude/rules/git-workflow.md` unless the
+  file exists, and add the architecture-doc Project-map bullet only when
+  `docs/architecture.html` exists.
+
+---
+
 ## What NOT to put in any of these templates
 
 - Linter/formatter rules (the configs themselves enforce them)
