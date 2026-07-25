@@ -77,9 +77,9 @@ If it doesn't: scaffold the stub. The stub lists Render, Vercel, Fly.io, Railway
 
 Only relevant when `develop` exists AND there's no `stage` branch (gitflow without staging). Auto-opens/refreshes a draft `develop → main` PR so releases never wait on someone remembering to open it manually. Authors the PR with the same `RELEASE_PLEASE_TOKEN` secret release-please uses. Skip for `main`-only repos and for repos with a `stage` branch (staging topology needs a different two-workflow setup — leave a note). Skip if the file already exists.
 
-**e. /rebuild comment trigger** — `ci-rebuild-on-comment.yml`.
+**e. /rebuild comment trigger** — `rebuild.yml`.
 
-Default-on for gitflow repos (where `develop` exists). Lets a maintainer re-run failed CI from a PR by commenting `/rebuild` — the manual fallback for flaky runs and for repos where `RELEASE_PLEASE_TOKEN` isn't set up yet (without the PAT, bot-authored PRs never trigger CI and park behind manual approval). Skip for `main`-only repos and if the file already exists. See `references/rebuild-on-comment.md`.
+Default-on for gitflow repos (where `develop` exists). Lets a maintainer re-run failed CI from a PR by commenting `/rebuild` — the manual fallback for flaky runs and for repos where `RELEASE_PLEASE_TOKEN` isn't set up yet (without the PAT, bot-authored PRs never trigger CI and park behind manual approval). Skip for `main`-only repos and if the file already exists (rename legacy `ci-rebuild-on-comment.yml` copies). See `references/rebuild.md`.
 
 ### 3. Show summary, halt for confirmation
 
@@ -150,9 +150,9 @@ One file: `.github/workflows/develop-to-main-pr.yml`. Scaffold it only when `dev
 
 ### 9. /rebuild comment trigger (gitflow)
 
-See `references/rebuild-on-comment.md`.
+See `references/rebuild.md`.
 
-One file: `.github/workflows/ci-rebuild-on-comment.yml`. Scaffold it only when `develop` exists (gitflow) — it lets a maintainer re-run failed CI from a PR by commenting `/rebuild`, the manual fallback now that `RELEASE_PLEASE_TOKEN` handles bot-PR CI automatically. Adapt the dispatch-fallback target to the repo's CI workflow filename (`ci.yml`, or `validate.yml` for a docs/skills repo). Skip for `main`-only repos and if the file already exists.
+One file: `.github/workflows/rebuild.yml` (workflow `name: rebuild`, matching the `/rebuild` command). Scaffold it only when `develop` exists (gitflow) — it lets a maintainer re-run failed CI from a PR by commenting `/rebuild`, the manual fallback now that `RELEASE_PLEASE_TOKEN` handles bot-PR CI automatically. Adapt the dispatch-fallback target to the repo's CI workflow filename (`ci.yml`, or `validate.yml` for a docs/skills repo). Skip for `main`-only repos and if the file already exists.
 
 ### 10. Smoke-validate
 
@@ -187,6 +187,7 @@ Next steps:
 5. (If you want branch protection on main/develop) Set it up via GitHub UI or `gh api repos/{owner}/{repo}/branches/{branch}/protection`
 6. Make your first conventional commit (`feat:`, `fix:`, etc.) — release-please tracks these for the next release PR
 7. (If develop→main auto-PR was scaffolded) Confirm Actions can open PRs — `project-scaffold` enables this; for an existing repo run the `gh api ... actions/permissions/workflow` command in `references/develop-to-main-pr.md`
+8. (If develop→main auto-PR was scaffolded) Merge the `develop → main` promotion PR with **"Create a merge commit"**, never squash — squashing breaks `develop`'s ancestry into `main` and hides the conventional commits release-please needs, and undoing it takes a force-push of `main`. The generated PR body says so at the top; see "Never squash the promotion PR" in `references/develop-to-main-pr.md`
 ```
 
 ---
@@ -199,9 +200,9 @@ Three scaffolded workflows, two tokens. The split is deliberate:
 |---|---|---|
 | `release-please.yml` | `RELEASE_PLEASE_TOKEN` | the release PR must be user-authored so CI runs (and isn't parked behind `action_required`) |
 | `develop-to-main-pr.yml` | `RELEASE_PLEASE_TOKEN` | the `develop → main` PR needs CI for the same reason |
-| `ci-rebuild-on-comment.yml` | `GITHUB_TOKEN` | uses `gh run rerun` + `gh workflow run` (`workflow_dispatch`), both exempt from the recursion guard — a PAT adds nothing |
+| `rebuild.yml` | `GITHUB_TOKEN` | uses `gh run rerun` + `gh workflow run` (`workflow_dispatch`), both exempt from the recursion guard — a PAT adds nothing |
 
-One PAT secret (`RELEASE_PLEASE_TOKEN`) covers both PR-authoring workflows; `/rebuild` stays on the built-in token. See `references/release-please.md` and `references/rebuild-on-comment.md`.
+One PAT secret (`RELEASE_PLEASE_TOKEN`) covers both PR-authoring workflows; `/rebuild` stays on the built-in token. See `references/release-please.md` and `references/rebuild.md`.
 
 ## Reference files
 
@@ -211,7 +212,7 @@ One PAT secret (`RELEASE_PLEASE_TOKEN`) covers both PR-authoring workflows; `/re
 - `references/ci-cost-verification.md` — prove a cost change worked using GitHub's own billed minutes (`runs/{id}/timing`): before/after tables, pricing constants, and the gotchas (a `0` billable reading is not "free")
 - `references/release-please.md` — workflow, config, manifest; monorepo variant; tag-pattern gotchas
 - `references/develop-to-main-pr.md` — `develop-to-main-pr.yml`: auto-opens/refreshes the draft `develop → main` release PR (gitflow without staging)
-- `references/rebuild-on-comment.md` — `ci-rebuild-on-comment.yml`: `/rebuild` PR-comment re-runs failed CI (gitflow); pairs with the PAT setup
+- `references/rebuild.md` — `rebuild.yml`: `/rebuild` PR-comment re-runs failed CI (gitflow); pairs with the PAT setup
 - `references/deploy-stub.md` — `deploy.yml` with the deploy-target picker, secret-setup guidance, and platform examples (Render, Vercel, Fly, Railway, GHCR, SSH/rsync)
 
 ## Why these defaults

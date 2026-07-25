@@ -71,6 +71,13 @@ rather than guessing.]
 
 Merging to `develop` opens a promotion PR to `main`. Merging that triggers release-please,
 which opens a release PR; merging *that* tags the release.
+
+⚠️ **Merge the `develop → main` promotion PR with "Create a merge commit" — never squash.**
+Squashing rewrites `develop`'s commits into one new commit, so they stop being ancestors of
+`main`: the branches diverge from a stale merge base, `git log main..develop` reports
+already-released commits forever, and release-please can no longer see the `feat:`/`fix:`
+messages it needs. Undoing it requires a force-push of `main`. GitHub's merge button
+remembers the last method used, so check it before clicking.
 ```
 
 ## Notes
@@ -80,7 +87,7 @@ which opens a release PR; merging *that* tags the release.
   "conventions are in `CLAUDE.md`" is fine for detail that only agents need.
 - **The `/rebuild` line matters.** It's the main discoverability path for that feature —
   someone who doesn't know it exists will never type it. Only include it if the repo
-  actually has `ci-rebuild-on-comment.yml` (see
-  `gh-actions-init/references/rebuild-on-comment.md`).
+  actually has `rebuild.yml` (see
+  `gh-actions-init/references/rebuild.md`).
 - Don't document branch protection specifics that may not be enabled — free-tier private
   repos can't have it (see `branch-protection.md`).

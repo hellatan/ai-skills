@@ -93,7 +93,9 @@ yq '.on | has("workflow_dispatch")' ci.yml
 **Why.** ChatOps re-trigger for flaky runs and the bot-PR CI gap. Cheaper than the
 alternative (an empty commit = a whole fresh run).
 
-**Detect.** `.github/workflows/ci-rebuild-on-comment.yml` exists.
+**Detect.** `.github/workflows/rebuild.yml` exists. The legacy name
+`ci-rebuild-on-comment.yml` counts as present-but-drifted: report it as a rename
+(→ `rebuild.yml`, workflow `name: rebuild`), not as a missing workflow.
 
 **Scope.** Default-on for **gitflow repos** (those with a `develop` branch) — skip for
 `main`-only repos, which have no bot-PR gap. Don't report its absence as drift there.
@@ -102,7 +104,7 @@ alternative (an empty commit = a whole fresh run).
 active at all (`issue_comment` workflows only run from the default branch), and the CI
 workflow it dispatches must have `workflow_dispatch:` (check 4).
 
-**Fix.** `gh-actions-init/references/rebuild-on-comment.md`.
+**Fix.** `gh-actions-init/references/rebuild.md`.
 
 ---
 

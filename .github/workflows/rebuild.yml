@@ -1,4 +1,4 @@
-name: CI rebuild on comment
+name: rebuild
 
 on:
   issue_comment:
@@ -22,17 +22,17 @@ jobs:
       startsWith(github.event.comment.body, '/rebuild')
     runs-on: ubuntu-latest
     steps:
-      - name: Enforce exact match
+      - name: Enforce command match
         id: gate
         env:
           BODY: ${{ github.event.comment.body }}
         run: |
-          trimmed="$(printf '%s' "$BODY" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-          if [[ "$trimmed" == "/rebuild" ]]; then
+          trimmed="$(printf '%s' "$BODY" | tr -d '\r' | sed -e 's/^[[:space:]]*//')"
+          if [[ "${trimmed,,}" =~ ^/rebuild([^a-zA-Z0-9_]|$) ]]; then
             echo "ok=true" >> "$GITHUB_OUTPUT"
           else
             echo "ok=false" >> "$GITHUB_OUTPUT"
-            echo "Comment was not exactly '/rebuild' — ignoring."
+            echo "Comment began with '/rebuild' but not as a whole word — ignoring."
           fi
 
       - name: Acknowledge with 👀
@@ -45,6 +45,11 @@ jobs:
         if: steps.gate.outputs.ok == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # gh resolves the target repo from the git remote by default; this job
+          # has no checkout, so without GH_REPO it dies with "not a git
+          # repository" (every gh call below is repo-scoped). github.repository
+          # gives gh the repo directly, no checkout needed.
+          GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.issue.number }}
         run: |
           head="$(gh pr view "$PR" --json headRefName -q .headRefName)"
