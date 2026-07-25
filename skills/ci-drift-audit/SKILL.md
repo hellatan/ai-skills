@@ -66,6 +66,35 @@ reader to ignore it, and the one time it matters it gets skimmed past. Silence =
 Do alert loudly on *audit failure* (missing token, API errors) — a silently broken audit
 is worse than no audit, because it reads as "no drift."
 
+### The blind spot in "silence = healthy"
+
+That policy has one hole it cannot close from the inside: **"the audit never ran" is
+indistinguishable from "everything is clean."** Both are silence. An Actions spending limit,
+a disabled workflow, an expired token, or a schedule that quietly stops firing all present
+as health.
+
+Loud failure alerts don't help — they only fire if the workflow *runs*.
+
+The fix is a **dead man's switch**: ping an external cron monitor on every run (pass or
+fail), and let that monitor alert when a ping **doesn't** arrive. Absence becomes an active
+alert instead of something a human has to notice not happening — and "I'd never notice it
+was missing" is the correct objection to any design that relies on spotting silence.
+
+Requirements that matter:
+
+- **Ping unconditionally** (`always()`), not only on success — the question is "did this
+  run", not "did it pass".
+- **Never let it fail the audit** (`continue-on-error`) — the switch is a safety net, not a
+  dependency.
+- **Keep it optional**, and say so in the log when it's unset, so the runner works without
+  it.
+- **It must live outside GitHub Actions.** A monitor hosted in the thing it watches goes
+  down with it.
+- **Match the monitor's schedule to the workflow's cron, in UTC**, with a grace window of a
+  day or more — GitHub's scheduler is best-effort and routinely runs late.
+- **Test it once by letting a ping lapse.** An untested dead man's switch is itself a silent
+  failure.
+
 ## The checks
 
 Full detail, rationale, and detection notes: `references/checks.md`.
@@ -154,5 +183,6 @@ The list will grow. Keep each check:
 
 - `references/checks.md` — each check: rationale, detection, fix, severity
 - `references/repo-list.md` — where the audited set comes from: discovery vs explicit list, conventional paths, token caveats
+- `references/audit-token.md` — the read-only PAT: required scopes, why 404 means "no access", and the confirmed cause of a token that authenticates but sees nothing
 - Baseline sources: `gh-actions-init/references/{ci-structure,ci-cost-migration,rebuild,develop-to-main-pr}.md`,
   `testing-init/references/ci-test-job.md`
