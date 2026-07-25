@@ -64,6 +64,31 @@ Read `repos.txt`, subtract `ignore.txt`. Use when:
 The cost is the maintenance burden above — so if you pick this mode, put a line in the
 host repo's `CONTRIBUTING.md` telling people to add new repos here.
 
+## Newly scaffolded repos
+
+A repo created by `project-scaffold` has to become visible to the audit somehow. It is
+**not** the scaffolder's job to register it:
+
+- Most people running `project-scaffold` have no audit host at all. Making the scaffolder
+  depend on one means it either fails or nags in the common case.
+- The scaffolder would have to know *where* the host repo is — configuration it doesn't
+  have and shouldn't acquire.
+- The audit is opt-in infrastructure; scaffolding a repo must not require it to exist.
+
+**In discovery mode this is a non-problem** — the new repo appears in `gh repo list` and is
+audited on the next run, automatically. Nothing to register, nothing to forget. This is the
+strongest argument for discovery being the default.
+
+**In explicit-list mode** the new repo must be added in two places, and *both* are easy to
+miss:
+
+1. `repos.txt` in the audit host
+2. the audit token's repository access — otherwise the repo reports as an audit **error**
+   rather than being audited (loud, at least, rather than silent)
+
+`project-scaffold`'s final report carries a conditional one-liner pointing here. That's a
+cross-reference, not ownership: the scaffolder mentions the step, this skill defines it.
+
 ## Reporting the resolved set
 
 Whichever mode, print the count and mode with every run:

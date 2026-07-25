@@ -21,6 +21,9 @@ Next steps:
 3. Fill in the deploy target in `.github/workflows/deploy.yml`
 4. Replace the smoke test stubs with real tests as you build features
 5. When ready to release, merge develop → main; release-please will open a release PR
+6. (Only if you run a CI drift audit) Discovery mode picks this repo up automatically on
+   the next run. Explicit-list mode: add it to the audit host's
+   `.github/ci-drift-audit/repos.txt` AND to the audit token's repository access
 
 Useful commands (run from repo root):
 - `npm run check:all` — run everything CI would run
