@@ -24,6 +24,16 @@ When the project ships with `docs/architecture.html` (which `/project-scaffold` 
 
 This makes the visual map discoverable to any contributor or Claude session working on the repo. Skip the bullet when retrofitting a CLAUDE.md into a repo that has no `docs/architecture.html`.
 
+## Living-doc note (every template)
+
+Add this line right under the project one-liner (after the `@.claude/rules/git-workflow.md` directive, when present) in every generated CLAUDE.md:
+
+```markdown
+> **Living doc:** when you learn a durable, non-obvious fact about this repo (a gotcha, convention, or footgun), add it to the matching section of this file in the same PR — don't leave it in chat.
+```
+
+Without it, hard-won repo knowledge surfaces in a session, gets used once, and evaporates; this line makes CLAUDE.md the designated landing place. The same lean rules still apply — durable and non-obvious only, and the 50–120 line budget is the backstop against the note becoming a dumping-ground license.
+
 ## Conventions every template should include
 
 These cross-cutting conventions caused real breakage on past scaffolds. They're already baked into every template's `## Conventions` block below (with stack-appropriate wording; the env-lazy rule is omitted where nothing imports app code at build time, e.g. research) — keep them when customizing. The canonical rationale lives here, once:
@@ -43,6 +53,8 @@ For frontend/Next.js templates, also include the **styling convention** matching
 <One-line description of what this repo is and what stack.>
 
 @.claude/rules/git-workflow.md
+
+> **Living doc:** when you learn a durable, non-obvious fact about this repo (a gotcha, convention, or footgun), add it to the matching section of this file in the same PR — don't leave it in chat.
 
 ## Lifecycle
 
@@ -323,6 +335,57 @@ Use the matching backend template above as a starting point and:
 - Heavy data and generated outputs are gitignored.
 - **Don't write `BREAKING CHANGE:` / `feat!:` in commit-body prose** unless you mean them — parsers will corrupt the CHANGELOG. Paraphrase instead.
 ```
+
+---
+
+## Toolbox / scripts repo (no manifest)
+
+For repos with no `package.json` / `pyproject.toml` at all — shell-script tools, editor-pasted
+sources (e.g. Pine Script indicators), declarative config/data repos where committing *is*
+deploying. There's no install/build/test loop to document, so this template swaps
+"Canonical commands" for "How work ships" and spends the line budget on gotchas.
+
+If the repo has one rule that most often bites (a deploy model, a two-lane commit
+convention, a "never edit X directly"), promote it to the first section with a heading that
+names it — don't bury it mid-file.
+
+```markdown
+# <PROJECT_NAME>
+
+<One-liner: what the repo holds and where its output lands.>
+
+## Lifecycle
+
+- <Branch model. Many toolbox repos are main-only: feature branches off `main`, PRs target
+  `main`. If the repo has `develop`, use the universal preamble's lifecycle instead.>
+- <Versioning/release if any — often none: merging is shipping.>
+
+## Project map
+
+- <2–6 bullets for top-level dirs/files. Load-bearing script(s) first.>
+
+## How work ships
+
+<The actual delivery mechanism, one bullet per path, e.g.:>
+- <`./publish.sh <file>` — what it does end-to-end, and how to verify it worked>
+- <"paste into <external editor/tool>" — plus the pre-save check that prevents pasting into
+  the wrong target>
+- <"commit `<dir>/*.yml` to <branch>" — and what picks it up, where, when>
+
+## Gotchas
+
+- <Only non-obvious, hard-won facts: footguns, environment quirks, silent-failure modes.
+  Mine the git fix/revert history and the `docs/architecture.html` failure-modes table.>
+```
+
+Notes:
+- These repos live or die on the Gotchas section — the "commands" are usually trivial; the
+  sharp edges are not.
+- Include the `BREAKING CHANGE:` / `feat!:` convention bullet only if the repo runs release
+  tooling; drop it otherwise.
+- Same retrofit rules as every template: skip `@.claude/rules/git-workflow.md` unless the
+  file exists, and add the architecture-doc Project-map bullet only when
+  `docs/architecture.html` exists.
 
 ---
 

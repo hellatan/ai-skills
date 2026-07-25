@@ -40,8 +40,8 @@ sequentially the window is negligible.
 ## Verify the saving with real numbers
 
 Don't estimate — GitHub reports billed minutes per run. Full before/after procedure
-(the `runs/{id}/timing` endpoint, baseline/after tables, the pricing constant) lives in
-`getoffthecouch:docs/ci-actions-cost-measurement.md`. In short:
+(the `runs/{id}/timing` endpoint, baseline/after tables, the pricing constants, and the
+gotchas) is in `ci-cost-verification.md`. In short:
 
 ```bash
 # billed Ubuntu ms for one run
@@ -50,6 +50,15 @@ gh api repos/<owner>/<repo>/actions/runs/<RUN_ID>/timing --jq '.billable.UBUNTU.
 
 After the change, confirm **no** CI run fires on the `push` to `develop` (only the
 promotion PR runs), and that the promotion PR still runs the full suite.
+
+To keep it from regressing across repos over time, `ci-drift-audit` checks this (and the
+rest of the baseline) on a schedule — see that skill.
+
+## Also non-breaking: cache the e2e browser download
+
+If the repo has a Playwright e2e job, caching the browser binaries removes 1–2 min of
+billed download per run and renames nothing, so it pairs with the trigger dedup above.
+That job is owned by `testing-init` — see `testing-init/references/ci-test-job.md`.
 
 ## Related but separate: job consolidation (breaking)
 
