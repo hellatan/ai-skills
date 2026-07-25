@@ -83,10 +83,30 @@ breaking change for any repo with required checks. See `ci-cost-migration.md`.
 
 ## Flow
 
-### 1. Resolve the repo list
+### 1. Resolve the repo set
 
-From the caller (a checked-in list in the private host repo, or repos the user names).
-Never hardcode repo names in this skill.
+Two supported modes — `references/repo-list.md` has the conventional paths, the discovery
+snippet, and the trade-off. Never hardcode repo names in this skill.
+
+**Discovery (recommended default).** Enumerate what the token can see, then filter — so
+repos created *after* setup are covered automatically:
+
+```bash
+gh repo list <owner> --limit 200 --no-archived --source \
+  --json nameWithOwner -q '.[].nameWithOwner'
+```
+
+**Explicit list.** A checked-in file at the conventional path
+`.github/ci-drift-audit/repos.txt` in the private host repo (one `owner/repo` per line,
+`#` comments). Use when the set is deliberately narrow, spans owners, or the token can't
+enumerate.
+
+Both modes subtract `.github/ci-drift-audit/ignore.txt` if present.
+
+**Always report the resolved count and mode** — `audited 12 repos (discovery, 2 ignored)`.
+A hand-maintained list has a silent failure mode: a repo created after setup is never
+audited and the report still says "all green." That's the same silently-shrinking-coverage
+problem this skill exists to catch, so the audit must not commit it itself.
 
 ### 2. For each repo, fetch the workflow files
 
@@ -132,5 +152,6 @@ The list will grow. Keep each check:
 ## References
 
 - `references/checks.md` — each check: rationale, detection, fix, severity
+- `references/repo-list.md` — where the audited set comes from: discovery vs explicit list, conventional paths, token caveats
 - Baseline sources: `gh-actions-init/references/{ci-structure,ci-cost-migration,rebuild-on-comment}.md`,
   `testing-init/references/ci-test-job.md`
