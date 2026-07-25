@@ -2,6 +2,8 @@
 
 Personal monorepo of Claude skills. Each skill lives under `skills/<skill-name>/` and follows the Anthropic skills convention (SKILL.md + optional `references/`, `scripts/`, `assets/`).
 
+> **Living doc:** when you learn a durable, non-obvious fact about this repo (a gotcha, convention, or footgun), add it to the matching section of this file in the same PR — don't leave it in chat.
+
 ## Lifecycle
 
 - Feature branches off `develop`, never `main`.
