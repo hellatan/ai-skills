@@ -132,6 +132,32 @@ jobs:
 - **`develop` level with `main`** (e.g. right after a release PR lands) → closes any stale open PR so the list stays clean.
 - Requires the `RELEASE_PLEASE_TOKEN` repo secret (shared with `release-please.yml`) — without it the `gh` steps fail with an auth error. See `release-please.md` for setup.
 
+## Expected: `develop` shows as "out-of-date with base"
+
+**This is normal and usually not worth fixing.** Merging a promotion PR with "Create a merge
+commit" writes a merge commit onto `main` (`Merge pull request #NN from <owner>/develop`)
+that never flows back to `develop`. So the *next* promotion PR opens already "behind" —
+GitHub shows an out-of-date notice and an **Update branch** button even though the content
+is identical.
+
+The gap grows by one commit per release: after ten releases `develop` reads as "10 commits
+behind `main`" while being content-identical.
+
+**Check `mergeable_state` before reacting.** If it's `clean`, nothing is blocked — mark the
+draft ready and merge. Clicking **Update branch** in that case merges `main` into `develop`
+purely to absorb an empty merge commit: noise, no content change.
+
+It only genuinely blocks if branch protection has **"require branches to be up to date
+before merging"** enabled, in which case `mergeable_state` is `behind` rather than `clean`.
+
+If the cosmetic drift bothers you, or you turn that setting on:
+
+- **Back-merge after each release** — `main` → `develop` via a PR (never a direct push to
+  either branch). One extra step per release, keeps them genuinely in sync.
+- **Don't** switch the promotion merge to squash/rebase without checking what depends on it.
+  In repos where a push to `main` fires the release workflow, the merge commit *is* the
+  trigger — changing it silently breaks releases.
+
 ## Notes for the report
 
 - The PR is opened as a **draft** on purpose: it accumulates silently and only becomes a release action when the user marks it ready / merges.
