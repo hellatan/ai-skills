@@ -1,6 +1,6 @@
 ---
 name: claude-md-init
-description: Add a CLAUDE.md to an existing repo — detects the project's stack from `package.json` / `pyproject.toml` / framework deps, picks the matching template (Next.js, FastAPI, Fastify, fullstack variants, library, research notebooks), and writes a lean 50-120 line CLAUDE.md scoped to project identity, canonical commands, and non-obvious gotchas. Use when the user wants to "add CLAUDE.md", "scaffold a CLAUDE.md", "set up Claude Code config", or otherwise bring a CLAUDE.md to a repo that doesn't have one. Refuses to overwrite an existing CLAUDE.md without consent.
+description: Add a CLAUDE.md to an existing repo — detects the project's stack from `package.json` / `pyproject.toml` / framework deps, picks the matching template (Next.js, FastAPI, Fastify, fullstack variants, library, research notebooks, manifest-less toolbox/scripts repos), and writes a lean 50-120 line CLAUDE.md scoped to project identity, canonical commands, and non-obvious gotchas. Use when the user wants to "add CLAUDE.md", "scaffold a CLAUDE.md", "set up Claude Code config", or otherwise bring a CLAUDE.md to a repo that doesn't have one. Refuses to overwrite an existing CLAUDE.md without consent.
 ---
 
 # claude-md-init
@@ -55,6 +55,9 @@ python3 -c "import tomllib; d=tomllib.load(open('pyproject.toml','rb')); print('
 
 # Layout
 [[ -d frontend ]] && [[ -f frontend/package.json ]] && fullstack_subdirs=true
+
+# No manifest at all -> toolbox/scripts repo (shell tools, editor-pasted sources, declarative config)
+[[ -z $stack_node && -z $stack_python ]] && stack_toolbox=true
 ```
 
 ### 2. Handle existing CLAUDE.md
@@ -81,6 +84,7 @@ Map detection to template (see `references/templates.md`):
 | Next.js + Fastify (workspaces) | `Fullstack — Next.js + Fastify (npm workspaces)` |
 | Library project | `Library` (adapted from matching backend template) |
 | Notebooks / research | `Research / notebooks` |
+| No manifest (shell tools, editor-pasted sources, declarative config) | `Toolbox / scripts repo (no manifest)` |
 
 If detection is ambiguous (e.g., both `package.json` and `pyproject.toml` with no framework), ask **once** to disambiguate.
 
@@ -148,7 +152,7 @@ Next steps:
 
 ## Reference files
 
-- `references/templates.md` — per-stack CLAUDE.md templates (Next.js, FastAPI, Fastify, fullstack variants, library, research)
+- `references/templates.md` — per-stack CLAUDE.md templates (Next.js, FastAPI, Fastify, fullstack variants, library, research, toolbox/scripts)
 
 ## Why these defaults
 
