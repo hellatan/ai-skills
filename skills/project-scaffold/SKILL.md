@@ -395,7 +395,7 @@ These are decided. Do **not** introduce them on a scaffolded project, even when 
 ### Owned by sister skills
 
 - **`/testing-init`** (Step 14) — test runners + configs + smoke stubs + test scripts + test jobs in `ci.yml`. Templates: `skills/testing-init/references/{runners,test-stubs,scripts,ci-test-job}.md`.
-- **`/gh-actions-init`** (Step 14) — CI structural jobs + release-please + deploy stub. Templates: `skills/gh-actions-init/references/{detection,ci-structure,release-please,deploy-stub}.md`.
+- **`/gh-actions-init`** (Step 14) — CI structural jobs + release-please + release verification + deploy stub. Templates: `skills/gh-actions-init/references/{detection,ci-structure,release-please,release-verification,deploy-stub}.md`.
 - **`/gitflow-init`** (Steps 18 + 19) — branch protection + default-branch setting (+ develop/stage creation for retrofit). Templates: `skills/gitflow-init/references/branch-protection.md`.
 - **`/precommit-init`** (Step 13) — pre-commit at root, polyglot (Python / Node / fullstack). Templates: `skills/precommit-init/references/precommit-config.md`.
 - **`/claude-md-init`** (Step 10) — per-stack CLAUDE.md templates. Templates: `skills/claude-md-init/references/templates.md`.
