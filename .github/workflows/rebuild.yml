@@ -22,17 +22,17 @@ jobs:
       startsWith(github.event.comment.body, '/rebuild')
     runs-on: ubuntu-latest
     steps:
-      - name: Enforce exact match
+      - name: Enforce command match
         id: gate
         env:
           BODY: ${{ github.event.comment.body }}
         run: |
-          trimmed="$(printf '%s' "$BODY" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-          if [[ "$trimmed" == "/rebuild" ]]; then
+          trimmed="$(printf '%s' "$BODY" | tr -d '\r' | sed -e 's/^[[:space:]]*//')"
+          if [[ "${trimmed,,}" =~ ^/rebuild([^a-zA-Z0-9_]|$) ]]; then
             echo "ok=true" >> "$GITHUB_OUTPUT"
           else
             echo "ok=false" >> "$GITHUB_OUTPUT"
-            echo "Comment was not exactly '/rebuild' — ignoring."
+            echo "Comment began with '/rebuild' but not as a whole word — ignoring."
           fi
 
       - name: Acknowledge with 👀
