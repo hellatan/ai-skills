@@ -71,6 +71,13 @@ rather than guessing.]
 
 Merging to `develop` opens a promotion PR to `main`. Merging that triggers release-please,
 which opens a release PR; merging *that* tags the release.
+
+⚠️ **Merge the `develop → main` promotion PR with "Create a merge commit" — never squash.**
+Squashing rewrites `develop`'s commits into one new commit, so they stop being ancestors of
+`main`: the branches diverge from a stale merge base, `git log main..develop` reports
+already-released commits forever, and release-please can no longer see the `feat:`/`fix:`
+messages it needs. Undoing it requires a force-push of `main`. GitHub's merge button
+remembers the last method used, so check it before clicking.
 ```
 
 ## Notes
