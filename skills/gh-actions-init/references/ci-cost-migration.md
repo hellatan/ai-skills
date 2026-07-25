@@ -51,6 +51,12 @@ gh api repos/<owner>/<repo>/actions/runs/<RUN_ID>/timing --jq '.billable.UBUNTU.
 After the change, confirm **no** CI run fires on the `push` to `develop` (only the
 promotion PR runs), and that the promotion PR still runs the full suite.
 
+## Also non-breaking: cache the e2e browser download
+
+If the repo has a Playwright e2e job, caching the browser binaries removes 1–2 min of
+billed download per run and renames nothing, so it pairs with the trigger dedup above.
+That job is owned by `testing-init` — see `testing-init/references/ci-test-job.md`.
+
 ## Related but separate: job consolidation (breaking)
 
 Merging the lint/typecheck/test jobs into a single `checks` job saves more minutes
