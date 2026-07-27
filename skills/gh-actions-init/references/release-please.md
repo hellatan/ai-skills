@@ -65,7 +65,7 @@ jobs:
       # references/release-verification.md — scaffold them together.
 ```
 
-The three `verify-tag` steps that complete this job, plus the companion `release-health.yml` and `discord-alert` composite, live in `references/release-verification.md`. Scaffold them **alongside** release-please (same skip condition). They no-op safely if the `DISCORD_GH_ERRORS_WEBHOOK` secret is unset.
+The three `verify-tag` steps that complete this job, plus the companion `release-health.yml` and `discord-alert` composite, live in `references/release-verification.md` — copy them from there rather than hand-rolling one, and note in particular that a tag check must **not** read `steps.release.outputs.release_created` / `.tag_name`: those are empty for every non-root package path, including the monorepo config below. Scaffold them **alongside** release-please (same skip condition). They no-op safely if the `DISCORD_GH_ERRORS_WEBHOOK` secret is unset.
 
 Both `branches:` (the trigger) and `target-branch:` (the branch release-please
 manages) must point at the release branch — `main` here. **Setting
