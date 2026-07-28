@@ -1,0 +1,104 @@
+name: main → develop back-merge
+
+# Every push to `main` — a promotion merge, or a release-please release commit —
+# adds commits `develop` never sees. `main`'s protection requires branches to be
+# up to date before merging, so the NEXT develop → main PR sits behind an
+# "Update branch" click until develop contains main's tip, and develop's
+# CHANGELOG drifts from the released one meanwhile. This closes that gap without
+# anyone merging by hand.
+#
+# Fast-forward FIRST, deliberately. Right after a promotion or a release, main is
+# a descendant of develop, so develop can move to main's tip with NO new commit.
+# A merge commit here would leave develop permanently 1 commit ahead of main, and
+# develop-to-main-pr.yml would open a promotion PR for that lone commit — a PR
+# with no file changes, whose merge would add another commit to main, which would
+# back-merge into develop, which would open another empty PR. The --no-ff
+# fallback only fires when develop has genuinely advanced on its own, where the
+# resulting promotion PR is real work rather than an echo.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read # writes go through the PAT below, never GITHUB_TOKEN
+
+concurrency:
+  group: main-to-develop-backmerge
+  cancel-in-progress: false
+
+jobs:
+  backmerge:
+    name: merge main back into develop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Full history — the merge needs both branches, not a shallow tip.
+          fetch-depth: 0
+          # develop requires a PR, but enforce_admins is off, so an admin-owned
+          # PAT pushes to it directly. GITHUB_TOKEN can't (not an admin), and a
+          # GITHUB_TOKEN push wouldn't trigger develop-to-main-pr.yml anyway.
+          # Same secret release-please.yml and develop-to-main-pr.yml use.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+
+      - name: Merge main into develop
+        id: backmerge
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main develop
+
+          if git merge-base --is-ancestor origin/main origin/develop; then
+            echo "develop already contains main ($(git rev-parse --short origin/main)) — nothing to do."
+            exit 0
+          fi
+
+          git checkout -B develop origin/develop
+
+          if git merge --ff-only origin/main; then
+            echo "fast-forwarded develop to main — no merge commit created."
+          elif git merge --no-ff origin/main -m "chore: merge main into develop"; then
+            echo "develop had commits of its own — merged main in."
+          else
+            git merge --abort || true
+            existing=$(gh pr list --base develop --head main --state open --json number -q '.[0].number // empty')
+            if [ -z "$existing" ]; then
+              # Only a NEWLY opened PR alerts — a conflict that is already sitting
+              # in an open PR would otherwise re-notify on every push to main.
+              url=$(gh pr create \
+                --base develop \
+                --head main \
+                --title "chore: merge main into develop (conflict)" \
+                --body "The automatic back-merge from \`main\` hit a conflict, so it needs a human. Resolve it here — until then the next \`develop → main\` PR will ask for an \"Update branch\".
+
+          _Opened by \`.github/workflows/main-to-develop-backmerge.yml\`_")
+              echo "pr_url=$url" >> "$GITHUB_OUTPUT"
+              echo "opened $url"
+            else
+              echo "conflict already tracked in PR #${existing} — not re-alerting."
+            fi
+            echo "::error::back-merge conflicted — resolve the main → develop PR"
+            exit 1
+          fi
+
+          git push origin HEAD:refs/heads/develop
+
+      # Fires only when the conflict PR was just opened. The composite no-ops
+      # (with a warning) when DISCORD_GH_ERRORS_WEBHOOK is unset, so this is
+      # harmless until the secret exists.
+      - name: Alert gh_errors
+        if: ${{ always() && steps.backmerge.outputs.pr_url != '' }}
+        uses: ./.github/actions/discord-alert
+        with:
+          webhook: ${{ secrets.DISCORD_GH_ERRORS_WEBHOOK }}
+          title: 🟥 ${{ github.repository }} — main → develop back-merge conflicted
+          description: |
+            The automatic back-merge from `main` hit a conflict and needs a human. Until it's resolved, `develop` stays behind `main` and the next `develop → main` PR will ask for an "Update branch".
+
+            **PR:** ${{ steps.backmerge.outputs.pr_url }}
+            **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+            [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})

@@ -1,0 +1,41 @@
+name: discord-alert
+description: Post an alert embed to the gh_errors Discord channel. No-op (warns) if the webhook secret is unset.
+
+inputs:
+  webhook:
+    description: Discord webhook URL (pass secrets.DISCORD_GH_ERRORS_WEBHOOK)
+    required: true
+  title:
+    description: Embed title
+    required: true
+  description:
+    description: Embed description (Discord markdown)
+    required: true
+  color:
+    description: Embed sidebar color (decimal). Default red.
+    required: false
+    default: "15158332"
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        WEBHOOK: ${{ inputs.webhook }}
+        TITLE: ${{ inputs.title }}
+        DESC: ${{ inputs.description }}
+        COLOR: ${{ inputs.color }}
+      run: |
+        if [ -z "$WEBHOOK" ]; then
+          echo "::warning::DISCORD_GH_ERRORS_WEBHOOK is unset — skipping alert (would have sent: $TITLE)"
+          exit 0
+        fi
+        payload=$(jq -n --arg t "$TITLE" --arg d "$DESC" --argjson c "${COLOR:-15158332}" \
+          '{embeds:[{title:$t, description:$d, color:$c}]}')
+        code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+          -H 'Content-Type: application/json' "$WEBHOOK" -d "$payload")
+        echo "discord webhook responded: $code"
+        case "$code" in
+          2*) echo "alert delivered" ;;
+          *)  echo "::error::discord webhook failed (HTTP $code)"; exit 1 ;;
+        esac
