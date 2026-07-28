@@ -46,7 +46,7 @@ Read these without asking:
 - Default branch — `git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'` (handles `master`, `trunk`, etc.).
 - Branches — does `develop` exist on origin? If not, the project is `main`-only and CI triggers should reflect that.
 - `RELEASE_PLEASE_TOKEN` secret — `gh secret list` (if scaffolding release-please or develop→main). The scaffolded workflows author their PRs with this PAT instead of `GITHUB_TOKEN`; if it's missing, flag it in the summary and report (see `references/release-please.md`).
-- `DISCORD_GH_ERRORS_WEBHOOK` secret — `gh secret list` (if scaffolding release verification). Optional; note its presence in the summary. When absent, the alerting composite no-ops with a warning, so no blocking callout is needed (see `references/release-verification.md`).
+- Alert webhook secret — `gh secret list` (if scaffolding release verification). The secret name is the project's **choice of Discord channel** (default `DISCORD_GH_ERRORS_WEBHOOK`); if a differently-named `DISCORD_*` secret already exists, offer it as the default instead. Optional; note its presence in the summary. When absent, the alerting composite no-ops with a warning, so no blocking callout is needed (see `references/release-verification.md`).
 
 Surface findings in one line: *"Detected: Next.js 16 + TS, default branch `develop`, package.json version 0.3.1, no existing workflows."*
 
@@ -68,7 +68,7 @@ If any of these already exist: skip the whole release-please piece (don't risk b
 
 If they don't exist: scaffold all three. Manifest version must match `package.json` / `pyproject.toml` version exactly — read the current version, don't hardcode it (fresh `project-scaffold` runs seed `0.1.0`, never `0.0.0`, to avoid release-please's `1.0.0` first-release bootstrap — see `references/release-please.md`). The workflow **must** set `target-branch: main` — in a gitflow repo `develop` is the default branch, and an unset `target-branch` defaults to it, so release-please silently opens release PRs against `develop` and never tags `main` (see `references/release-please.md`). The workflow **must** also pass `token: ${{ secrets.RELEASE_PLEASE_TOKEN }}` — bot-authored release PRs park their CI behind a manual "Approve and run" gate and never trigger it in the first place; the PAT-backed repo secret is a required per-repo setup step (see `references/release-please.md`).
 
-Scaffold **release verification** alongside release-please (same skip condition): the `verify-tag` steps folded into `release-please.yml`, plus `release-health.yml` and the `.github/actions/discord-alert` composite. This fails the run + alerts when a merged release PR produces no tag — the prerequisite for ever auto-merging release PRs. The Discord webhook secret (`DISCORD_GH_ERRORS_WEBHOOK`) is **optional** — alerts no-op with a warning when it's unset, so the release pipeline works regardless. See `references/release-verification.md`.
+Scaffold **release verification** alongside release-please (same skip condition): the `verify-tag` steps folded into `release-please.yml`, plus `release-health.yml` and the `.github/actions/discord-alert` composite. This fails the run + alerts when a merged release PR produces no tag — the prerequisite for ever auto-merging release PRs. **Ask which secret holds the alert webhook** and substitute it for the `<ALERT_WEBHOOK_SECRET>` placeholder in every scaffolded file — a webhook URL points at one channel, so the secret name is how this project picks where its alerts land. Default to `DISCORD_GH_ERRORS_WEBHOOK` when they have no preference. The secret itself is **optional** — alerts no-op with a warning when it's unset, so the release pipeline works regardless. See `references/release-verification.md`.
 
 **c. Deploy stub** — `deploy.yml`.
 
@@ -97,7 +97,7 @@ Render the plan as a fenced code block with emoji headers (same convention as `p
 🔁 develop→main PR: <scaffolding | skipped (main-only / staging / already present)>
 🔁 /rebuild trigger: <scaffolding | skipped (main-only / already present)>
 🔑 RELEASE_PLEASE_TOKEN: <secret present | ⚠️ MISSING — setup required before first release>
-🔔 DISCORD_GH_ERRORS_WEBHOOK: <secret present | not set — alerts no-op until added (optional)>
+🔔 Alerts → <CHOSEN_SECRET_NAME>: <secret present | not set — alerts no-op until added (optional)>
 📝 Files to write:  <list>
 📝 Files to extend: <list>
 🌿 Branch triggers: <main only | main + develop | main + develop + stage>
@@ -141,7 +141,7 @@ Skill behavior:
 - If `package.json` has `"version": "0.3.1"`, manifest should be `{".": "0.3.1"}` so release-please's first PR generates a clean changelog from the most recent tag.
 - For monorepos with separate frontend/backend versions: see `references/release-please.md` monorepo section.
 
-Scaffold **release verification** in the same step (skip it whenever release-please is skipped). Two extra files — `.github/workflows/release-health.yml` and `.github/actions/discord-alert/action.yml` — plus the `verify-tag` steps + `concurrency` block folded into `release-please.yml`. All templates and the `DISCORD_GH_ERRORS_WEBHOOK` (optional) secret guidance are in `references/release-verification.md`.
+Scaffold **release verification** in the same step (skip it whenever release-please is skipped). Two extra files — `.github/workflows/release-health.yml` and `.github/actions/discord-alert/action.yml` — plus the `verify-tag` steps + `concurrency` block folded into `release-please.yml`. All templates, the `<ALERT_WEBHOOK_SECRET>` substitution, and the (optional) secret guidance are in `references/release-verification.md`.
 
 ### 7. Deploy stub
 
@@ -218,7 +218,7 @@ One PAT secret (`RELEASE_PLEASE_TOKEN`) covers both PR-authoring workflows; `/re
 - `references/ci-cost-migration.md` — retrofit an existing repo to the deduplicated `push` triggers (non-breaking); notes on the separate, breaking job-consolidation change
 - `references/ci-cost-verification.md` — prove a cost change worked using GitHub's own billed minutes (`runs/{id}/timing`): before/after tables, pricing constants, and the gotchas (a `0` billable reading is not "free")
 - `references/release-please.md` — workflow, config, manifest; monorepo variant; tag-pattern gotchas
-- `references/release-verification.md` — `verify-tag` (folded into `release-please.yml`) + `release-health.yml` + `discord-alert` composite: fail-loud + Discord alert when a merged release PR produces no tag; optional `DISCORD_GH_ERRORS_WEBHOOK` secret
+- `references/release-verification.md` — `verify-tag` (folded into `release-please.yml`) + `release-health.yml` + `discord-alert` composite: fail-loud + Discord alert when a merged release PR produces no tag; the alert channel is a scaffold-time choice (`<ALERT_WEBHOOK_SECRET>`, default `DISCORD_GH_ERRORS_WEBHOOK`, optional)
 - `references/develop-to-main-pr.md` — `develop-to-main-pr.yml`: auto-opens/refreshes the draft `develop → main` release PR (gitflow without staging)
 - `references/rebuild.md` — `rebuild.yml`: `/rebuild` PR-comment re-runs failed CI (gitflow); pairs with the PAT setup
 - `references/deploy-stub.md` — `deploy.yml` with the deploy-target picker, secret-setup guidance, and platform examples (Render, Vercel, Fly, Railway, GHCR, SSH/rsync)
