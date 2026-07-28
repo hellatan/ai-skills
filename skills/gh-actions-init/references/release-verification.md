@@ -30,8 +30,10 @@ These steps go on the **same** `release-please` job (reusing its runner — no e
   if: always()
   env:
     RELEASE_OUTCOME: ${{ steps.release.outcome }}
-    RELEASE_CREATED: ${{ steps.release.outputs.release_created }}
-    TAG_NAME: ${{ steps.release.outputs.tag_name }}
+    # Every output the action emitted, as JSON. Read the tags out of THIS, never
+    # from steps.release.outputs.release_created / .tag_name — see the
+    # namespaced-outputs trap below.
+    OUTPUTS_JSON: ${{ toJSON(steps.release.outputs) }}
     HEAD_MSG: ${{ github.event.head_commit.message }}
     REPO: ${{ github.repository }}
     GH_TOKEN: ${{ github.token }}
@@ -48,22 +50,45 @@ These steps go on the **same** `release-please` job (reusing its runner — no e
       is_release_merge=true
     fi
 
+    # Every tag this run cut, whether the output key is the root `tag_name` or a
+    # namespaced `<path>--tag_name`. Covers single-package, non-root package, and
+    # per-component monorepo tags (backend-v1.2.0) without knowing the config.
+    tags=$(printf '%s' "$OUTPUTS_JSON" | jq -r 'to_entries[] | select(.key | endswith("tag_name")) | .value | select(. != null and . != "")')
+    context="releases_created=$(printf '%s' "$OUTPUTS_JSON" | jq -r '.releases_created // "<empty>"'), paths_released=$(printf '%s' "$OUTPUTS_JSON" | jq -r '.paths_released // "<empty>"')"
+
+    # Ground truth is the ref on the remote. Retried, so ref propagation lag right
+    # after the tag is cut can't manufacture a false alarm.
+    missing=""
+    for tag in $tags; do
+      found=false
+      for attempt in 1 2 3; do
+        if gh api "repos/${REPO}/git/ref/tags/${tag}" >/dev/null 2>&1; then
+          found=true
+          break
+        fi
+        if [ "$attempt" -lt 3 ]; then sleep 5; fi
+      done
+      if [ "$found" = "true" ]; then
+        echo "OK: tag ${tag} exists."
+      else
+        missing="${missing} ${tag}"
+      fi
+    done
+
     if [ "$RELEASE_OUTCOME" = "failure" ]; then
       alert=true
       title="❌ ${REPO} — release-please step failed"
       detail="The release-please action failed. No release PR / tag / release was produced this run."
-    elif [ "$is_release_merge" = "true" ] && [ "$RELEASE_CREATED" != "true" ]; then
+    elif [ "$is_release_merge" = "true" ] && [ -z "$tags" ]; then
       alert=true
       title="🟥 ${REPO} — release PR merged but NO TAG created"
-      detail="Merged \`${head_line}\` but release-please reported release_created=${RELEASE_CREATED:-<empty>} and produced no tag. This is the silent freeze — check the title-pattern/component config."
-    elif [ "$RELEASE_CREATED" = "true" ]; then
-      if [ -n "$TAG_NAME" ] && gh api "repos/${REPO}/git/ref/tags/${TAG_NAME}" >/dev/null 2>&1; then
-        echo "OK: release_created=true and tag ${TAG_NAME} exists."
-      else
-        alert=true
-        title="🟥 ${REPO} — release_created but tag missing"
-        detail="release-please reported release_created=true (tag_name=${TAG_NAME:-<empty>}) but the tag ref does not exist on the remote."
-      fi
+      detail="Merged \`${head_line}\` but release-please reported no tag (${context}). This is the silent freeze — check the title-pattern/component config."
+    elif [ -n "$missing" ]; then
+      alert=true
+      title="🟥 ${REPO} — release reported but tag missing"
+      detail="release-please reported tag(s):${missing} but the ref does not exist on the remote (${context})."
+    elif [ -n "$tags" ]; then
+      echo "OK: tagged $(printf '%s' "$tags" | tr '\n' ' ') (${context})."
     else
       echo "OK: no release expected this run (feature push or PR-only update)."
     fi
@@ -97,6 +122,21 @@ These steps go on the **same** `release-please` job (reusing its runner — no e
 ```
 
 Add `concurrency: { group: release-please, cancel-in-progress: false }` to `release-please.yml` too, so overlapping release runs serialize.
+
+### ⚠️ Never read `steps.release.outputs.release_created` / `.tag_name` directly
+
+Those unprefixed outputs exist **only when the manifest package sits at the repo root** (`"packages": { ".": … }`). `setPathOutput()` in release-please-action namespaces every per-package output for any other path:
+
+```ts
+if (path === '.') core.setOutput(key, value); // tag_name
+else core.setOutput(`${path}--${key}`, value); // apps/web--tag_name
+```
+
+So in a repo whose package is `apps/web`, or any per-component monorepo (`backend`, `frontend` — both configs this skill scaffolds), both keys read back **empty** and a check built on them alerts "NO TAG created" on every single healthy release, forever. That is not hypothetical: it fired on a real 0.26.0 release that had tagged correctly, seconds after the tag was published in the same run.
+
+Only `releases_created` (**plural**) and `paths_released` are top-level regardless of path, and neither carries a tag name — they're context in the alert body, not the signal. Hence `toJSON(steps.release.outputs)` + `endswith("tag_name")`: it finds the tag under whatever key the config produced, and the ref lookup on the remote is what actually decides pass/fail.
+
+Related: `✔ No commits for path: <pkg>, skipping` in a release-merge run is **not** a failure signal — that's the *next* release PR having nothing to include, which is correct right after a release. Don't add an alert for it.
 
 ## 2. `.github/workflows/release-health.yml`
 
