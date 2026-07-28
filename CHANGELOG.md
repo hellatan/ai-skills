@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/hellatan/claude-skills/compare/v1.8.0...v1.8.1) (2026-07-28)
+
+
+### Bug Fixes
+
+* **gh-actions-init:** verify release tags via tag refs, not unprefixed outputs ([#94](https://github.com/hellatan/claude-skills/issues/94)) ([b8c631e](https://github.com/hellatan/claude-skills/commit/b8c631e57b5d895bf2660f7970efec49feec94aa))
+
 ## [1.8.0](https://github.com/hellatan/claude-skills/compare/v1.7.0...v1.8.0) (2026-07-25)
 
 
