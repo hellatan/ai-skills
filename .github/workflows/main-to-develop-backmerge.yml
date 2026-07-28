@@ -87,17 +87,19 @@ jobs:
 
           git push origin HEAD:refs/heads/develop
 
-      # Fires only when the conflict PR was just opened. The composite no-ops
-      # (with a warning) when DISCORD_GH_ERRORS_WEBHOOK is unset, so this is
-      # harmless until the secret exists.
-      - name: Alert gh_errors
+      # Fires only when the conflict PR was just opened. This is a PR waiting on
+      # a human, not a broken pipeline, so it goes to the PR-alerts channel
+      # rather than gh_errors — the run itself already went red for the failure.
+      # The composite no-ops (with a warning) when the secret is unset.
+      - name: Notify PR alerts
         if: ${{ always() && steps.backmerge.outputs.pr_url != '' }}
         uses: ./.github/actions/discord-alert
         with:
-          webhook: ${{ secrets.DISCORD_GH_ERRORS_WEBHOOK }}
-          title: 🟥 ${{ github.repository }} — main → develop back-merge conflicted
+          webhook: ${{ secrets.DISCORD_PR_ALERTS_WEBHOOK }}
+          color: "15105570" # orange — a PR to merge, not an outage
+          title: 🔀 ${{ github.repository }} — main → develop back-merge needs a manual merge
           description: |
-            The automatic back-merge from `main` hit a conflict and needs a human. Until it's resolved, `develop` stays behind `main` and the next `develop → main` PR will ask for an "Update branch".
+            The automatic back-merge from `main` hit a conflict, so it opened a PR for you to resolve and merge. Until it's merged, `develop` stays behind `main` and the next `develop → main` PR will ask for an "Update branch".
 
             **PR:** ${{ steps.backmerge.outputs.pr_url }}
             **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
