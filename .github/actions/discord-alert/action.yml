@@ -27,7 +27,7 @@ runs:
         COLOR: ${{ inputs.color }}
       run: |
         if [ -z "$WEBHOOK" ]; then
-          echo "::warning::DISCORD_GH_ERRORS_WEBHOOK is unset — skipping alert (would have sent: $TITLE)"
+          echo "::warning::alert webhook secret is unset — skipping alert (would have sent: $TITLE)"
           exit 0
         fi
         payload=$(jq -n --arg t "$TITLE" --arg d "$DESC" --argjson c "${COLOR:-15158332}" \
