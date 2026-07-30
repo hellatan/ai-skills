@@ -160,8 +160,15 @@ before merging"** enabled, in which case `mergeable_state` is `behind` rather th
 
 If the cosmetic drift bothers you, or you turn that setting on:
 
-- **Back-merge after each release** — `main` → `develop` via a PR (never a direct push to
-  either branch). One extra step per release, keeps them genuinely in sync.
+- **Scaffold the back-merge workflow** — `references/main-to-develop-backmerge.md`. It runs
+  on every push to `main` and fast-forwards `develop` to `main`'s tip, so the drift never
+  accumulates and the *Update branch* button never appears. Doing it by hand per release
+  works too, but only until someone forgets; three manual rounds in one repo is what
+  prompted automating it.
+- **Note the ordering trap if you do it by hand:** `git merge --ff-only main` from `develop`
+  fails whenever `develop` has commits of its own, and the follow-up push then says
+  "Everything up-to-date" — so nothing happened and the PR is still blocked. The workflow
+  runs at the moment the fast-forward *is* possible and falls back to `--no-ff` otherwise.
 - **Don't** "fix" the drift by switching the promotion merge to squash — see below. Rebase
   has the same problem. In repos where a push to `main` fires the release workflow, the merge
   commit is also the trigger, so changing it silently breaks releases too.
