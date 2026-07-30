@@ -10,6 +10,14 @@ Scaffold this **alongside release-please** (same condition — skip it when rele
 
 The Discord webhook secret is **optional**: the composite no-ops (with a warning) when it's unset, so scaffolding this is harmless even if the user never wires up alerting.
 
+## Choosing the alert channel — ask, don't assume
+
+`<ALERT_WEBHOOK_SECRET>` in the templates below is a **placeholder you fill in at scaffold time**. A Discord webhook URL points at exactly one channel, so the secret *is* the channel: which secret name a repo's workflows read is how that project picks where its alerts land.
+
+Ask the user which secret to use and substitute it into all three files before writing them. Default to **`DISCORD_GH_ERRORS_WEBHOOK`** — the shared errors channel — when they have no preference; a project that wants its own channel (`DISCORD_<PROJECT>_ALERTS`, `DISCORD_DEPLOY_WEBHOOK`, …) just names a different secret. Keep the name identical across `release-please.yml` and `release-health.yml`; a mismatch means half the alerts silently no-op.
+
+To repoint an existing repo later, either overwrite the secret's value with a different channel's webhook URL (name unchanged, nothing to edit) or rename it and update every `secrets.` reference in `.github/workflows/`.
+
 ## Why
 
 release-please can merge a release PR, report the run as **success**, and still create **no tag** — e.g. a title-pattern/component mismatch (see the config gotchas in `references/release-please.md`; [googleapis/release-please#2214](https://github.com/googleapis/release-please/issues/2214)). The run is green, nothing is tagged, and a stuck `autorelease: pending` PR then aborts *all* future releases silently. Watching the merge by hand doesn't reliably catch a tag that fails to appear a minute later; a machine check does.
@@ -101,11 +109,11 @@ These steps go on the **same** `release-please` job (reusing its runner — no e
       echo "EOF"
     } >> "$GITHUB_OUTPUT"
 
-- name: Alert gh_errors
+- name: Alert on failure
   if: ${{ always() && steps.check.outputs.alert == 'true' }}
   uses: ./.github/actions/discord-alert
   with:
-    webhook: ${{ secrets.DISCORD_GH_ERRORS_WEBHOOK }}
+    webhook: ${{ secrets.<ALERT_WEBHOOK_SECRET> }}
     title: ${{ steps.check.outputs.title }}
     description: |
       ${{ steps.check.outputs.detail }}
@@ -117,7 +125,7 @@ These steps go on the **same** `release-please` job (reusing its runner — no e
 - name: Fail the run if a release was expected but missing
   if: ${{ always() && steps.check.outputs.alert == 'true' }}
   run: |
-    echo "::error::release verification failed — see the gh_errors alert"
+    echo "::error::release verification failed — see the alert"
     exit 1
 ```
 
@@ -171,7 +179,7 @@ jobs:
       - name: Send test alert
         uses: ./.github/actions/discord-alert
         with:
-          webhook: ${{ secrets.DISCORD_GH_ERRORS_WEBHOOK }}
+          webhook: ${{ secrets.<ALERT_WEBHOOK_SECRET> }}
           color: "3066993" # green — this is a test, not a real failure
           title: "✅ ${{ github.repository }} — alert pipe test"
           description: |
@@ -208,11 +216,11 @@ jobs:
             echo "alert=false" >> "$GITHUB_OUTPUT"
             echo "no stuck pending release PRs."
           fi
-      - name: Alert gh_errors
+      - name: Alert on failure
         if: steps.sweep.outputs.alert == 'true'
         uses: ./.github/actions/discord-alert
         with:
-          webhook: ${{ secrets.DISCORD_GH_ERRORS_WEBHOOK }}
+          webhook: ${{ secrets.<ALERT_WEBHOOK_SECRET> }}
           title: "🟥 ${{ github.repository }} — release PR stuck on autorelease: pending"
           description: |
             A **merged** release PR never got tagged, so it is stuck `pending`. **This aborts all future releases until cleared.**
@@ -227,11 +235,11 @@ jobs:
 
 ```yaml
 name: discord-alert
-description: Post an alert embed to the gh_errors Discord channel. No-op (warns) if the webhook secret is unset.
+description: Post an alert embed to a Discord channel. No-op (warns) if the webhook secret is unset.
 
 inputs:
   webhook:
-    description: Discord webhook URL (pass secrets.DISCORD_GH_ERRORS_WEBHOOK)
+    description: Discord webhook URL — pass the repo's alert webhook secret (default DISCORD_GH_ERRORS_WEBHOOK)
     required: true
   title:
     description: Embed title
@@ -255,7 +263,7 @@ runs:
         COLOR: ${{ inputs.color }}
       run: |
         if [ -z "$WEBHOOK" ]; then
-          echo "::warning::DISCORD_GH_ERRORS_WEBHOOK is unset — skipping alert (would have sent: $TITLE)"
+          echo "::warning::alert webhook secret is unset — skipping alert (would have sent: $TITLE)"
           exit 0
         fi
         payload=$(jq -n --arg t "$TITLE" --arg d "$DESC" --argjson c "${COLOR:-15158332}" \
@@ -272,10 +280,12 @@ runs:
 ## The webhook secret (optional — alerts no-op without it)
 
 ```bash
-gh secret set DISCORD_GH_ERRORS_WEBHOOK --repo <owner>/<repo>
+gh secret set <ALERT_WEBHOOK_SECRET> --repo <owner>/<repo>
 ```
 
-Create a Discord channel webhook (Server Settings → Integrations → Webhooks → Copy Webhook URL) and paste it when prompted. Unlike `RELEASE_PLEASE_TOKEN`, this is **not** required — the composite skips the alert (with a warning) when the secret is absent, so the release pipeline still functions; you just don't get Discord notifications until it's set.
+Create the webhook on the channel the project's alerts should land in (Discord → Server Settings → Integrations → Webhooks → Copy Webhook URL) and paste it when prompted. The secret name is whatever was chosen above; the URL inside it is what selects the channel.
+
+Unlike `RELEASE_PLEASE_TOKEN`, this is **not** required — the composite skips the alert (with a warning) when the secret is absent, so the release pipeline still functions; you just don't get Discord notifications until it's set. Say so in the summary rather than blocking on it.
 
 ## Activation timing (gitflow)
 
