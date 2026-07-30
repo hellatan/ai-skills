@@ -46,6 +46,7 @@ Read these without asking:
 - Default branch — `git symbolic-ref refs/remotes/origin/HEAD | sed 's@^refs/remotes/origin/@@'` (handles `master`, `trunk`, etc.).
 - Branches — does `develop` exist on origin? If not, the project is `main`-only and CI triggers should reflect that.
 - `RELEASE_PLEASE_TOKEN` secret — `gh secret list` (if scaffolding release-please or develop→main). The scaffolded workflows author their PRs with this PAT instead of `GITHUB_TOKEN`; if it's missing, flag it in the summary and report (see `references/release-please.md`).
+- Existing back-merge workflow — scan `.github/workflows/` for one that merges `main` into `develop` (**by behaviour, not filename**: it pushes to `develop` on a `push: main` trigger). Skip scaffolding if present; a second one would fight the first.
 - Alert webhook secret — `gh secret list` (if scaffolding release verification). The secret name is the project's **choice of Discord channel** (default `DISCORD_GH_ERRORS_WEBHOOK`); if a differently-named `DISCORD_*` secret already exists, offer it as the default instead. Optional; note its presence in the summary. When absent, the alerting composite no-ops with a warning, so no blocking callout is needed (see `references/release-verification.md`).
 
 Surface findings in one line: *"Detected: Next.js 16 + TS, default branch `develop`, package.json version 0.3.1, no existing workflows."*
@@ -76,7 +77,7 @@ If it exists: skip with a "you already have a deploy workflow" note.
 
 If it doesn't: scaffold the stub. The stub lists Render, Vercel, Fly.io, Railway, GHCR, and SSH/rsync as commented alternatives, all on equal footing (each needs user-supplied credentials), with a "How to use this file" header that walks the user through picking a target and adding the secrets it needs.
 
-**d. develop → main auto-PR** — `develop-to-main-pr.yml`.
+**d. develop → main auto-PR** — `develop-to-main-pr.yml`, paired with `main-to-develop-backmerge.yml`.
 
 Only relevant when `develop` exists AND there's no `stage` branch (gitflow without staging). Auto-opens/refreshes a draft `develop → main` PR so releases never wait on someone remembering to open it manually. Authors the PR with the same `RELEASE_PLEASE_TOKEN` secret release-please uses. Skip for `main`-only repos and for repos with a `stage` branch (staging topology needs a different two-workflow setup — leave a note). Skip if the file already exists.
 
@@ -95,6 +96,7 @@ Render the plan as a fenced code block with emoji headers (same convention as `p
 🔎 release-verify:  <scaffolding (verify-tag + release-health + discord-alert) | skipped (with release-please)>
 🚀 Deploy stub:     <scaffolding | skipped (already present)>
 🔁 develop→main PR: <scaffolding | skipped (main-only / staging / already present)>
+🔙 main→develop back-merge: <scaffolding | skipped (main-only / staging / already present)>
 🔁 /rebuild trigger: <scaffolding | skipped (main-only / already present)>
 🔑 RELEASE_PLEASE_TOKEN: <secret present | ⚠️ MISSING — setup required before first release>
 🔔 Alerts → <CHOSEN_SECRET_NAME>: <secret present | not set — alerts no-op until added (optional)>
@@ -154,6 +156,8 @@ One file: `.github/workflows/deploy.yml`. Triggers on `v*.*.*` tag pushes (relea
 See `references/develop-to-main-pr.md`.
 
 One file: `.github/workflows/develop-to-main-pr.yml`. Scaffold it only when `develop` exists and no `stage` branch does. It needs Actions to be allowed to open PRs — `project-scaffold` enables this on fresh repos; for an existing repo, surface the one-time `gh api` enable command from the reference doc in the report. Skip with a note for `main`-only repos and for repos using a `stage` branch.
+
+Scaffold the **main → develop back-merge** in the same step, under the same condition — see `references/main-to-develop-backmerge.md`. One file: `.github/workflows/main-to-develop-backmerge.yml`. The two are a pair: the promotion workflow pushes `develop`'s work onto `main`, and the back-merge returns what `main` accumulates (the promotion merge commit, release-please's CHANGELOG + version bump) so `develop` never drifts and the promotion PR never sits behind an *Update branch* click. It **must** fast-forward before falling back to `--no-ff`; a merge commit on the fast-forwardable path turns the promotion workflow into an endless loop of empty PRs, and that reasoning is the load-bearing part of the reference doc.
 
 ### 9. /rebuild comment trigger (gitflow)
 
@@ -220,6 +224,7 @@ One PAT secret (`RELEASE_PLEASE_TOKEN`) covers both PR-authoring workflows; `/re
 - `references/release-please.md` — workflow, config, manifest; monorepo variant; tag-pattern gotchas
 - `references/release-verification.md` — `verify-tag` (folded into `release-please.yml`) + `release-health.yml` + `discord-alert` composite: fail-loud + Discord alert when a merged release PR produces no tag; the alert channel is a scaffold-time choice (`<ALERT_WEBHOOK_SECRET>`, default `DISCORD_GH_ERRORS_WEBHOOK`, optional)
 - `references/develop-to-main-pr.md` — `develop-to-main-pr.yml`: auto-opens/refreshes the draft `develop → main` release PR (gitflow without staging)
+- `references/main-to-develop-backmerge.md` — `main-to-develop-backmerge.yml`: fast-forwards `develop` to `main` after every promotion/release so it never drifts; conflict opens a PR and notifies the PR channel (`<PR_ALERT_WEBHOOK_SECRET>`, default `DISCORD_PR_ALERTS_WEBHOOK`, optional)
 - `references/rebuild.md` — `rebuild.yml`: `/rebuild` PR-comment re-runs failed CI (gitflow); pairs with the PAT setup
 - `references/deploy-stub.md` — `deploy.yml` with the deploy-target picker, secret-setup guidance, and platform examples (Render, Vercel, Fly, Railway, GHCR, SSH/rsync)
 
