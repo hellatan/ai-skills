@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/hellatan/claude-skills/compare/v1.9.0...v1.10.0) (2026-07-30)
+
+
+### Features
+
+* **gh-actions-init:** scaffold the main → develop back-merge workflow ([#105](https://github.com/hellatan/claude-skills/issues/105)) ([a76f80c](https://github.com/hellatan/claude-skills/commit/a76f80c080cd0d7beb27774438ac93659c917385))
+
 ## [1.9.0](https://github.com/hellatan/claude-skills/compare/v1.8.1...v1.9.0) (2026-07-30)
 
 
