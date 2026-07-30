@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/hellatan/claude-skills/compare/v1.8.1...v1.9.0) (2026-07-30)
+
+
+### Features
+
+* **gh-actions-init:** make the alert channel a scaffold-time choice ([#98](https://github.com/hellatan/claude-skills/issues/98)) ([df9d8f2](https://github.com/hellatan/claude-skills/commit/df9d8f2d1630a785e60053f7baa19962019fa5c1))
+
 ## [1.8.1](https://github.com/hellatan/claude-skills/compare/v1.8.0...v1.8.1) (2026-07-28)
 
 
