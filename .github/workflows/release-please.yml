@@ -8,11 +8,18 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v5
+      - uses: actions/checkout@v6 # required for the local ./.github/actions/discord-alert composite
+
+      - id: release
+        uses: googleapis/release-please-action@v5
         with:
           # Author the release PR as a real identity, not github-actions[bot]:
           # GITHUB_TOKEN-authored PRs get no CI and park in action_required, so the
@@ -25,3 +32,120 @@ jobs:
           target-branch: main
           config-file: .github/release-please-config.json
           manifest-file: .github/.release-please-manifest.json
+
+      # verify-tag — folded in as steps (not a separate job) so it reuses this
+      # runner. Final goal of the whole release setup: a merged release PR MUST
+      # produce a tag. Catches the two failure modes a human watching the merge
+      # only accidentally guarded against:
+      #   1. the release-please step failed outright (loud), and
+      #   2. a release PR merged, the step reported success, but NO tag was
+      #      created — the silent freeze. The merged PR stays labelled
+      #      `autorelease: pending`, which makes every later run abort with
+      #      "There are untagged, merged release PRs outstanding" while still
+      #      reporting green. Releases just stop and the repo looks healthy.
+      #
+      # Ground truth is the tag ref on the remote; the tag names come out of
+      # toJSON(steps.release.outputs) — NEVER steps.release.outputs.release_created
+      # /.tag_name. Those unprefixed outputs only exist when the manifest package
+      # sits at the repo root: setPathOutput() in release-please-action namespaces
+      # every per-package output as "<path>--<key>" for any other path, so a check
+      # built on them cries "NO TAG created" on every healthy release. Canonical
+      # copy of these steps lives in the gh-actions-init skill
+      # (references/release-verification.md) — keep the two in sync.
+      - name: Evaluate release outcome
+        id: check
+        if: always()
+        env:
+          RELEASE_OUTCOME: ${{ steps.release.outcome }}
+          OUTPUTS_JSON: ${{ toJSON(steps.release.outputs) }}
+          HEAD_MSG: ${{ github.event.head_commit.message }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          alert=false
+          title=""
+          detail=""
+          head_line=$(printf '%s\n' "$HEAD_MSG" | head -n1)
+
+          # Did this push merge a release PR? The release commit's subject comes
+          # from the config's pull-request-title-pattern, so it is NOT always
+          # "chore: release X.Y.Z" — a pattern carrying ${component} yields e.g.
+          # "chore(main): release  ingest-worker 0.7.0" (two spaces, because
+          # ${component} renders with a leading space). The optional component
+          # group is what makes this match component-in-title repos; without it
+          # is_release_merge stays false there and the silent-freeze branch below
+          # is unreachable — the single most important check, quietly dead.
+          is_release_merge=false
+          if printf '%s' "$head_line" | grep -Eq '^chore(\([^)]*\))?: release +([^ ]+ +)?v?[0-9]+\.[0-9]+\.[0-9]+'; then
+            is_release_merge=true
+          fi
+
+          # Every tag this run cut, whether the output key is the root `tag_name`
+          # or a namespaced `<path>--tag_name`. Covers single-package, non-root
+          # package, and per-component monorepo tags without knowing the config.
+          tags=$(printf '%s' "$OUTPUTS_JSON" | jq -r 'to_entries[] | select(.key | endswith("tag_name")) | .value | select(. != null and . != "")')
+          context="releases_created=$(printf '%s' "$OUTPUTS_JSON" | jq -r '.releases_created // "<empty>"'), paths_released=$(printf '%s' "$OUTPUTS_JSON" | jq -r '.paths_released // "<empty>"')"
+
+          # Retried, so ref propagation lag right after the tag is cut can't
+          # manufacture a false alarm.
+          missing=""
+          for tag in $tags; do
+            found=false
+            for attempt in 1 2 3; do
+              if gh api "repos/${REPO}/git/ref/tags/${tag}" >/dev/null 2>&1; then
+                found=true
+                break
+              fi
+              if [ "$attempt" -lt 3 ]; then sleep 5; fi
+            done
+            if [ "$found" = "true" ]; then
+              echo "OK: tag ${tag} exists."
+            else
+              missing="${missing} ${tag}"
+            fi
+          done
+
+          if [ "$RELEASE_OUTCOME" = "failure" ]; then
+            alert=true
+            title="❌ ${REPO} — release-please step failed"
+            detail="The release-please action failed. No release PR / tag / release was produced this run."
+          elif [ "$is_release_merge" = "true" ] && [ -z "$tags" ]; then
+            alert=true
+            title="🟥 ${REPO} — release PR merged but NO TAG created"
+            detail="Merged \`${head_line}\` but release-please reported no tag (${context}). This is the silent freeze — check the title-pattern/component config."
+          elif [ -n "$missing" ]; then
+            alert=true
+            title="🟥 ${REPO} — release reported but tag missing"
+            detail="release-please reported tag(s):${missing} but the ref does not exist on the remote (${context})."
+          elif [ -n "$tags" ]; then
+            echo "OK: tagged $(printf '%s' "$tags" | tr '\n' ' ') (${context})."
+          else
+            echo "OK: no release expected this run (feature push or PR-only update)."
+          fi
+
+          {
+            echo "alert=$alert"
+            echo "title=$title"
+            echo "detail<<EOF"
+            echo "$detail"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Alert on failure
+        if: ${{ always() && steps.check.outputs.alert == 'true' }}
+        uses: ./.github/actions/discord-alert
+        with:
+          webhook: ${{ secrets.DISCORD_GH_ERRORS_WEBHOOK }}
+          title: ${{ steps.check.outputs.title }}
+          description: |
+            ${{ steps.check.outputs.detail }}
+
+            **Commit:** [`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})
+            **Repo:** ${{ github.server_url }}/${{ github.repository }}
+            [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · [Release PRs](${{ github.server_url }}/${{ github.repository }}/pulls?q=is%3Apr+label%3A%22autorelease%3A+pending%22)
+
+      - name: Fail the run if a release was expected but missing
+        if: ${{ always() && steps.check.outputs.alert == 'true' }}
+        run: |
+          echo "::error::release verification failed — see the alert"
+          exit 1
