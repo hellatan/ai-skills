@@ -97,6 +97,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
+          # GitHub's own bot identity — 41898282 is the global account ID of
+          # github-actions[bot], identical in every repo, not a per-repo or
+          # personal value. Leave it as-is: substituting a real person's address
+          # attributes automated merge commits to someone who didn't make them.
+          # An identity is required, not optional: the --no-ff fallback creates a
+          # merge commit, and git refuses to commit without one.
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main develop
