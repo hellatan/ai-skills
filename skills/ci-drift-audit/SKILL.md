@@ -106,10 +106,18 @@ Full detail, rationale, and detection notes: `references/checks.md`.
 | 3 | Playwright e2e job caches browsers | medium — 1–2 min/run |
 | 4 | `workflow_dispatch:` present on `ci.yml` | low |
 | 5 | `/rebuild` workflow present (gitflow repos) | low |
-| 6 | Jobs consolidated into `checks` | **informational only** — opt-in, breaking |
+| 6 | `develop → main` promotion workflow present | low (missing no-squash warning: medium) |
+| 7 | Jobs consolidated into `checks` | **informational only** — opt-in, breaking |
+| 8 | Release-tag verification present and correctly wired | low missing / **high** miswired |
 
-Check 6 is reported, never failed: consolidation renames status checks, which is a
+Check 7 is reported, never failed: consolidation renames status checks, which is a
 breaking change for any repo with required checks. See `ci-cost-migration.md`.
+
+Check 8 splits on purpose. A repo that never got the verification block is a rollout
+gap (low); a repo that has it but reads `steps.release.outputs.release_created` /
+`.tag_name` with a non-root package path is **high** — those outputs are always empty
+there, so it cries "NO TAG created" on every healthy release while its real
+tag-missing branch can never fire.
 
 ## Flow
 
