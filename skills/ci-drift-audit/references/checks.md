@@ -183,6 +183,69 @@ breakage is in repos whose protection was applied with the older names.
 
 ---
 
+## 8. Release-tag verification present and correctly wired — low missing / **high** miswired
+
+**Why.** release-please can merge a release PR, report the run **success**, and create no
+tag. Nothing else notices: the merged release PR stays `autorelease: pending`, which makes
+every later run abort with `There are untagged, merged release PRs outstanding` — silently,
+still green. Releases just stop, and the repo looks healthy the whole time. The `verify-tag`
+steps are the only thing that turns that into a failed run and an alert.
+
+**Scope.** Repos that use release-please. Detect that by behaviour, not by filename: scan
+every file in `.github/workflows/` for one that `uses: googleapis/release-please-action`.
+The config is **not** reliably at `.github/release-please-config.json` either — at least one
+repo keeps it at the repo root — so read the `config-file` / `manifest-file` inputs off that
+workflow rather than assuming a path. Skip repos with no release-please workflow.
+
+**Two drift shapes, deliberately different severities.**
+
+- **Missing entirely — low.** The release job has no verification steps. Detect: no step in
+  that workflow looks up a tag ref (`git/ref/tags`). This is "not rolled out yet," not a
+  malfunction, and it will be true of most repos until the rollout finishes — so it must
+  stay quiet enough that nobody learns to skim the report. Report it, don't shout.
+- **Present but reading the wrong outputs — high.** The block gates on
+  `steps.release.outputs.release_created` or `steps.release.outputs.tag_name`. Detect: match
+  those keys **only inside a `${{ … }}` expression** —
+  `grep -E '\$\{\{[^}]*outputs\.(release_created|tag_name)'`. A bare
+  `grep outputs.release_created` reports the **fixed** shape as broken, because the correct
+  block carries a comment naming those keys to warn the next reader off them. Verified: that
+  naive grep flags the one repo already on the corrected version. Those keys
+  only exist when the manifest package sits at the repo **root** — `setPathOutput()` in
+  release-please-action namespaces every per-package output as `<path>--<key>` for any other
+  path. Cross-check the package path: read the `packages` keys from the config the workflow
+  actually points at.
+  - **package path ≠ `.`** → **high**. Both keys are permanently empty, so the check alerts
+    "release PR merged but NO TAG created" on every healthy release *and* its
+    "tag missing" branch is unreachable dead code. The repo is actively lying in both
+    directions. Observed live: a 0.26.0 release alerted as a silent freeze seconds after
+    its tag was published by the same run.
+  - **package path = `.`** → medium. It works today and breaks the moment the package moves
+    or a second one is added, which is a one-line fix now and a mystery later.
+
+A correctly wired block reads the tags out of `toJSON(steps.release.outputs)` (selecting
+keys that end in `tag_name`) and verifies each against the tag ref on the remote. That form
+is config-independent — root, non-root, and per-component monorepo tags all resolve — so
+treat its presence as the pass condition.
+
+**Also worth reporting, both low.** The alert is optional plumbing, and its absence is
+quiet by design, which is exactly why it needs surfacing:
+
+- `.github/actions/discord-alert/action.yml` missing while the workflow references it — the
+  run fails on a missing action rather than alerting.
+- The webhook secret named in the workflow not present in `gh secret list`. The composite
+  no-ops with a `::warning::` when unset, so the whole alerting path is dead and every run
+  still looks green. Read the secret name out of the workflow rather than assuming it —
+  the channel is a per-project choice, and repos deliberately use different ones.
+
+> ⚠️ **"Wired" and "the secret exists" are two different checks.** This exact conflation
+> has already burned a fleet audit once, on `RELEASE_PLEASE_TOKEN`: the workflow referenced
+> the secret correctly, the audit called it clean, and the secret had never been created.
+> An unset secret interpolates to an empty string. Check both.
+
+**Fix.** `gh-actions-init/references/release-verification.md`.
+
+---
+
 ## Reporting shape
 
 Only drifted items, grouped by repo, each naming its fix:
