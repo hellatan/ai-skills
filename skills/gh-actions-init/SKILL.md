@@ -47,7 +47,7 @@ Read these without asking:
 - Branches — does `develop` exist on origin? If not, the project is `main`-only and CI triggers should reflect that.
 - `RELEASE_PLEASE_TOKEN` secret — `gh secret list` (if scaffolding release-please or develop→main). The scaffolded workflows author their PRs with this PAT instead of `GITHUB_TOKEN`; if it's missing, flag it in the summary and report (see `references/release-please.md`).
 - Existing back-merge workflow — scan `.github/workflows/` for one that merges `main` into `develop` (**by behaviour, not filename**: it pushes to `develop` on a `push: main` trigger). Skip scaffolding if present; a second one would fight the first.
-- Deploy target + its credential — needed for the tagged-only deploy step folded into `release-please.yml`. For Render that's the `RENDER_DEPLOY_HOOK_URL` secret (`gh secret list`); if it's missing, flag it as **blocking** alongside `RELEASE_PLEASE_TOKEN` — a tagged release with no deploy credential fails the run by design. If the target isn't Render or isn't decided yet, say so and scaffold the deploy step commented out (see `references/tagged-deploy.md`).
+- Deploy target + its credential — needed for the tagged-only deploy step folded into `release-please.yml`. **First establish whether the repo is deployed at all.** If it isn't — no service exists yet, the normal state for a fresh scaffold, an internal tool, or a library — the answer is the `RENDER_DEPLOY=false` repo variable (`gh variable list`), **not** a missing-secret callout: the deploy step skips cleanly and releases still tag. If it *is* deployed, check the credential (`gh secret list` — `RENDER_DEPLOY_HOOK_URL` for Render) and flag a missing one as **blocking** alongside `RELEASE_PLEASE_TOKEN`, because deploys-enabled-with-no-credential fails the run by design. If the target isn't Render, scaffold the deploy step commented out. See `references/tagged-deploy.md`.
 - Alert webhook secret — `gh secret list` (if scaffolding release verification). The secret name is the project's **choice of Discord channel** (default `DISCORD_GH_ERRORS_WEBHOOK`); if a differently-named `DISCORD_*` secret already exists, offer it as the default instead. Optional; note its presence in the summary. When absent, the alerting composite no-ops with a warning, so no blocking callout is needed (see `references/release-verification.md`).
 
 Surface findings in one line: *"Detected: Next.js 16 + TS, default branch `develop`, package.json version 0.3.1, no existing workflows."*
@@ -102,12 +102,13 @@ Render the plan as a fenced code block with emoji headers (same convention as `p
 🚀 release-please:  <scaffolding | skipped (already present)>
 🔎 release-verify:  <scaffolding (verify-tag + release-health + discord-alert) | skipped (with release-please)>
 🚀 Deploy model:    <tagged-only, folded into release-please.yml (target: <platform>) | standalone deploy.yml | skipped (already present)>
+🚦 Deploy enabled:  <yes | no — setting RENDER_DEPLOY=false (no service yet; releases still tag, deploy step skips)>
 🤝 Release auto-merge: <on (pause with the RELEASE_AUTOMERGE repo variable) | off>
 🔁 develop→main PR: <scaffolding | skipped (main-only / staging / already present)>
 🔙 main→develop back-merge: <scaffolding | skipped (main-only / staging / already present)>
 🔁 /rebuild trigger: <scaffolding | skipped (main-only / already present)>
 🔑 RELEASE_PLEASE_TOKEN: <secret present | ⚠️ MISSING — setup required before first release>
-🔑 Deploy credential (<e.g. RENDER_DEPLOY_HOOK_URL>): <secret present | ⚠️ MISSING — tagged releases will fail until it's set>
+🔑 Deploy credential (<e.g. RENDER_DEPLOY_HOOK_URL>): <secret present | not needed yet (deploys gated off) | ⚠️ MISSING while deploys are enabled — tagged releases will fail>
 🔔 Alerts → <CHOSEN_SECRET_NAME>: <secret present | not set — alerts no-op until added (optional)>
 📝 Files to write:  <list>
 📝 Files to extend: <list>
@@ -162,9 +163,11 @@ See `references/tagged-deploy.md` — the canonical design; don't restate or imp
 
 Two more steps folded into the same `release-please.yml` job, plus one platform setting:
 
-1. **Deploy tagged release** — gated on `steps.check.outputs.released == 'true'` (from the verification steps), deploying `github.sha`, which *is* the commit release-please just tagged. Render is the verified path (POST the deploy hook with `&ref=<sha>`, `RENDER_DEPLOY_HOOK_URL` secret, fail loudly if unset). Vercel/Netlify/Cloudflare and generic-CI/AWS variants exist in the reference **commented out and marked unverified** — scaffold them that way; never present them as tested.
+1. **Deploy tagged release** — gated on `steps.check.outputs.released == 'true' && vars.RENDER_DEPLOY != 'false'`, deploying `github.sha`, which *is* the commit release-please just tagged. Render is the verified path (POST the deploy hook with `&ref=<sha>`, `RENDER_DEPLOY_HOOK_URL` secret, fail loudly if unset **while deploys are enabled**). Vercel/Netlify/Cloudflare and generic-CI/AWS variants exist in the reference **commented out and marked unverified** — scaffold them that way; never present them as tested.
 2. **Auto-merge the release PR** — squash-merge via `RELEASE_PLEASE_TOKEN` (a `GITHUB_TOKEN` merge wouldn't re-trigger the workflow, so no tag would ever be cut), finding the PR by its `autorelease: pending` label rather than the action's `pr` output. Pause switch: repo variable `RELEASE_AUTOMERGE=false`.
-3. **Turn off the platform's native branch auto-deploy** (`autoDeploy: false` in `render.yaml`, or the equivalent dashboard setting elsewhere). Call out in the report that the file alone isn't enough — the setting must also be flipped in the platform dashboard.
+3. **Turn off the platform's native branch auto-deploy** (`autoDeploy: false` in `render.yaml`, or the equivalent dashboard setting elsewhere). **Existing service:** the file alone does nothing — say plainly in the report that the setting must also be flipped in the platform dashboard (or the Blueprint re-synced). **Brand-new service created from a Blueprint that already carries `autoDeploy: false`:** it starts off; don't send the user chasing a toggle that's already correct.
+
+**Set `RENDER_DEPLOY=false` whenever the repo has no deploy target yet.** A repo with no service has no deploy hook to configure, and without the gate its first tagged release would fail the release workflow — on something that was never deployed. With the gate, the release chain works from day one and only the deploy step is dormant. Give the go-live checklist (create service → add secret → delete the variable) from `references/tagged-deploy.md` in the report.
 
 Net: one human gate (merging the `develop → main` promotion PR) → release → tag → deploy of the exact tagged commit, exactly once.
 
@@ -210,9 +213,11 @@ gh secret set RELEASE_PLEASE_TOKEN --repo <owner>/<repo>
 Next steps:
 1. (If flagged above) Add the RELEASE_PLEASE_TOKEN repo secret — the release workflows fail without it
 2. Push a feature branch and open a PR — confirm CI runs green
-3. Add the deploy credential secret (e.g. RENDER_DEPLOY_HOOK_URL) AND turn off native
-   branch auto-deploy in your hosting dashboard — the committed `autoDeploy: false`
-   does not take effect until the platform-side setting matches
+3. Deploys: if this repo has no hosting service yet, nothing to do — the RENDER_DEPLOY=false
+   repo variable keeps the deploy step dormant while releases still tag. When you do go live:
+   create the service (a fresh one from the committed config already has auto-deploy off; an
+   EXISTING service must be toggled off in the dashboard — the file alone does nothing), add
+   the deploy-hook secret, then delete the RENDER_DEPLOY variable. Next release deploys itself.
 4. (If you don't have tests yet) Run `/testing-init` to fold the unit-test step into `checks` and add the `integration` / `e2e` jobs
 5. (If you want branch protection on main/develop) Set it up via GitHub UI or `gh api repos/{owner}/{repo}/branches/{branch}/protection`
 6. Make your first conventional commit (`feat:`, `fix:`, etc.) — release-please tracks these for the next release PR
@@ -245,7 +250,7 @@ One PAT secret (`RELEASE_PLEASE_TOKEN`) covers both PR-authoring workflows; `/re
 - `references/develop-to-main-pr.md` — `develop-to-main-pr.yml`: auto-opens/refreshes the draft `develop → main` release PR (gitflow without staging)
 - `references/main-to-develop-backmerge.md` — `main-to-develop-backmerge.yml`: fast-forwards `develop` to `main` after every promotion/release so it never drifts; conflict opens a PR and notifies the PR channel (`<PR_ALERT_WEBHOOK_SECRET>`, default `DISCORD_PR_ALERTS_WEBHOOK`, optional)
 - `references/rebuild.md` — `rebuild.yml`: `/rebuild` PR-comment re-runs failed CI (gitflow); pairs with the PAT setup
-- `references/tagged-deploy.md` — **the deploy model**: `autoDeploy: false` + tag-gated deploy step + release-PR auto-merge + the two release-please config settings that make every promotion release; the `GITHUB_TOKEN` tag-trigger gotcha; the revert-forward runbook; unverified non-Render platform blocks; multi-deploy-monorepo guidance
+- `references/tagged-deploy.md` — **the deploy model**: `autoDeploy: false` + tag-gated deploy step + release-PR auto-merge + the two release-please config settings that make every promotion release; the `RENDER_DEPLOY` gate for repos with no deploy target yet + the go-live checklist; the `GITHUB_TOKEN` tag-trigger gotcha; the revert-forward runbook; unverified non-Render platform blocks; multi-deploy-monorepo guidance
 - `references/deploy-stub.md` — the fallback standalone `deploy.yml` with the deploy-target picker, secret-setup guidance, and platform examples (Render, Vercel, Fly, Railway, GHCR, SSH/rsync); also the `render.yaml` Blueprint
 
 ## Why these defaults

@@ -177,11 +177,16 @@ When Render *is* the target, a `render.yaml` Blueprint is dramatically better th
 #
 # Required repo secret: RENDER_DEPLOY_HOOK_URL (dashboard → service → Settings →
 # Deploy Hook). Without it the release job fails loudly rather than shipping
-# nothing silently.
+# nothing silently. Until a service exists at all, set the repo VARIABLE
+# RENDER_DEPLOY=false so a tagged release skips the deploy step instead of
+# failing on a hook that cannot exist yet (see references/tagged-deploy.md).
 #
-# NOTE: `autoDeploy: false` here only takes effect once the Blueprint is
-# re-synced in the dashboard — flip auto-deploy off on the service there too, or
-# every push to `main` still deploys regardless of this file.
+# NOTE — `autoDeploy: false` behaves differently depending on the service:
+#   * EXISTING service: this line alone does NOTHING. It takes effect only once
+#     the Blueprint is re-synced — flip auto-deploy off on the service in the
+#     dashboard too, or every push to `main` still deploys regardless of the file.
+#   * BRAND-NEW service created from this file: it is created with auto-deploy
+#     already off. There is nothing to flip; just confirm it.
 databases:
   - name: <project>-db
     plan: basic-256mb        # paid: smallest tier. Free tier = `free`, but it expires after 30 days.
@@ -213,7 +218,7 @@ services:
 
 Conventions to bake in:
 - **Service naming**: `<project>-db`, `<project>-web`, `<project>-worker`, etc. (the `<project>-` prefix is required.)
-- **`autoDeploy: false`** so deploys are driven by the verified tag, not every push to `main`. This is the load-bearing line of the whole deploy model — with it on, the untagged promotion merge ships the feature code and the release commit ships again, two deploys per release with the wrong one going first (`references/tagged-deploy.md`). **Flipping it in the file is only half the change** — auto-deploy must also be turned off on the service in the dashboard.
+- **`autoDeploy: false`** so deploys are driven by the verified tag, not every push to `main`. This is the load-bearing line of the whole deploy model — with it on, the untagged promotion merge ships the feature code and the release commit ships again, two deploys per release with the wrong one going first (`references/tagged-deploy.md`). **On an existing service, flipping it in the file is only half the change** — auto-deploy must also be turned off on the service in the dashboard (or the Blueprint re-synced). **On a brand-new service created from this file**, it starts off; don't send the user chasing a toggle that's already correct.
 - **`sync: false`** for every secret (auth secrets, API keys, credentials) — Render prompts for them on apply rather than reading from the repo.
 - **Idempotent build steps** — anything in `buildCommand` (e.g. `db:migrate`, a seed) must be safe to re-run on every deploy.
 - `region` is a placeholder — confirm with the user; don't assume Oregon.

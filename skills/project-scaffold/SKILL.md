@@ -303,7 +303,7 @@ Create the remote with `gh repo create`, flip on the repo-level setting that let
 The push is bracketed by two **real halts** (not text-only notes — text mid-flow gets skipped past):
 
 - **17a — PRE-PUSH GATE.** Surface a verbatim message telling the user that Claude Code's auto-mode classifier will block the bootstrap push without surfacing an approval dialog, and to toggle auto-mode OFF before replying `go`.
-- **17b — Push.** Run the `gh repo create` + `gh api … actions/permissions/workflow` + `git push` sequence, then surface the **`RELEASE_PLEASE_TOKEN` secret callout** — every new repo needs this PAT-backed secret (`gh secret set RELEASE_PLEASE_TOKEN`) or the release-please and develop→main workflows fail on first run. User action; don't ask for the PAT value in chat.
+- **17b — Push.** Run the `gh repo create` + `gh api … actions/permissions/workflow` + `git push` sequence, then surface the **`RELEASE_PLEASE_TOKEN` secret callout** — every new repo needs this PAT-backed secret (`gh secret set RELEASE_PLEASE_TOKEN`) or the release-please and develop→main workflows fail on first run. User action; don't ask for the PAT value in chat. Also set `RENDER_DEPLOY=false` (a repo **variable**, so no user action) — a brand-new repo has no hosting service and therefore no deploy hook, and without the gate its first tagged release would fail the release workflow on a project that was never deployed. Leave `RELEASE_AUTOMERGE` unset (unset = auto-merge on).
 - **17c — POST-PUSH GATE.** Surface a verbatim message that the bootstrap exception is done and the user can toggle auto-mode back ON. Wait for `continue` before proceeding to Step 18.
 
 See `references/step-17-create-repo-push.md` for the bash sequence, the verbatim gate messages, and the full bootstrap-exception contract.
@@ -344,7 +344,7 @@ This is what the scaffold enables out of the box:
 4. **Merge to develop** — once CI is green and you're happy, merge. Your code is now on `develop`.
 5. **Time to release** (skipping `stage` if not enabled, otherwise `develop` → `stage` → `main`) — open a PR from `develop` → `main`. Same checks run.
 6. **Release-please takes over** — once merged to `main`, release-please opens a "release PR" with a changelog and a version bump (decided by your commit messages) and **merges it for you**. Merging the `develop → main` PR in step 5 is the last thing you have to click. (Want to review the bump by hand? Set the repo variable `RELEASE_AUTOMERGE=false` and the release PR waits for you.)
-7. **Tag + deploy** — release-please tags the commit (e.g. `v1.4.0`), creates a GitHub Release, and that same run deploys **the tagged commit**. Your host's "deploy on every push" is deliberately off, so production is always exactly the version named by the newest tag — deployed once, never twice.
+7. **Tag + deploy** — release-please tags the commit (e.g. `v1.4.0`), creates a GitHub Release, and that same run deploys **the tagged commit**. Your host's "deploy on every push" is deliberately off, so production is always exactly the version named by the newest tag — deployed once, never twice. (Until you actually have somewhere to deploy, that last part is switched off and steps 1–6 work exactly the same; the go-live checklist in the final report turns it on in three commands.)
 
 ---
 

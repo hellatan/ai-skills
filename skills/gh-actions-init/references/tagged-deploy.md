@@ -27,13 +27,18 @@ The fix is the same shape everywhere: **turn off the platform's native git auto-
 
 Render: `autoDeploy: false` in `render.yaml`.
 
-> ⚠️ `render.yaml` alone is not enough. `autoDeploy: false` only takes effect once the Blueprint is re-synced in the dashboard. Flip auto-deploy off on the service in the dashboard too, or the platform keeps deploying every push to `main` and the whole model is silently inert. Same class of step on every other platform — the setting lives in the platform, the file only declares it.
+**The answer differs for a brand-new service vs. an existing one, and mixing them up is the most-copied mistake here:**
+
+- **A service that already exists** (retrofitting a repo that's been deploying on every push): `render.yaml` alone does **nothing**. `autoDeploy: false` only takes effect once the Blueprint is re-synced in the dashboard — until then the platform keeps deploying every push to `main` and the whole model is silently inert. **Flip auto-deploy off on the service in the dashboard**, or re-sync the Blueprint, and verify it stuck. Same class of step on every other platform: the setting lives in the platform, the file only declares it.
+- **A brand-new service created from a `render.yaml` that already carries `autoDeploy: false`** is created with auto-deploy off from the start. There is nothing to "flip off later" — don't send the user hunting for a dashboard toggle that's already correct. Just confirm it after creating the service.
 
 ### 2. A deploy step inside `release-please.yml`, gated on a verified tag
 
 Not a separate `deploy.yml` on `on: push: tags` — see the loop-guard gotcha below. The step runs in the **same job** that cut the tag and keys off the `released` output from the `verify-tag` steps (`references/release-verification.md`), which is `true` only when a tag was cut **and** the ref was confirmed on the remote.
 
 `github.sha` on that run **is** the commit release-please just tagged, so passing it as the deploy ref guarantees the platform builds the tagged commit and never the untagged promotion merge.
+
+The step is additionally gated on a repo variable, `RENDER_DEPLOY`, so a repo that has release automation but **no service yet** doesn't fail its releases — see "Repos with no deploy target yet" below. That gate is about *whether this repo deploys at all*; it never softens the failure when a repo that **does** deploy is missing its credential.
 
 ### 3. Auto-merge the release PR
 
@@ -80,14 +85,25 @@ Appended to the `release-please` job in `.github/workflows/release-please.yml`, 
 # github.sha, which IS the commit release-please just tagged (the release PR's
 # merge commit). So the platform always builds the exact tagged version, never
 # the untagged promotion-merge commit.
+#
+# OPT-OUT SWITCH: set the repo variable RENDER_DEPLOY=false when this repo has
+# NO deploy target yet (no service, therefore no deploy hook to configure) —
+# the step skips cleanly and releases still tag. Unset (or anything but
+# 'false') = this repo deploys, the safe default for anything live.
+#
+# The two conditions mean DIFFERENT things, deliberately:
+#   - RENDER_DEPLOY=false  → "there is nothing to deploy to." Skip, no error.
+#   - enabled + missing secret → a REAL error. A repo that deploys and lost its
+#     credential must fail loudly, never ship silently nothing. Do not downgrade
+#     this to a warning; it is the case protecting a live app.
 - name: Deploy tagged release
-  if: ${{ steps.check.outputs.released == 'true' }}
+  if: ${{ steps.check.outputs.released == 'true' && vars.RENDER_DEPLOY != 'false' }}
   env:
     RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
     SHA: ${{ github.sha }}
   run: |
     if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
-      echo "::error::RENDER_DEPLOY_HOOK_URL secret is unset — a release was tagged but production cannot be deployed. Add the deploy hook URL (dashboard → service → Settings → Deploy Hook) as a repo secret."
+      echo "::error::RENDER_DEPLOY_HOOK_URL secret is unset — a release was tagged but production cannot be deployed. Add the deploy hook URL (dashboard → service → Settings → Deploy Hook) as a repo secret. If this repo has no deploy target yet, set the repo variable RENDER_DEPLOY=false instead."
       exit 1
     fi
     echo "Triggering deploy of tagged commit ${SHA}"
@@ -104,9 +120,36 @@ Appended to the `release-please` job in `.github/workflows/release-please.yml`, 
     echo "Deploy queued for ${SHA}."
 ```
 
-**Fail loudly on a missing secret.** The alternative — skipping the step when `RENDER_DEPLOY_HOOK_URL` is unset — produces a green release that shipped nothing, which is the exact failure class this whole design exists to eliminate.
+**Fail loudly on a missing secret.** The alternative — treating an unset `RENDER_DEPLOY_HOOK_URL` as "nothing to do" — produces a green release that shipped nothing, which is the exact failure class this whole design exists to eliminate. "This repo has no deploy target" must be stated explicitly, as a variable, not inferred from an absent secret.
 
-Required repo secret: **`RENDER_DEPLOY_HOOK_URL`** (dashboard → service → Settings → Deploy Hook). Surface it as a blocking setup step in the report, alongside `RELEASE_PLEASE_TOKEN`.
+Required repo secret (for a repo that deploys): **`RENDER_DEPLOY_HOOK_URL`** (dashboard → service → Settings → Deploy Hook). Surface it as a blocking setup step in the report, alongside `RELEASE_PLEASE_TOKEN`.
+
+---
+
+## Repos with no deploy target yet
+
+A freshly scaffolded repo has **no service, therefore no deploy hook**, therefore no `RENDER_DEPLOY_HOOK_URL` to set. Without the `RENDER_DEPLOY` gate, that repo's *first tagged release fails the release workflow* — on a project that was never deployed in the first place. For a scaffold, "not deployed yet" is the normal starting state, so failing on it is backwards.
+
+Hence the two-signal split:
+
+| Situation | `RENDER_DEPLOY` | Deploy hook secret | Behaviour |
+|---|---|---|---|
+| No service yet (fresh scaffold, internal tool, library) | `false` | absent | Step skips. Releases still tag and publish. No failure. |
+| Live app | unset / `true` | set | Deploys the tagged commit. |
+| Live app, credential missing or revoked | unset / `true` | absent | **Fails the run.** This is the case worth protecting. |
+
+Set it with `gh variable set RENDER_DEPLOY --body false --repo <owner>/<repo>`; remove it with `gh variable delete RENDER_DEPLOY --repo <owner>/<repo>`.
+
+**Scaffolded repos start at `RENDER_DEPLOY=false`** (and `RELEASE_AUTOMERGE` unset, i.e. auto-merge on). The release chain is then fully working from day one — promote, release, tag — with only the deploy step dormant.
+
+### Go-live checklist (run when the repo actually gets deployed)
+
+1. **Create the service from `render.yaml`.** It already ships `autoDeploy: false`, so the new service is created with auto-deploy **off** — there's nothing to flip afterwards. (Contrast with an *existing* service, which needs the dashboard toggle / Blueprint re-sync; see part 1 above.) Confirm it reads off before continuing.
+2. **Add the deploy hook secret:** `gh secret set RENDER_DEPLOY_HOOK_URL --repo <owner>/<repo>` (dashboard → service → Settings → Deploy Hook).
+3. **Delete the gate:** `gh variable delete RENDER_DEPLOY --repo <owner>/<repo>` (or set it to `true`).
+4. **The next release deploys automatically** — no workflow edit, no re-scaffold. Walk the "verify on your first deploy" checklist below on that first release.
+
+Do these in that order. Deleting the variable before the secret exists leaves a window where a release would fail; the reverse order never does.
 
 ---
 
@@ -181,7 +224,7 @@ Same branch-auto-deploy problem, same fix shape, **one important difference**: V
 # deployments for the production branch (the equivalent of autoDeploy: false).
 #
 # - name: Deploy tagged release to Vercel
-#   if: ${{ steps.check.outputs.released == 'true' }}
+#   if: ${{ steps.check.outputs.released == 'true' && vars.RENDER_DEPLOY != 'false' }}   # rename the variable to suit (e.g. DEPLOY_ENABLED)
 #   env:
 #     VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 #     VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -209,7 +252,7 @@ These are usually **already** CI-driven — there is no native git auto-deploy t
 # ordinary AWS CLI calls, but the tag gating below hasn't been run in production.
 #
 # - name: Deploy tagged release
-#   if: ${{ steps.check.outputs.released == 'true' }}
+#   if: ${{ steps.check.outputs.released == 'true' && vars.RENDER_DEPLOY != 'false' }}   # rename the variable to suit (e.g. DEPLOY_ENABLED)
 #   env:
 #     AWS_REGION: us-east-1
 #   run: |
@@ -226,7 +269,8 @@ If the deploy genuinely has to live in its own workflow (matrix, `environment:` 
 
 Run this once, on the first real release after wiring up a non-Render platform:
 
-1. **Auto-deploy is actually off.** Push a trivial commit to `main` without a release. Nothing should deploy. (Catches the "the file says off, the dashboard says on" trap.)
+0. **The gate is open.** `RENDER_DEPLOY` is deleted (or `true`) and the deploy credential secret exists. A skipped deploy step looks identical to a successful one in the run summary if you're not reading closely.
+1. **Auto-deploy is actually off.** Push a trivial commit to `main` without a release. Nothing should deploy. (Catches the "the file says off, the dashboard says on" trap on a pre-existing service — a service created fresh from a `autoDeploy: false` Blueprint is already correct, but verify rather than assume.)
 2. **The tagged commit is what shipped.** Compare the deployed build's commit SHA (most platforms show it in the deployment detail) against the `vX.Y.Z` tag. They must be identical — not the promotion merge one commit earlier.
 3. **Exactly one deploy per release.** The platform's deployment list should show one entry for the release, not two.
 4. **A missing credential fails the run.** Temporarily unset the deploy secret in a test repo and confirm the job errors instead of skipping. A silent skip is worse than no automation.
@@ -264,6 +308,7 @@ A repo with **multiple independently deployed services** (`apps/web` + `apps/api
 | Name | Kind | Required? | Purpose |
 |---|---|---|---|
 | `RELEASE_PLEASE_TOKEN` | secret | **yes** | Authors the release PR (so CI runs on it) **and** merges it (so the merge re-triggers the workflow that tags + deploys). See `references/release-please.md`. |
-| `RENDER_DEPLOY_HOOK_URL` | secret | **yes** (Render) | The service's deploy hook. The deploy step fails loudly if unset. |
-| `RELEASE_AUTOMERGE` | variable | no | Set to `false` to pause auto-merge and review release PRs by hand. Unset = hands-off. |
+| `RENDER_DEPLOY_HOOK_URL` | secret | **yes, once the repo deploys** | The service's deploy hook. The deploy step fails loudly if unset *while deploys are enabled*. Not needed while `RENDER_DEPLOY=false`. |
+| `RENDER_DEPLOY` | variable | no | Set to `false` when the repo has **no deploy target yet** — the deploy step skips cleanly and releases still tag. Scaffolded repos start here. Delete it at go-live. |
+| `RELEASE_AUTOMERGE` | variable | no | Set to `false` to pause auto-merge and review release PRs by hand. Unset = hands-off (the scaffolded default). |
 | `<ALERT_WEBHOOK_SECRET>` | secret | no | Alert channel for the `verify-tag` failure path (`references/release-verification.md`). No-ops when unset. |

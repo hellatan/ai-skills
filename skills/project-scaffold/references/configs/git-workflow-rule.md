@@ -4,7 +4,7 @@ This file is the **template content** that `project-scaffold` Step 10 writes to 
 
 Write it verbatim. Replace `<PROJECT_NAME>` with the project name only if the template uses it (it currently doesn't).
 
-The "Release flow" and "Reverting a release" sections describe the **tagged-only deploy** model — canonical explanation in `gh-actions-init/references/tagged-deploy.md`. If the project has no deploy target yet, keep them (the scaffold wires the release chain regardless) but drop the deploy sentence in step 5 rather than promising a deploy that doesn't exist.
+The "Release flow" and "Reverting a release" sections describe the **tagged-only deploy** model — canonical explanation in `gh-actions-init/references/tagged-deploy.md`. A brand-new project has no hosting service yet, so the scaffold gates deploys off with the `RENDER_DEPLOY=false` repo variable: the release chain (promote → release PR → auto-merge → tag) works fully, and only the deploy step is dormant. Keep both sections, and in step 5 note that deploys are currently gated off rather than promising a deploy that can't happen — then drop the qualifier at go-live.
 
 ---
 
