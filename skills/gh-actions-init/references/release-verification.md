@@ -51,10 +51,11 @@ These steps go on the **same** `release-please` job (reusing its runner — no e
     detail=""
     head_line=$(printf '%s\n' "$HEAD_MSG" | head -n1)
 
-    # Did this push merge a release PR? release-please's release commit reads
-    # "chore: release X.Y.Z" or "chore(scope): release X.Y.Z".
+    # Did this push merge a release PR? The release commit's subject is rendered
+    # from the config's pull-request-title-pattern, so it is NOT always
+    # "chore: release X.Y.Z" — see the component-in-title trap below.
     is_release_merge=false
-    if printf '%s' "$head_line" | grep -Eq '^chore(\([^)]*\))?: release [0-9]'; then
+    if printf '%s' "$head_line" | grep -Eq '^chore(\([^)]*\))?: release +([^ ]+ +)?v?[0-9]+\.[0-9]+\.[0-9]+'; then
       is_release_merge=true
     fi
 
@@ -145,6 +146,25 @@ So in a repo whose package is `apps/web`, or any per-component monorepo (`backen
 Only `releases_created` (**plural**) and `paths_released` are top-level regardless of path, and neither carries a tag name — they're context in the alert body, not the signal. Hence `toJSON(steps.release.outputs)` + `endswith("tag_name")`: it finds the tag under whatever key the config produced, and the ref lookup on the remote is what actually decides pass/fail.
 
 Related: `✔ No commits for path: <pkg>, skipping` in a release-merge run is **not** a failure signal — that's the *next* release PR having nothing to include, which is correct right after a release. Don't add an alert for it.
+
+### ⚠️ The release-merge regex must tolerate a component in the title
+
+`is_release_merge` is what arms the **silent-freeze** branch — the single most important check here. It matches the head commit's subject, and that subject is rendered from the config's `pull-request-title-pattern`, **not** fixed. A pattern carrying `${component}` produces a subject with the component name between "release" and the version:
+
+```
+chore(main): release  ingest-worker 0.7.0    # two spaces: ${component} renders with a leading space
+chore(main): release 1.5.2                   # no component
+```
+
+A version-only pattern (`: release [0-9]`) silently fails to match the first form. `is_release_merge` stays `false`, the "merged but NO TAG created" branch becomes unreachable, and the repo gets a verification block that looks installed and cannot ever fire — the exact failure this whole file exists to prevent, reintroduced one level down. Note that this is **independent** of the namespaced-outputs trap above, and hits the same repos: a non-root package path is usually accompanied by `${component}` in the title pattern.
+
+Hence the optional component group and the full `X.Y.Z` anchor:
+
+```
+^chore(\([^)]*\))?: release +([^ ]+ +)?v?[0-9]+\.[0-9]+\.[0-9]+
+```
+
+Requiring all three version parts is what keeps the optional group from swallowing ordinary commits — `chore: release notes cleanup` must not match. Verified against real release commits in both shapes, plus non-release subjects.
 
 ## 2. `.github/workflows/release-health.yml`
 
