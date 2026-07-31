@@ -116,7 +116,7 @@ repos:
         name: prettier
         entry: npx prettier --write
         language: system
-        files: \.(ts|tsx|js|jsx|mjs|cjs|json|css|scss|md|yml|yaml)$
+        files: \.(ts|tsx|js|jsx|mjs|cjs|json|css|scss|md)$
         exclude: ^(node_modules/|dist/|build/|\.next/|out/|package-lock\.json)
         pass_filenames: true
 
@@ -129,6 +129,8 @@ repos:
 ```
 
 Note `mjs` and `cjs` are in **both** eslint and prettier file patterns. Without `mjs` in the prettier pattern, Next.js's `eslint.config.mjs` never gets formatted by pre-commit, and CI's `format:check` fails on first push.
+
+YAML (`yml`/`yaml`) is intentionally **absent** from the prettier pattern — prettier doesn't format YAML in these scaffolds. Its YAML formatting mangles GitHub Actions workflow files (reflowing inline comments) for zero benefit, and the generated `.prettierignore` also excludes `*.yml`/`*.yaml` (see `project-scaffold/references/configs/node-ts.md`). Don't re-add it here.
 
 The `language: system` approach runs from the project's installed binaries so the project's full ESLint/Prettier config (including plugins) applies. The `mirrors-eslint` repo from pre-commit's registry runs ESLint in an isolated env that doesn't see your local plugins, which is why we don't use it.
 
@@ -244,7 +246,7 @@ repos:
         name: prettier
         entry: npx prettier --write
         language: system
-        files: \.(ts|tsx|js|jsx|mjs|cjs|json|css|scss|md|yml|yaml)$
+        files: \.(ts|tsx|js|jsx|mjs|cjs|json|css|scss|md)$
         exclude: ^(node_modules/|dist/|build/|\.next/|out/|package-lock\.json)
         pass_filenames: true
 
