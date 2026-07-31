@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/hellatan/claude-skills/compare/v1.10.1...v1.11.0) (2026-07-31)
+
+
+### Features
+
+* **project-scaffold:** exclude YAML from the scaffolded .prettierignore ([#111](https://github.com/hellatan/claude-skills/issues/111)) ([43545ae](https://github.com/hellatan/claude-skills/commit/43545ae772c691082ec7e171c61700e714e93cdb))
+
 ## [1.10.1](https://github.com/hellatan/claude-skills/compare/v1.10.0...v1.10.1) (2026-07-31)
 
 
