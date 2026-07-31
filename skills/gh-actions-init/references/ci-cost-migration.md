@@ -71,3 +71,7 @@ On a free-tier private repo there are no required checks, so the rename is a no-
 
 Check whether the repo actually has required checks *first*; branch protection is owned
 by `gitflow-init`. That change is tracked separately from this trigger dedup.
+
+Once consolidated, decide where *future* checks go — fold into `checks` vs their own
+parallel job — by the rule in `ci-structure.md` ("What belongs in the consolidated
+`checks` job vs its own job").
