@@ -343,8 +343,8 @@ This is what the scaffold enables out of the box:
 3. **Open a Pull Request** — push your branch to GitHub and open a PR targeting `develop`. CI runs every check (`checks`, e2e, build — plus integration if you scoped it in). The PR can't merge until they're all green.
 4. **Merge to develop** — once CI is green and you're happy, merge. Your code is now on `develop`.
 5. **Time to release** (skipping `stage` if not enabled, otherwise `develop` → `stage` → `main`) — open a PR from `develop` → `main`. Same checks run.
-6. **Release-please takes over** — once merged to `main`, release-please opens a "release PR" with a changelog and a version bump (decided by your commit messages). You review it, merge it.
-7. **Tag + deploy** — release-please tags the commit (e.g. `v1.4.0`), creates a GitHub Release, and the deploy workflow kicks off automatically.
+6. **Release-please takes over** — once merged to `main`, release-please opens a "release PR" with a changelog and a version bump (decided by your commit messages) and **merges it for you**. Merging the `develop → main` PR in step 5 is the last thing you have to click. (Want to review the bump by hand? Set the repo variable `RELEASE_AUTOMERGE=false` and the release PR waits for you.)
+7. **Tag + deploy** — release-please tags the commit (e.g. `v1.4.0`), creates a GitHub Release, and that same run deploys **the tagged commit**. Your host's "deploy on every push" is deliberately off, so production is always exactly the version named by the newest tag — deployed once, never twice.
 
 ---
 
@@ -395,7 +395,7 @@ These are decided. Do **not** introduce them on a scaffolded project, even when 
 ### Owned by sister skills
 
 - **`/testing-init`** (Step 14) — test runners + configs + smoke stubs + test scripts + test jobs in `ci.yml`. Templates: `skills/testing-init/references/{runners,test-stubs,scripts,ci-test-job}.md`.
-- **`/gh-actions-init`** (Step 14) — CI structural jobs + release-please + release verification + deploy stub. Templates: `skills/gh-actions-init/references/{detection,ci-structure,release-please,release-verification,deploy-stub}.md`.
+- **`/gh-actions-init`** (Step 14) — CI structural jobs + release-please + release verification + the tagged-only deploy. Templates: `skills/gh-actions-init/references/{detection,ci-structure,release-please,release-verification,tagged-deploy,deploy-stub}.md`.
 - **`/gitflow-init`** (Steps 18 + 19) — branch protection + default-branch setting (+ develop/stage creation for retrofit). Templates: `skills/gitflow-init/references/branch-protection.md`.
 - **`/precommit-init`** (Step 13) — pre-commit at root, polyglot (Python / Node / fullstack). Templates: `skills/precommit-init/references/precommit-config.md`.
 - **`/claude-md-init`** (Step 10) — per-stack CLAUDE.md templates. Templates: `skills/claude-md-init/references/templates.md`.

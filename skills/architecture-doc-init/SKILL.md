@@ -53,7 +53,14 @@ Build the component inventory from the repo itself (read, don't ask):
 - **Inputs** — HTTP routes, queues, webhooks, scheduled triggers, file drops
 - **Outputs & alerts** — responses, writes, notifications, logging/observability
 - **Guards** — auth, validation, rate limits, env/dependency preconditions
-- **Deploy model** — `.github/workflows/`, `render.yaml`/platform configs, `.env.example`
+- **Deploy model** — `.github/workflows/`, `render.yaml`/platform configs, `.env.example`.
+  Determine **what actually triggers a production deploy**, and say so exactly — this is the
+  operational fact newcomers get wrong most often. Check whether the platform config disables
+  branch auto-deploy (`autoDeploy: false` or equivalent) and whether the deploy is driven from
+  CI after a tag is cut (grep `.github/workflows/release-please.yml` for a deploy step). If so
+  the repo is on the **tagged-only** model — record that production runs the exact tagged
+  commit and that the untagged promotion merge doesn't deploy, rather than the vaguer "deploys
+  from `main`". Background: `gh-actions-init/references/tagged-deploy.md`.
 
 `CLAUDE.md` and `README.md` usually name the load-bearing pieces — read them first.
 

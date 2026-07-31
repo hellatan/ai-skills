@@ -14,7 +14,7 @@
 2. **Run `/gh-actions-init`'s execution phase second.** It owns:
    - The `checks` job's lint + format:check + typecheck steps — merged into the `checks` job `testing-init` just seeded (unit stays last) — plus the `build` job.
    - `release-please.yml` + `release-please-config.json` + `.release-please-manifest.json`.
-   - `deploy.yml` with the deploy-target picker.
+   - The tagged-only deploy: the deploy + release-PR auto-merge steps folded into `release-please.yml`, and `autoDeploy: false` (or the platform equivalent) in the deploy config. A standalone `deploy.yml` with the deploy-target picker only when one is actually needed — see `gh-actions-init/references/tagged-deploy.md`.
 
 ## Manifest-version invariant (new projects)
 

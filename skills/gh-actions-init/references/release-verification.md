@@ -2,6 +2,8 @@
 
 A safety-net that fails loudly when a release *should* have been tagged but wasn't — the prerequisite for ever auto-merging release PRs, since it removes "a human happened to be watching the merge" as the only guard. Alerts post to a Discord channel.
 
+It is also the **gate the tagged-only deploy hangs off**: the `Evaluate release outcome` step emits a `released` output that is `true` only when a tag was cut *and* confirmed on the remote, and the deploy step in `references/tagged-deploy.md` runs on nothing else. So this file isn't optional decoration — without it there is no trustworthy signal that a deploy is warranted.
+
 Scaffold this **alongside release-please** (same condition — skip it when release-please is skipped). Three pieces:
 
 1. `verify-tag` — steps appended to the `release-please.yml` job (see `references/release-please.md`).
@@ -53,6 +55,11 @@ These steps go on the **same** `release-please` job (reusing its runner — no e
     alert=false
     title=""
     detail=""
+    # released=true ONLY when this run cut a tag AND the tag ref is confirmed on
+    # the remote (the `-n "$tags"` clean branch below). The tagged-only deploy
+    # step keys off this — a freeze/missing-ref case leaves it false, so an
+    # untagged or phantom-tag commit is never shipped. See references/tagged-deploy.md.
+    released=false
     head_line=$(printf '%s\n' "$HEAD_MSG" | head -n1)
 
     # Did this push merge a release PR? The release commit's subject is rendered
@@ -102,6 +109,7 @@ These steps go on the **same** `release-please` job (reusing its runner — no e
       detail="release-please reported tag(s):${missing} but the ref does not exist on the remote (${context})."
     elif [ -n "$tags" ]; then
       echo "OK: tagged $(printf '%s' "$tags" | tr '\n' ' ') (${context})."
+      released=true
     else
       echo "OK: no release expected this run (feature push or PR-only update)."
     fi
@@ -109,6 +117,7 @@ These steps go on the **same** `release-please` job (reusing its runner — no e
     {
       echo "alert=$alert"
       echo "title=$title"
+      echo "released=$released"
       echo "detail<<EOF"
       echo "$detail"
       echo "EOF"
