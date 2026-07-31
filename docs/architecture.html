@@ -46,7 +46,7 @@
 <div class="wrap">
   <h1>claude-skills — Architecture</h1>
   <p class="sub">Monorepo of Claude Code skills: authored as <code>skills/&lt;name&gt;/SKILL.md</code>, validated in CI, released via gitflow + release-please, consumed via symlinks or the <code>ht-skills</code> plugin. Repo: <code>hellatan/claude-skills</code></p>
-  <p class="sub">Snapshot: 2026-07-20 · <b>living doc</b> — update it when components, flows, or failure modes change.</p>
+  <p class="sub">Snapshot: 2026-07-31 · <b>living doc</b> — update it when components, flows, or failure modes change.</p>
 
   <h2>Data flow</h2>
   <div class="card">
@@ -105,7 +105,7 @@
     <rect x="330" y="220" width="340" height="100" rx="10" class="engine"/>
     <text x="500" y="248" class="lc">Gitflow release train</text>
     <text x="500" y="268" class="smc">PR → develop (CI must pass)</text>
-    <text x="500" y="288" class="smc">auto develop → main draft PR on push</text>
+    <text x="500" y="288" class="smc">auto develop ⇄ main (promo PR + back-merge)</text>
     <text x="500" y="304" class="smc">release-please v5 · target-branch: main</text>
     <path d="M670,270 C715,270 742,282 770,288" class="fail" marker-end="url(#arwR)"/>
 
@@ -136,17 +136,17 @@
     <text x="786" y="222" class="lab">⚠️ validate failed</text>
     <text x="786" y="240" class="sm">red check on PR · /rebuild</text>
     <text x="786" y="294" class="lab" fill="#f85149">🚨 release stuck</text>
-    <text x="786" y="312" class="sm">bot PR in action_required</text>
-    <text x="786" y="330" class="sm">check RELEASE_PLEASE_TOKEN</text>
+    <text x="786" y="312" class="sm">bot PR action_required (PAT), or</text>
+    <text x="786" y="330" class="sm">merged PR untagged → sweep</text>
     <text x="786" y="386" class="lab" fill="#3fb950">✅ release cut</text>
-    <text x="786" y="404" class="sm">tag vX.Y.Z + CHANGELOG on main</text>
+    <text x="786" y="404" class="sm">tag vX.Y.Z on main · verified</text>
 
     <!-- ===== DEPLOY / RUNTIME NOTE (full width) ===== -->
     <rect x="20" y="460" width="1000" height="120" rx="10" class="box"/>
     <text x="40" y="488" class="lab">Deploy model</text>
     <text x="40" y="512" class="sm">Runs on GitHub Actions · default branch develop (gitflow) · releases cut from main (release-please v5, target-branch pinned).</text>
     <text x="40" y="532" class="sm">Load-bearing: install.sh symlinks are live — the checked-out branch IS the installed skill; the plugin loader caches per session.</text>
-    <text x="40" y="552" class="sm">When it misbehaves: Actions tab (validate · release-please · develop→main PR) · comment /rebuild on a PR to re-run CI.</text>
+    <text x="40" y="552" class="sm">When it misbehaves: Actions tab (validate · release-please+verify-tag · develop→main PR · main→develop back-merge · release-health) · comment /rebuild on a PR to re-run CI.</text>
   </svg>
   </div>
   <div class="legend">
@@ -191,6 +191,24 @@
         <td>Every merge to <code>develop</code> runs CI twice</td>
         <td>Scaffolded workflows fired on both <code>pull_request</code> and <code>push</code> to develop</td>
         <td>Dropped the duplicate push-on-develop trigger (#63)</td>
+        <td><span class="tag fixed">fixed</span></td>
+      </tr>
+      <tr>
+        <td>A <b>merged</b> release PR reports success but produces no tag, and every later release then aborts with "untagged, merged release PRs outstanding"</td>
+        <td>release-please can merge, report the run green, and still cut no tag (title-pattern / component mismatch); the merged PR stays <code>autorelease: pending</code>, which freezes all future releases</td>
+        <td>verify-tag steps in <code>release-please.yml</code> ground-truth the tag ref on the remote (and fix the release-merge title-pattern to carry an optional <code>${component}</code> group); a daily <code>release-health.yml</code> sweep flags any merged+pending PR → Discord (#107)</td>
+        <td><span class="tag fixed">fixed</span></td>
+      </tr>
+      <tr>
+        <td><code>develop</code> falls behind <code>main</code> after every promotion/release; the next <code>develop → main</code> PR waits on an "Update branch" and the CHANGELOG drifts</td>
+        <td>each push to <code>main</code> (promotion merge, release commit) adds commits <code>develop</code> never sees; a naive <code>--no-ff</code> back-merge would leave develop permanently 1 ahead, spawning empty promotion PRs forever</td>
+        <td><code>main-to-develop-backmerge.yml</code> fast-forwards develop first (no new commit), falling back to <code>--no-ff</code> only when develop genuinely advanced; a conflict opens a PR to the PR-alerts channel (#97)</td>
+        <td><span class="tag fixed">fixed</span></td>
+      </tr>
+      <tr>
+        <td>The daily release-health sweep occasionally doesn't run</td>
+        <td>GitHub delays or drops scheduled jobs queued on congested slots like <code>:00</code></td>
+        <td>stagger the cron to an off-peak minute — <code>23 8 * * *</code> (#109)</td>
         <td><span class="tag fixed">fixed</span></td>
       </tr>
       <tr>

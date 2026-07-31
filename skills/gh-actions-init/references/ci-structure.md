@@ -147,6 +147,24 @@ jobs:
     # ... build the side that needs it
 ```
 
+## What belongs in the consolidated `checks` job vs its own job
+
+Once a repo consolidates its fast checks into a single `checks` job (see the job-consolidation note in `ci-cost-migration.md`), every *new* check faces the same routing question. The deciding factor is **not** "is it similar in nature to the others" — it's **setup reuse and duration**, because of two billing facts: GitHub bills each job's wall-clock **rounded up to the whole minute**, and every separate job re-runs `checkout` + `npm ci` (the expensive part, ~30–60s).
+
+**Fold it into `checks`** when the check:
+- reuses the setup `checks` already did (checkout + `npm ci`, same toolchain), **and**
+- is fast — seconds of work: lint, typecheck, `format:check`, actionlint, dependency audit, other static analysis.
+
+Serializing several fast steps behind one `npm ci` costs a few seconds of wall-clock; splitting them into parallel jobs costs a fresh `npm ci` **and** a rounded-up minute *each*. For fast, setup-sharing checks, folding is strictly cheaper and barely slower.
+
+**Give it its own parallel job** when the check:
+- needs a **different environment** — another language toolchain, service containers, a build matrix, a different OS — so it can't share `checks`' setup anyway; **or**
+- is **long AND independent** (e2e, production build, a heavy integration suite). Here the separate rounded-up minute is earned back by running concurrently instead of serially — which is exactly why `e2e` and `build` stay their own jobs.
+
+Two mechanics that drive the rule:
+- Steps within a job run **sequentially** (there is no in-job parallelism); separate jobs run **concurrently**. So the one real risk of an over-stuffed `checks` is that a *slow* step makes `checks` the long pole against the parallel jobs. The guard is **duration, not kind** — keep `checks` the fast fail-first gate, and split a step out only once it grows long. Never split the fast ones.
+- Order steps fastest-and-most-likely-to-fail first (e.g. run actionlint *before* `npm ci`) so a bad change fails in seconds before the expensive steps run. A `build` job with `needs: [checks]` is then skipped too.
+
 ## Extend-mode rules
 
 When `ci.yml` already exists (e.g., `testing-init` ran first):
