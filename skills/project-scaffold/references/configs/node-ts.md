@@ -73,9 +73,16 @@ coverage/
 *.lock
 package-lock.json
 CHANGELOG.md
+
+# Prettier's YAML formatting mangles hand-maintained GitHub Actions workflow
+# files (reflowing inline comments) for zero benefit — skip all YAML.
+*.yml
+*.yaml
 ```
 
 `CHANGELOG.md` is ignored because release-please owns its formatting — the changelog it generates doesn't satisfy prettier's `--check`, so without this line the first release turns CI's `format:check` red on `main` the moment it lands.
+
+`*.yml` / `*.yaml` are ignored because prettier's YAML formatting is finicky and mangles GitHub Actions workflow files (reflowing inline comments into wrapped messes) for zero benefit — workflow files are small, hand-maintained, and benefit from intentional formatting.
 
 ---
 
