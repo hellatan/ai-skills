@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.1](https://github.com/hellatan/claude-skills/compare/v1.10.0...v1.10.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* **gh-actions-init:** stagger the release-health cron off the congested :00 slot ([#109](https://github.com/hellatan/claude-skills/issues/109)) ([c0fa344](https://github.com/hellatan/claude-skills/commit/c0fa344a4013abbdef847cebce219d4ef494ea0a))
+
 ## [1.10.0](https://github.com/hellatan/claude-skills/compare/v1.9.0...v1.10.0) (2026-07-30)
 
 
