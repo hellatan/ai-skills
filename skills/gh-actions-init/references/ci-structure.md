@@ -1,6 +1,16 @@
-# CI structure jobs (lint + typecheck + format:check + build)
+# CI structure jobs (the `checks` job + build)
 
-The structural CI jobs that compose with `testing-init`'s test jobs to form the full 5-check pipeline. This skill writes only the *non-test* jobs.
+The structural CI jobs that compose with `testing-init`'s test jobs. This skill owns the
+**`checks` job** — a single job that runs lint → format:check → typecheck sequentially,
+with a documented insertion point where `testing-init` folds its unit-test *step* in (so
+lint, typecheck, and unit share one checkout + `npm ci` instead of paying for several).
+`testing-init`'s integration and e2e tests stay as their own jobs (they need
+services/browsers). This skill writes the `checks` job and `build`; it never writes test
+steps — that ownership sits with `testing-init` (see
+`testing-init/references/ci-test-job.md`).
+
+The common Next.js default lands as **3 jobs — `checks`, `e2e`, `build`**; an opt-in
+integration scope adds a 4th. A Python-only or backend-only scaffold has fewer.
 
 ## Node / TypeScript
 
@@ -21,8 +31,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint-typecheck:
-    name: lint + typecheck
+  checks:
+    name: checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -34,11 +44,18 @@ jobs:
       - run: npm run lint
       - run: npm run format:check   # only if format:check exists in package.json
       - run: npm run typecheck
+      # --- testing-init insertion point ---------------------------------------
+      # testing-init appends its unit-test step (`- run: npm run test:unit`) here
+      # so unit tests reuse this job's checkout + npm ci instead of a separate
+      # `unit` job. Keep it LAST in the steps. See
+      # testing-init/references/ci-test-job.md. If testing never runs, the job is
+      # just lint/format/typecheck and still works standalone.
+      # ------------------------------------------------------------------------
 
   build:
     name: production build
     runs-on: ubuntu-latest
-    needs: [lint-typecheck]
+    needs: [checks]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -69,9 +86,13 @@ Notes:
   `push` list too; never add `develop`. See `ci-cost-migration.md` for the measurement
   behind this and how to retrofit an existing repo.
 - `concurrency` cancels stale runs on the same PR.
-- `build` depends on `lint-typecheck` so a broken lint doesn't waste build time.
+- `build` depends on `checks` so a broken lint/typecheck/unit doesn't waste build time.
 - `if-no-files-found: ignore` on the artifact handles different framework outputs (Next → `.next/`, Vite → `dist/`, etc.).
 - Skip `format:check` step if `prettier` isn't in dev deps or no `format:check` script exists.
+- **The insertion-point comment is load-bearing, not decoration** — it's the anchor
+  `testing-init` looks for to append the unit-test step. Keep it in the written file. If a
+  formatter or a later edit strips it, `testing-init` falls back to appending after the
+  last existing step in `checks` (which is still correct, since unit goes last).
 
 ## Python
 
@@ -90,8 +111,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
-    name: lint
+  checks:
+    name: checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -101,22 +122,18 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: ruff format --check .
-
-  typecheck:
-    name: typecheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-      - run: pip install -e ".[dev]"
-      - run: mypy .
+      - run: mypy .          # skip this step if mypy isn't in dev deps
+      # --- testing-init insertion point ---------------------------------------
+      # testing-init appends its unit-test step
+      # (`- run: pytest -m "not integration and not e2e"`) here so unit tests
+      # reuse this job's checkout + install. Keep it LAST. See
+      # testing-init/references/ci-test-job.md.
+      # ------------------------------------------------------------------------
 ```
 
 Notes:
 - No `build` job — Python apps deploy source.
-- Skip `typecheck` job if `mypy` isn't in dev deps.
+- Drop the `mypy .` step (not a whole job) if `mypy` isn't in dev deps.
 - For uv-managed projects, replace `pip install -e ".[dev]"` with `uv sync`.
 
 ## Fullstack (Node frontend + Python backend)
@@ -130,22 +147,27 @@ Default to (a) for clarity. Surface (b) as an option if the user mentions slow C
 
 ```yaml
 jobs:
-  frontend-lint-typecheck:
-    name: frontend lint + typecheck
+  frontend-checks:
+    name: frontend checks
     # ... Node steps, but:
     # - run: npm --prefix frontend ci
     # - run: npm --prefix frontend run lint
     # ...
+    # testing-init appends the frontend unit-test step here (kept last).
 
-  backend-lint-typecheck:
-    name: backend lint + typecheck
+  backend-checks:
+    name: backend checks
     # ... Python steps, but operating in backend/
+    # testing-init appends the backend unit-test step here (kept last).
 
   build:
     name: production build
-    needs: [frontend-lint-typecheck, backend-lint-typecheck]
+    needs: [frontend-checks, backend-checks]
     # ... build the side that needs it
 ```
+
+Two `checks` jobs (one per side) because they need different toolchains — each is still a
+single consolidated job for its stack, with its own testing-init insertion point.
 
 ## What belongs in the consolidated `checks` job vs its own job
 
@@ -172,6 +194,11 @@ When `ci.yml` already exists (e.g., `testing-init` ran first):
 1. **Read the existing file** — preserve indentation style, top-level keys, comments.
 2. **Identify existing job names** via `yq '.jobs | keys' .github/workflows/ci.yml` or grep fallback.
 3. **For each new job**, check if `name:` already appears (in the YAML `name:` value, NOT the YAML key — the value is what shows up as the GH Actions check name). Skip if present.
+   - **Exception — the `checks` job.** If a `checks` job already exists (because
+     `testing-init` ran first and seeded it with the unit-test step), do **not** skip it and
+     do **not** create a second one. **Merge into it**: prepend this skill's lint →
+     format:check → typecheck steps *before* the existing unit step (unit stays last), and
+     ensure `build.needs` lists `checks`. This is the one job the two skills co-write.
 4. **Don't change `on:` triggers** in an existing workflow — surface a warning, don't auto-fix. Two things to check, and note they point in opposite directions:
    - **`pull_request`** should include every branch that receives PRs (`main` + `develop`). If `develop` is missing there, PRs into develop run no CI — flag it.
    - **`push`** should be `[main]` only (plus any long-lived integration branches). `push` including `develop` is the *duplicate-minutes* smell, not a gap — flag it for removal, don't treat `[main]`-only push as stale.
@@ -182,13 +209,20 @@ If the existing `ci.yml` is structured very differently (e.g., uses reusable wor
 
 ## Job-name → branch-protection-context mapping
 
-Each job's `name:` field is what GitHub branch protection uses as a "required status check context." The job names this skill writes match what `project-scaffold`'s branch protection script expects:
+Each job's `name:` field is what GitHub branch protection uses as a "required status check context." The job names this skill writes:
 
-- `lint + typecheck`
+- `checks` — lint + format:check + typecheck, plus `testing-init`'s unit-test step folded in
 - `production build`
-- (Tests come from `testing-init`: `unit tests`, `integration tests`, `e2e tests`)
+- (Integration/e2e come from `testing-init` as their own jobs: `integration tests`, `e2e tests`)
 
-Don't rename these without also updating any branch protection contexts, or protection silently breaks (the new check is required but the new job isn't producing it).
+`project-scaffold`'s branch protection derives required contexts from the actual job names
+in `ci.yml` after both skills have run (see
+`gitflow-init/references/branch-protection.md`), so a fresh scaffold's contexts always
+match. Don't rename these on an existing protected repo without also updating its branch
+protection contexts, or protection silently breaks (the new check is required but the new
+job isn't producing it). **Migrating an already-scaffolded repo from the old
+`lint + typecheck` / `unit tests` jobs to `checks` is exactly that rename** — see the
+consolidation section in `references/ci-cost-migration.md`.
 
 **Caveat — this only bites if the repo actually has required status checks.** Required
 checks come from branch protection, which is unavailable on free-tier private repos

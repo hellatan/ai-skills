@@ -34,7 +34,7 @@ End the message with: *"Reply 'yes' / 'go' / 'looks good' to proceed, or tell me
    - Pre-commit at repo root, single config
    - <linters/formatters per stack, e.g. "ESLint + Prettier for TS/TSX">
 🤖 GitHub Actions (auto-runs on every PR):
-   - lint + typecheck → unit tests → integration tests → e2e tests → build
+   - checks (lint + typecheck + unit) · integration (if scoped) · e2e · build
    - Releases handled automatically by release-please
 🔁 CI re-trigger:                               ← include only for gitflow repos (develop exists)
    - Comment `/rebuild` on a PR to re-run failed CI; `workflow_dispatch` for manual runs

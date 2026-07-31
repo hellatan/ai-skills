@@ -9,10 +9,10 @@
    - Runner configs (`vitest.config.ts`, `playwright.config.ts`, `[tool.pytest.ini_options]` block in `pyproject.toml`).
    - Passing smoke-test stubs.
    - `test` / `test:unit` / `test:integration` / `test:e2e` scripts.
-   - Test jobs in `.github/workflows/ci.yml` (creates the file if it doesn't exist).
+   - Test steps/jobs in `.github/workflows/ci.yml` (creates the file if it doesn't exist): the unit-test step lives in a `checks` job (created here, with `gh-actions-init`'s lint/typecheck steps to be prepended later — unit stays last), plus `integration`/`e2e` as their own jobs.
 
 2. **Run `/gh-actions-init`'s execution phase second.** It owns:
-   - Structural CI jobs (lint + typecheck + format:check + build) — appended to the `ci.yml` `testing-init` just wrote.
+   - The `checks` job's lint + format:check + typecheck steps — merged into the `checks` job `testing-init` just seeded (unit stays last) — plus the `build` job.
    - `release-please.yml` + `release-please-config.json` + `.release-please-manifest.json`.
    - `deploy.yml` with the deploy-target picker.
 

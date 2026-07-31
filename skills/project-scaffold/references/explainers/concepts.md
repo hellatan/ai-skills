@@ -62,17 +62,19 @@ When the skill mentions any of these concepts during scaffold, surface the match
 
 > "gh" is GitHub's command-line tool — it lets the skill create your repo, set permissions, and apply branch protection from the terminal instead of you clicking around the GitHub website. If it's not installed, the skill will tell you how to install it (or you can skip GitHub creation and just keep the project local).
 
-## 5-check CI pipeline
+## Consolidated CI pipeline
 
-> Every PR runs through 5 automatic checks before it can merge:
+> Every PR runs through a handful of automatic checks before it can merge. The fast ones
+> are consolidated into a single `checks` job so they share one checkout + install:
 >
-> 1. **lint + typecheck** — does the code follow style rules and have valid types?
-> 2. **unit tests** — do the small individual tests pass?
-> 3. **integration tests** — do the pieces work together?
-> 4. **e2e tests** — does the whole app work from a real user's perspective?
-> 5. **production build** — does the code actually compile into shippable output?
+> 1. **checks** — lint + type-check + unit tests in one job (does the code follow style
+>    rules, have valid types, and pass the small individual tests?)
+> 2. **integration tests** — do the pieces work together? (its own job; only if you scoped integration in)
+> 3. **e2e tests** — does the whole app work from a real user's perspective? (its own job — it needs a browser)
+> 4. **production build** — does the code actually compile into shippable output?
 >
-> All five must be green for the PR to merge into a protected branch.
+> The common Next.js setup lands as **three jobs — `checks`, `e2e`, `build`** (integration
+> adds a fourth when scoped in). All must be green for the PR to merge into a protected branch.
 
 ## The bootstrap exception (push-only, scoped)
 

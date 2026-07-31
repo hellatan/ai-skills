@@ -67,7 +67,7 @@ Always `--force-with-lease`, never plain `--force`. Never force-push to `main`/`
 ## Pull requests
 
 - Open PRs against `develop` (the default branch). The PR can be **draft** until you want review.
-- Let CI gate merges. The 5-check pipeline (lint+typecheck, format:check, unit, e2e, build) must be green.
+- Let CI gate merges. The consolidated pipeline (`checks` = lint + format:check + typecheck + unit; plus e2e and build) must be green.
 - PR title should follow conventional-commit format (`feat:`, `fix:`, `chore:`, etc.) — release-please uses commit / PR titles to compute version bumps.
 - PR body should include a "Summary" and a "Test plan" (checkbox list of how to verify the change).
 
@@ -78,7 +78,7 @@ Always `--force-with-lease`, never plain `--force`. Never force-push to `main`/`
 ## Release flow (driven by release-please)
 
 1. Feature branches merge into `develop` via PR.
-2. When ready to release: open a PR `develop` → `main`. CI runs the same 5 checks.
+2. When ready to release: open a PR `develop` → `main`. CI runs the same checks.
 3. Merging `develop` → `main` triggers `release-please.yml`, which opens (or updates) a release PR against `main` with a generated `CHANGELOG.md` and version bump.
 4. Merging the release PR tags the commit (e.g., `v1.2.0`) and creates a GitHub Release.
 5. The tag push triggers `deploy.yml` for production deploy.

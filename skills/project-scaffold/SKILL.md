@@ -1,6 +1,6 @@
 ---
 name: project-scaffold
-description: Bootstrap a new project repo with prescriptive defaults — opinionated framework picks (Next.js, FastAPI), lean CLAUDE.md, sensible git workflow (main + develop, optional stage), unified pre-commit hooks at root, GitHub Actions CI (5-check pipeline), release-please for automated releases, deploy workflow stub, and a private GitHub repo under the user's authenticated gh account. Use this skill whenever the user wants to scaffold, bootstrap, initialize, or set up a new project, repo, or codebase — even if they don't explicitly say "scaffold." Triggers on phrases like "new repo," "start a new project," "bootstrap [name]," "set up a project," or "init a repo with claude config."
+description: Bootstrap a new project repo with prescriptive defaults — opinionated framework picks (Next.js, FastAPI), lean CLAUDE.md, sensible git workflow (main + develop, optional stage), unified pre-commit hooks at root, GitHub Actions CI (consolidated checks/e2e/build pipeline), release-please for automated releases, deploy workflow stub, and a private GitHub repo under the user's authenticated gh account. Use this skill whenever the user wants to scaffold, bootstrap, initialize, or set up a new project, repo, or codebase — even if they don't explicitly say "scaffold." Triggers on phrases like "new repo," "start a new project," "bootstrap [name]," "set up a project," or "init a repo with claude config."
 ---
 
 # project-scaffold
@@ -340,7 +340,7 @@ This is what the scaffold enables out of the box:
 
 1. **Start a new feature** — make a new branch off `develop`, name it something like `feat/dark-mode`. Work on it locally.
 2. **Commit your changes** — pre-commit hooks check your code as you commit. Bad code doesn't even get committed.
-3. **Open a Pull Request** — push your branch to GitHub and open a PR targeting `develop`. CI runs all 5 checks. The PR can't merge until they're all green.
+3. **Open a Pull Request** — push your branch to GitHub and open a PR targeting `develop`. CI runs every check (`checks`, e2e, build — plus integration if you scoped it in). The PR can't merge until they're all green.
 4. **Merge to develop** — once CI is green and you're happy, merge. Your code is now on `develop`.
 5. **Time to release** (skipping `stage` if not enabled, otherwise `develop` → `stage` → `main`) — open a PR from `develop` → `main`. Same checks run.
 6. **Release-please takes over** — once merged to `main`, release-please opens a "release PR" with a changelog and a version bump (decided by your commit messages). You review it, merge it.
@@ -354,7 +354,7 @@ This is what the scaffold enables out of the box:
 - **`main` + `develop` (+ optional `stage`)**: PRs target `develop`, `main` release-only
 - **Branch protection on all release branches**: hard stops, not soft rules
 - **Pre-commit at root, polyglot**: faster feedback, lower CI cost, one config for fullstack
-- **5-check CI pipeline**: matches a standard production pipeline; each step gates on the prior
+- **Consolidated CI pipeline** (`checks` = lint + typecheck + unit, plus e2e and build): matches a standard production pipeline; the fast checks share one job and `build` gates on them
 - **Release-please + conventional commits**: removes manual versioning
 - **Deploy stub**: targets vary too much to ship a real implementation
 - **Private by default**: easier to flip to public later than the reverse
