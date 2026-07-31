@@ -140,6 +140,11 @@ build/
 coverage/
 *.lock
 package-lock.json
+
+# Prettier's YAML formatting mangles hand-maintained GitHub Actions workflow
+# files (reflowing inline comments) for zero benefit — skip all YAML.
+*.yml
+*.yaml
 ```
 
 ## Stub source file
