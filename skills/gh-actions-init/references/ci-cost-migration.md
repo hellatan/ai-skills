@@ -7,8 +7,8 @@ suite, so the post-merge `push` run on `develop` re-tests code that already pass
 
 This is the **non-breaking** half of the cost work — changing `on:` triggers renames
 nothing, so no status-check or branch-protection changes are involved. (Job
-*consolidation*, which renames checks, is a separate breaking change — see the note at
-the end.)
+*consolidation* into a single `checks` job, which renames checks, is the breaking half —
+see "Migrating to the consolidated `checks` job" at the end.)
 
 ## The change
 
@@ -60,17 +60,73 @@ If the repo has a Playwright e2e job, caching the browser binaries removes 1–2
 billed download per run and renames nothing, so it pairs with the trigger dedup above.
 That job is owned by `testing-init` — see `testing-init/references/ci-test-job.md`.
 
-## Related but separate: job consolidation (breaking)
+## Migrating to the consolidated `checks` job (breaking)
 
-Merging the lint/typecheck/test jobs into a single `checks` job saves more minutes
-(one `npm ci` + checkout instead of several, less per-job rounding) but **renames the
-status checks**. That is a breaking change *for any repo that has required status
-checks* — i.e. public repos or paid plans. Before doing it there, update the required
-checks (remove the old names, add `checks`) or PRs hang on checks that never report.
-On a free-tier private repo there are no required checks, so the rename is a no-op.
+Merging the light jobs — `lint + typecheck` and `unit tests` — into a single `checks` job
+saves more minutes (one `npm ci` + checkout instead of several, less per-job rounding).
+As of the 5→3 consolidation this is the **scaffold default**, not an opt-in: a fresh
+`gh-actions-init` + `testing-init` run now produces `checks` (lint + format:check +
+typecheck + unit), plus `integration`/`e2e`/`build` as before. This section is for
+retrofitting a repo scaffolded by an *older* version onto that shape.
 
-Check whether the repo actually has required checks *first*; branch protection is owned
-by `gitflow-init`. That change is tracked separately from this trigger dedup.
+Unlike the trigger dedup above, this **renames status checks** (`lint + typecheck` /
+`unit tests` → `checks`), so it is breaking *for any repo that has required status
+checks*. If a required context still names a job that no longer exists, GitHub keeps that
+"Required" check pending forever and **the PR can never merge** — even with CI fully green.
+
+### Step 1 — check whether the repo even has required checks
+
+Branch protection (and therefore required checks) is unavailable on free-tier private
+repos — the API returns **403**. There, there are no contexts to break, so the rename is a
+pure no-op: reshape `ci.yml` and you're done. Check before touching anything:
+
+```bash
+REPO=owner/repo
+for BRANCH in main develop; do
+  echo "== $BRANCH =="
+  gh api "repos/$REPO/branches/$BRANCH/protection/required_status_checks" --jq '.contexts' \
+    2>/dev/null \
+    || echo "  none — 403 (free-tier private) or 404 (protection not set): rename is a no-op"
+done
+```
+
+If every branch printed the no-op line, skip to "Step 3 — reshape the workflow".
+
+### Step 2 — update the required contexts *before* the workflow lands
+
+If Step 1 listed contexts containing `lint + typecheck` and/or `unit tests`, swap them for
+`checks` on each protected branch. The `contexts` field **replaces the whole set**, so
+pass every context the branch should still require (drop the two old names, add `checks`,
+keep the rest):
+
+```bash
+gh api -X PATCH "repos/$REPO/branches/$BRANCH/protection/required_status_checks" \
+  -f "contexts[]=checks" \
+  -f "contexts[]=production build" \
+  -f "contexts[]=integration tests" \
+  -f "contexts[]=e2e tests"          # include only the contexts this repo actually has
+```
+
+Order matters relative to the merge: update the contexts **first** (or in the same window),
+then merge the PR that reshapes `ci.yml`. Do it the other way round and open PRs hang on
+the now-orphaned old contexts until you fix protection.
+
+`gitflow-init` owns branch protection and derives contexts from the workflow's live job
+names rather than hardcoding them, so a *fresh* scaffold needs none of this — the breakage
+only exists on repos whose protection was applied with the older names. For the full
+protection object and the 403-fallback message, see
+`gitflow-init/references/branch-protection.md`; don't reproduce that logic here.
+
+### Step 3 — reshape the workflow
+
+Collapse `lint-typecheck` (+ the Python `lint`/`typecheck` pair) and the `unit` job into
+one `checks` job per `gh-actions-init/references/ci-structure.md`, folding the unit-test
+step in per `testing-init/references/ci-test-job.md`. Point `build.needs` at `checks`.
+`integration` and `e2e` stay their own jobs.
+
+`ci-drift-audit` reports each repo's shape (separate jobs vs consolidated) but never
+*fails* on it — see that skill — because this migration is a deliberate per-repo step, not
+drift.
 
 Once consolidated, decide where *future* checks go — fold into `checks` vs their own
 parallel job — by the rule in `ci-structure.md` ("What belongs in the consolidated

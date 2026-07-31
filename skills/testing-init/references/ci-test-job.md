@@ -1,10 +1,19 @@
 # Optional CI test job
 
-Only invoked if the user opted in at flow Step 4. Two paths:
+Only invoked if the user opted in at flow Step 4.
 
-## Path 1: `.github/workflows/ci.yml` already exists
+**Ownership split.** `testing-init` owns the test *steps/commands*; it does **not** own the
+`checks` job skeleton — that belongs to `gh-actions-init`
+(`gh-actions-init/references/ci-structure.md`). Concretely:
 
-**Extend it, don't replace.** Add the test jobs, preserving any existing jobs (lint, build, etc.). Detect existing jobs by name first:
+- **Unit tests** are a *step folded into the `checks` job* — they reuse that job's checkout
+  + `npm ci` (or `pip install`) instead of paying for a separate `unit` job. This is the
+  consolidation: lint + typecheck + unit run in one job.
+- **Integration** and **e2e** stay their *own jobs* — they need services / a browser, so
+  they don't belong in the fast `checks` job.
+
+**Extend, don't replace.** Detect existing jobs first so you never stomp what
+`gh-actions-init` wrote:
 
 ```bash
 existing_jobs=$(yq '.jobs | keys' .github/workflows/ci.yml 2>/dev/null || echo "")
@@ -12,28 +21,56 @@ existing_jobs=$(yq '.jobs | keys' .github/workflows/ci.yml 2>/dev/null || echo "
 
 (If `yq` isn't installed, just read the file and grep.)
 
-For each scope the user chose, add the matching job *if it doesn't already exist*:
+## Unit tests → a step in the `checks` job (always)
 
-### Unit (always)
+Unit tests are **not a job**. Which case you're in depends on whether a `checks` job
+already exists:
 
+### Case A — a `checks` job already exists
+
+(`gh-actions-init` ran first, or a prior `testing-init` run seeded it.) Append the
+unit-test step at the `# --- testing-init insertion point ---` comment `gh-actions-init`
+left — or, if that comment was stripped by a formatter/edit, after the last existing step
+in `checks`. Keep unit **last** (cheap lint/typecheck fail first). Do **not** create a
+`unit` job.
+
+Node — append to the existing `checks` job's steps:
 ```yaml
-  unit:
-    name: unit tests
+      - run: npm run test:unit
+```
+
+Python — append to the existing `checks` job's steps:
+```yaml
+      - run: pytest -m "not integration and not e2e"
+```
+
+### Case B — no `checks` job yet
+
+(`testing-init` is running before `gh-actions-init`, or standalone.) Create the `checks`
+job yourself, holding just the unit-test step, and leave the insertion-point comment
+*above* it so `gh-actions-init` later prepends lint → format:check → typecheck ahead of
+unit (unit stays last).
+
+Node:
+```yaml
+  checks:
+    name: checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6   # for Node projects
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
       - run: npm ci
+      # --- gh-actions-init prepends lint → format:check → typecheck above this step ---
       - run: npm run test:unit
 ```
 
-For Python:
+Python:
 ```yaml
-  unit:
-    name: unit tests
+  checks:
+    name: checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -41,10 +78,13 @@ For Python:
         with:
           python-version: '3.12'
       - run: pip install -e ".[dev]"
+      # --- gh-actions-init prepends ruff check → ruff format --check → mypy above this step ---
       - run: pytest -m "not integration and not e2e"
 ```
 
-### Integration (if scoped in)
+Either way the end state is a single `checks` job whose last step is the unit tests.
+
+## Integration (if scoped in)
 
 ```yaml
   integration:
@@ -62,7 +102,7 @@ For Python:
 
 Python equivalent: `pytest -m integration`.
 
-### E2E (if scoped in, Node only)
+## E2E (if scoped in, Node only)
 
 ```yaml
   e2e:
@@ -106,9 +146,12 @@ Notes:
   `pnpm-lock.yaml`). Keying on nothing means a stale cache after a Playwright bump;
   keying on the whole repo means a needless miss on every commit.
 
-## Path 2: No `.github/workflows/ci.yml` yet
+## No `.github/workflows/ci.yml` yet
 
-Create a minimal one with just the test jobs the user chose. Don't include lint/typecheck/build — those belong to `gh-actions-init` (which can extend this CI later).
+Create a minimal one containing the `checks` job (Case B above — the unit-test step, with
+the insertion-point comment above it) plus any integration/e2e jobs the user chose. Don't
+add lint/format:check/typecheck steps or a `build` job — those are `gh-actions-init`'s; it
+folds its steps into `checks` and adds `build` when it runs later.
 
 ```yaml
 name: CI
@@ -126,7 +169,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ... only the test jobs the user opted into
+  # checks (holding the unit-test step, Case B) + any integration/e2e jobs opted into
 ```
 
 ## Top-of-file conventions

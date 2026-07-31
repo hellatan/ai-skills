@@ -1,6 +1,6 @@
 ---
 name: gh-actions-init
-description: Add GitHub Actions to an existing repo — scaffolds the CI structure (lint + typecheck + format check + build), wires release-please for automated versioning and changelogs from conventional commits, and drops a platform-agnostic deploy stub. Use when the user wants to "add CI", "set up GitHub Actions", "wire up release-please", "scaffold deploy workflow", or otherwise bring `.github/workflows/` to a project that doesn't have it yet. Detects existing workflows and extends them rather than replacing. Composes with `testing-init` (which owns the test jobs) and `project-scaffold` (which calls this internally for new projects).
+description: Add GitHub Actions to an existing repo — scaffolds the CI structure (a consolidated `checks` job running lint + format check + typecheck, plus a build job), wires release-please for automated versioning and changelogs from conventional commits, and drops a platform-agnostic deploy stub. Use when the user wants to "add CI", "set up GitHub Actions", "wire up release-please", "scaffold deploy workflow", or otherwise bring `.github/workflows/` to a project that doesn't have it yet. Detects existing workflows and extends them rather than replacing. Composes with `testing-init` (which owns the test jobs) and `project-scaffold` (which calls this internally for new projects).
 ---
 
 # gh-actions-init
@@ -24,7 +24,7 @@ User says any of:
 
 ## What this skill does NOT touch
 
-- **Test jobs** in CI (unit / integration / e2e) — `testing-init`'s job. This skill scaffolds the *structural* CI jobs (lint, typecheck, format:check, build); test jobs are added separately by `testing-init`.
+- **Test steps/jobs** in CI — `testing-init`'s domain. This skill owns the `checks` **job** (lint, format:check, typecheck) and `build`; `testing-init` folds its unit-test *step* into `checks` and adds `integration`/`e2e` as their own jobs.
 - **Pre-commit hooks** — separate concern.
 - **Branch protection rules** — `gh api` work, not workflows. Future skill (`gitflow-init`).
 - **CLAUDE.md** — separate skill.
@@ -57,7 +57,7 @@ See `references/detection.md` for the detection cheat-sheet.
 
 Five independent decisions:
 
-**a. CI structure** — lint + typecheck + format:check + build jobs.
+**a. CI structure** — a consolidated `checks` job (lint + format:check + typecheck) + a `build` job.
 
 If `.github/workflows/ci.yml` exists (e.g., `testing-init` already created one with test jobs): extend by adding only missing structural jobs.
 
@@ -120,9 +120,9 @@ Same gate as `project-scaffold` and `testing-init`. Wait for explicit affirmativ
 See `references/ci-structure.md` for the per-stack job templates and the extend-vs-create logic. The `push` trigger is `[main]` only (never `develop`) — a PR already runs CI before merge, so a post-merge `push` run on `develop` is pure duplicate minutes. To retrofit an existing repo that still runs `push` on `develop`, see `references/ci-cost-migration.md`.
 
 Per-stack job set:
-- **Node/TS**: `lint + typecheck` job, optional `format:check` (if `prettier` is in dev deps), `build` job.
-- **Python**: `lint` job (ruff check + ruff format --check), `typecheck` job (mypy if it's installed), no build job (Python apps usually deploy source).
-- **Fullstack**: matrix of both, gated by changed-paths if needed.
+- **Node/TS**: a `checks` job (lint + optional `format:check` if `prettier` is in dev deps + typecheck) with an insertion point where `testing-init` folds the unit-test step in, plus a `build` job.
+- **Python**: a `checks` job (ruff check + ruff format --check + mypy if it's installed), no build job (Python apps usually deploy source).
+- **Fullstack**: a `checks` job per side (`frontend-checks`, `backend-checks`), gated by changed-paths if needed.
 
 **Extend-mode rules** (when `ci.yml` exists):
 - Add only jobs whose `name:` doesn't already appear.
@@ -194,7 +194,7 @@ Next steps:
 1. (If flagged above) Add the RELEASE_PLEASE_TOKEN repo secret — the release workflows fail without it
 2. Push a feature branch and open a PR — confirm CI runs green
 3. Pick a deploy target in `.github/workflows/deploy.yml` and follow the "How to use this file" header inside it to wire up secrets
-4. (If you don't have tests yet) Run `/testing-init` to add the test jobs that round out the 5-check pipeline
+4. (If you don't have tests yet) Run `/testing-init` to fold the unit-test step into `checks` and add the `integration` / `e2e` jobs
 5. (If you want branch protection on main/develop) Set it up via GitHub UI or `gh api repos/{owner}/{repo}/branches/{branch}/protection`
 6. Make your first conventional commit (`feat:`, `fix:`, etc.) — release-please tracks these for the next release PR
 7. (If develop→main auto-PR was scaffolded) Confirm Actions can open PRs — `project-scaffold` enables this; for an existing repo run the `gh api ... actions/permissions/workflow` command in `references/develop-to-main-pr.md`
@@ -218,7 +218,7 @@ One PAT secret (`RELEASE_PLEASE_TOKEN`) covers both PR-authoring workflows; `/re
 ## Reference files
 
 - `references/detection.md` — how to read stack + existing workflows + version state + branch model
-- `references/ci-structure.md` — per-stack lint + typecheck + format:check + build jobs; extend-vs-create logic
+- `references/ci-structure.md` — the per-stack `checks` job (lint + format:check + typecheck) + build; the `testing-init` insertion point; extend-vs-create logic
 - `references/ci-cost-migration.md` — retrofit an existing repo to the deduplicated `push` triggers (non-breaking); notes on the separate, breaking job-consolidation change
 - `references/ci-cost-verification.md` — prove a cost change worked using GitHub's own billed minutes (`runs/{id}/timing`): before/after tables, pricing constants, and the gotchas (a `0` billable reading is not "free")
 - `references/release-please.md` — workflow, config, manifest; monorepo variant; tag-pattern gotchas
