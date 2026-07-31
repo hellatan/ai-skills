@@ -1,0 +1,83 @@
+name: release-health
+
+# Two jobs:
+#  - self-test: on-demand, fires ONE sample alert to prove the pipe.
+#  - pending-sweep: daily, flags any MERGED release PR stuck on
+#    "autorelease: pending" — the deadlock that silently aborts ALL future
+#    releases until cleared.
+
+on:
+  schedule:
+    - cron: "23 8 * * *" # 08:23 UTC daily — off-peak hour, staggered minute (GitHub delays/skips congested slots like :00)
+  workflow_dispatch:
+    inputs:
+      test_alert:
+        description: "Fire a test alert and exit"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  self-test:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_alert }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Send test alert
+        uses: ./.github/actions/discord-alert
+        with:
+          webhook: ${{ secrets.DISCORD_GH_ERRORS_WEBHOOK }}
+          color: "3066993" # green — this is a test, not a real failure
+          title: "✅ ${{ github.repository }} — alert pipe test"
+          description: |
+            Test alert from `release-health.yml`. If you can read this, delivery works.
+            [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+  pending-sweep:
+    if: ${{ github.event_name == 'schedule' || !inputs.test_alert }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: "Find stuck 'autorelease: pending' PRs"
+        id: sweep
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          # The freeze signal is a MERGED release PR still labelled pending: the
+          # label flips to "autorelease: tagged" within seconds of a healthy
+          # merge, so a merged+pending PR means the tag never happened. (Open +
+          # pending is the NORMAL state of an un-merged release PR — never flag
+          # those.)
+          stuck=$(gh pr list -R "$REPO" --state merged --label "autorelease: pending" \
+            --json number,title,url,mergedAt \
+            --jq '[.[] | "• [#\(.number) \(.title)](\(.url)) — merged \(.mergedAt)"] | join("\n")')
+          if [ -n "$stuck" ]; then
+            echo "found stuck pending PR(s):"
+            echo "$stuck"
+            {
+              echo "alert=true"
+              echo "detail<<EOF"
+              echo "$stuck"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "alert=false" >> "$GITHUB_OUTPUT"
+            echo "no stuck pending release PRs."
+          fi
+      - name: Alert on failure
+        if: steps.sweep.outputs.alert == 'true'
+        uses: ./.github/actions/discord-alert
+        with:
+          webhook: ${{ secrets.DISCORD_GH_ERRORS_WEBHOOK }}
+          title: "🟥 ${{ github.repository }} — release PR stuck on autorelease: pending"
+          description: |
+            A **merged** release PR never got tagged, so it is stuck `pending`. **This aborts all future releases until cleared.**
+
+            ${{ steps.sweep.outputs.detail }}
+
+            Fix: relabel to `autorelease: tagged` + re-run, or tag by hand.
+            **Repo:** ${{ github.server_url }}/${{ github.repository }}
