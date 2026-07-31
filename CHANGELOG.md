@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.12.0](https://github.com/hellatan/claude-skills/compare/v1.11.0...v1.12.0) (2026-07-31)
+
+
+### Features
+
+* **gh-actions-init:** document what belongs in the checks job vs its own job ([#117](https://github.com/hellatan/claude-skills/issues/117)) ([ff75586](https://github.com/hellatan/claude-skills/commit/ff755866254e45f4995f2e00ce9447fabcfb0595))
+* **precommit-init:** stop prettier-formatting YAML in the hook file filter ([#116](https://github.com/hellatan/claude-skills/issues/116)) ([a83ce5e](https://github.com/hellatan/claude-skills/commit/a83ce5e35d0ed9073ff14e0fb34d614f9a3e9cda))
+
 ## [1.11.0](https://github.com/hellatan/claude-skills/compare/v1.10.1...v1.11.0) (2026-07-31)
 
 
