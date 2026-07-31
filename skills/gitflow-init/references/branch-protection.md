@@ -54,9 +54,10 @@ protect_branch develop
 
 ## Why dynamic, not hardcoded
 
-The earlier hardcoded list — `["lint + typecheck", "unit tests", "integration tests", "e2e tests", "production build"]` — assumed every scaffold produces the same 5 jobs. In practice:
+An earlier version hardcoded the list — `["lint + typecheck", "unit tests", "integration tests", "e2e tests", "production build"]` — assuming every scaffold produces the same fixed set. It never did, and the job consolidation (5→3) makes the point sharper: the current default emits `["checks", "e2e tests", "production build"]`, and even that varies:
 
-- `integration tests` is opt-in during `/testing-init` (the default fullstack-collapsed Next.js scaffold produces 4 jobs, not 5).
+- `checks` bundles lint + format:check + typecheck + the unit-test step into one job (the old `lint + typecheck` and `unit tests` contexts no longer exist) — so a list written against the old names would hang forever.
+- `integration tests` is opt-in during `/testing-init` (the default Next.js scaffold produces 3 jobs — `checks`, `e2e tests`, `production build` — not 4).
 - A Python-only library has no `e2e tests` job.
 - Backend-only scaffolds may have no `production build` job.
 
