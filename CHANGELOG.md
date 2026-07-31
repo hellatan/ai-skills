@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0](https://github.com/hellatan/claude-skills/compare/v1.12.0...v2.0.0) (2026-07-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* the scaffolded CI status-check contexts are renamed -- `lint + typecheck` and `unit tests` are replaced by a single `checks` context. Repos with required status checks (public repos or paid plans) must update their branch protection to require `checks` before merging, or PRs hang on contexts that never report. No-op for free-tier private repos, which have no branch protection. See skills/gh-actions-init/references/ci-cost-migration.md for the migration steps.
+
+### Features
+
+* consolidate scaffolded CI into a single `checks` job ([#113](https://github.com/hellatan/claude-skills/issues/113)) ([aedd787](https://github.com/hellatan/claude-skills/commit/aedd78764902993b208540e5288f67d15037e076))
+
 ## [1.12.0](https://github.com/hellatan/claude-skills/compare/v1.11.0...v1.12.0) (2026-07-31)
 
 
