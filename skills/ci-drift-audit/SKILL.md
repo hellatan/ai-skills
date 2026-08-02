@@ -101,10 +101,11 @@ Full detail, rationale, and detection notes: `references/checks.md`.
 
 | # | Check | Severity |
 | --- | --- | --- |
-| 1 | `push:` triggers must not include `develop` | **high** — duplicate billed minutes |
+| 0 | The CI workflow is found by behaviour, and sits at `ci.yml` | precondition — a miss silently voids checks 1–4 |
+| 1 | `push:` triggers must not include `develop`, and must be branch-filtered | **high** — duplicate billed minutes |
 | 2 | `pull_request:` covers the branches that receive PRs | **high** — a gap means no CI gate |
 | 3 | Playwright e2e job caches browsers | medium — 1–2 min/run |
-| 4 | `workflow_dispatch:` present on `ci.yml` | low |
+| 4 | `workflow_dispatch:` present on the CI workflow | low |
 | 5 | `/rebuild` workflow present (gitflow repos) | low |
 | 6 | `develop → main` promotion workflow present | low (missing no-squash warning: medium) |
 | 7 | Jobs consolidated into `checks` | **informational only** — opt-in, breaking |
@@ -155,20 +156,32 @@ A hand-maintained list has a silent failure mode: a repo created after setup is 
 audited and the report still says "all green." That's the same silently-shrinking-coverage
 problem this skill exists to catch, so the audit must not commit it itself.
 
-### 2. For each repo, fetch the workflow files
+### 2. Decide whether the repo is in scope, then fetch its workflows
+
+Skip before spending any workflow calls. A repo with no push in ~365 days, or with no
+commits at all, cannot be drifting or accruing minutes — report `skipped: <reason>` and
+move on. Discovery over a personal account otherwise drowns the report in a decade of
+finished work. See `references/checks.md` § *What the audit declines to check*, and
+prefer a dormancy threshold over listing the archive by hand.
+
+Then list the workflow directory once and reuse it — both the CI gate and `/rebuild` are
+found by scanning it, so one listing plus one fetch per file covers every check.
 
 ```bash
-gh api "repos/$REPO/contents/.github/workflows/ci.yml" --jq '.content' | base64 -d
+gh api "repos/$REPO/contents/.github/workflows" --jq '.[] | select(.type=="file") | .name'
+gh api -H "Accept: application/vnd.github.raw" \
+  "repos/$REPO/contents/.github/workflows/$NAME"
 ```
 
 Handle gracefully — these are normal, not errors:
 
-- repo has no `.github/workflows/` at all
-- CI lives under a different filename (`validate.yml`, `test.yml`)
-- repo is inaccessible with the current token
+- repo has no `.github/workflows/` at all → **drift**: no CI gate
+- CI lives under a different filename (`validate.yml`, `test.yml`) → **drift**: a rename.
+  Find it by behaviour and check it anyway — see check 0. Reporting this as "no CI"
+  voids checks 1–4 for that repo.
+- repo is inaccessible with the current token → `skipped`
 
-Report each as `skipped: <reason>`, distinct from `no drift`. Conflating them hides
-problems.
+Keep `skipped` distinct from `no drift`. Conflating them hides problems.
 
 ### 3. Run the checks
 
