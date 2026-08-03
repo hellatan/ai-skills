@@ -29,7 +29,7 @@ User says any of:
 
 - **The baseline itself.** The correct CI shape is defined by `gh-actions-init`
   (`references/ci-structure.md`, `ci-cost-migration.md`, `rebuild.md`,
-  `develop-to-main-pr.md`) and
+  `develop-to-main-pr.md`, `tagged-deploy.md`) and
   `testing-init` (`references/ci-test-job.md`). This skill only *checks* against them —
   when the baseline changes, update it there and add a check here.
 - **Branch protection / required checks** — `gitflow-init` owns that.
@@ -109,6 +109,7 @@ Full detail, rationale, and detection notes: `references/checks.md`.
 | 6 | `develop → main` promotion workflow present | low (missing no-squash warning: medium) |
 | 7 | Jobs consolidated into `checks` | **informational only** — opt-in, breaking |
 | 8 | Release-tag verification present and correctly wired | low missing / **high** miswired |
+| 9 | Tagged-only deploy can actually fire | **high** scoped package / medium changelog gaps |
 
 Check 7 is reported, never failed: consolidation renames status checks, which is a
 breaking change for any repo with required checks. See `ci-cost-migration.md`.
@@ -118,6 +119,14 @@ gap (low); a repo that has it but reads `steps.release.outputs.release_created` 
 `.tag_name` with a non-root package path is **high** — those outputs are always empty
 there, so it cries "NO TAG created" on every healthy release while its real
 tag-missing branch can never fire.
+
+Check 9 covers the failure mode with no symptom at all. Under tagged-only deploys the
+tag *is* the trigger, so anything that stops release-please cutting a release also stops
+the deploy — silently, on a green run. A subdirectory-scoped package path ignores commits
+outside it, and default-hidden `chore`/`docs`/`ci` types make a docs-only promotion
+produce an empty changelog, which release-please skips entirely. Either way the release
+branch moves ahead of production and nothing fails. It reuses check 8's read of the
+release-please config; the two differ in what they conclude from it.
 
 ## Flow
 
@@ -192,5 +201,5 @@ The list will grow. Keep each check:
 - `references/checks.md` — each check: rationale, detection, fix, severity
 - `references/repo-list.md` — where the audited set comes from: discovery vs explicit list, conventional paths, token caveats
 - `references/audit-token.md` — the read-only PAT: required scopes, why 404 means "no access", and the confirmed cause of a token that authenticates but sees nothing
-- Baseline sources: `gh-actions-init/references/{ci-structure,ci-cost-migration,rebuild,develop-to-main-pr}.md`,
+- Baseline sources: `gh-actions-init/references/{ci-structure,ci-cost-migration,rebuild,develop-to-main-pr,tagged-deploy,release-please}.md`,
   `testing-init/references/ci-test-job.md`

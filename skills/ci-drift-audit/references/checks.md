@@ -246,6 +246,110 @@ quiet by design, which is exactly why it needs surfacing:
 
 ---
 
+## 9. Tagged-only deploy can actually fire — **high** scoped package / medium changelog gaps
+
+**Why.** Under the tagged-only deploy model, the tag *is* the deploy trigger: nothing ships
+except a commit release-please tagged. That makes "release-please declined to cut a
+release" and "production is a version behind" the same event — and neither one fails
+anything. There is no red run, no failed deploy, no alert; the release workflow reports
+success because from its own point of view nothing was wrong. Live code sits on the
+release branch, dead in production, indefinitely. Every drift shape below is a way for
+that to happen quietly, which is why they're worth an audit rather than a runbook.
+
+**Scope.** Repos that use release-please **and** deploy. Detect release-please the same
+way check 8 does (by behaviour, and read the `config-file` / `manifest-file` inputs off
+that workflow — the config is not reliably at `.github/release-please-config.json`).
+Detect "deploys" by a deploy step in the release job (a deploy-hook `curl`, a platform
+CLI invocation) or a separate deploy workflow. Skip repos with neither.
+
+**Skip repos that deliberately don't deploy yet.** The scaffolded opt-out is a repo
+variable (`RENDER_DEPLOY=false` in the default template), and a fresh scaffold starts
+there on purpose. Read it before reporting:
+
+```bash
+gh api "repos/$REPO/actions/variables/RENDER_DEPLOY" --jq '.value' 2>/dev/null
+```
+
+`false` → the deploy step is dormant by design; report nothing. Anything else, including
+a 404, means this repo deploys.
+
+**Three drift shapes.**
+
+- **release-please scoped to a subdirectory — high** (when the repo has code outside that
+  path). release-please only counts commits touching files **under** a package's path, so
+  a change confined to an internal workspace package or to root-level tooling cuts no
+  release, never tags, and therefore never deploys. Detect by reading the `packages` keys
+  from the config the workflow actually points at — expect exactly `["."]`:
+
+  ```bash
+  jq -r '.packages | keys[]' "$CONFIG"     # anything but "." => drift
+  ```
+
+  Check 8 already resolves that config path and reads the same keys for a different
+  purpose (whether `release_created` / `tag_name` are namespaced). One read, two findings
+  — don't re-derive it here. The distinction: check 8 is about the *verification block
+  lying*; this one is about *releases never being cut in the first place*.
+
+  **Downgrade to medium** when the scoped path is genuinely the whole repo (a single-app
+  repo with nothing outside `apps/web`, no root tooling that ships). It works today and
+  breaks the first time a shared package appears.
+
+  **Legitimate exception:** a true multi-deploy monorepo with per-component tags
+  (`include-component-in-tag: true`) is a different, deliberate design — root-scoping
+  would be wrong there. Record those as exceptions rather than muting the check.
+
+- **`changelog-sections` missing, or not un-hiding every commit type — medium.**
+  release-please **skips a release entirely when the generated changelog would be empty**,
+  and `chore` / `docs` / `ci` / `style` / `test` / `build` are hidden by default. So a
+  docs-only or CI-only promotion cuts no tag and never deploys — the release branch drifts
+  ahead of production by exactly the changes nobody thought were risky. Absent
+  `changelog-sections` is the same finding as a partial one: the defaults hide those types.
+
+  ```bash
+  jq -r '.["changelog-sections"] // "MISSING"' "$CONFIG"
+  jq -r '.["changelog-sections"] // [] | .[] | select(.hidden == true) | .type' "$CONFIG"
+  ```
+
+  Drift = `MISSING`, or any type still `hidden: true`. `changelog-sections` may sit at the
+  top level **or** inside a package entry — check both before reporting it absent.
+
+  **Do not report `always-bump-patch` as the fix.** It flattens `feat` → patch and breaks
+  semantic versioning; un-hiding the sections is the correct change.
+
+- **Deploy still a separate workflow on `on: push: tags` — high.** GitHub's recursion guard
+  suppresses workflow triggers for any ref pushed with the built-in `GITHUB_TOKEN`, so a
+  tag release-please cut with that token never fires the deploy workflow. It looks correct,
+  passes review, and simply never runs.
+
+  ```bash
+  yq '.on.push.tags // "none"' <each workflow>          # non-null => tag-triggered
+  yq '.jobs.*.steps[] | select(.uses | test("release-please-action")) | .with.token' \
+     <release workflow>                                  # empty/github.token => GITHUB_TOKEN
+  ```
+
+  Drift = a tag-triggered deploy workflow **and** a release-please step with no PAT
+  `token:`. Two valid fixes, and the report should name both: fold the deploy into the job
+  that cuts the tag (the scaffolded shape), or push the tag with a PAT, which restores the
+  trigger.
+
+  **False-positive guard.** If tags also arrive from somewhere else — a human pushing
+  `vX.Y.Z` by hand, another workflow using a PAT — the trigger does fire and the workflow
+  isn't dead. Flag high only when release-please is the sole tag source.
+
+**Known blind spot: this check cannot see the platform.** Whether native git auto-deploy
+is actually off lives in the hosting dashboard, not in the repo, so an audit reading
+workflow files can't confirm it. A repo can pass all three shapes above and still
+double-deploy — once untagged on the branch push, once from CI — because a `render.yaml`
+saying `autoDeploy: false` does nothing until the Blueprint is re-synced on a
+pre-existing service. Say so in the report rather than implying the deploy model is
+verified end to end.
+
+**Fix.** `gh-actions-init/references/tagged-deploy.md` — the canonical explanation of the
+model and of each of these failure modes. Config in
+`gh-actions-init/references/release-please.md`.
+
+---
+
 ## Reporting shape
 
 Only drifted items, grouped by repo, each naming its fix:
