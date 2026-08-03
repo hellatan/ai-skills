@@ -212,12 +212,18 @@ Keep the grid convention when you edit — the whole point is that the next pers
     <text x="786" y="386" class="lab" fill="#3fb950">✅ «success»</text>
     <text x="786" y="404" class="sm">«how you know it worked»</text>
 
-    <!-- ===== DEPLOY / RUNTIME NOTE (full width) ===== -->
-    <rect x="20" y="460" width="1000" height="120" rx="10" class="box"/>
-    <text x="40" y="488" class="lab">Deploy model</text>
-    <text x="40" y="512" class="sm">«How this actually runs in production: host, branch → deploy mapping, scheduler, runtime.»</text>
-    <text x="40" y="532" class="sm">«The load-bearing operational fact a newcomer must know (the thing that silently breaks the system if missed).»</text>
-    <text x="40" y="552" class="sm">«Logs / dashboards: where to look when it misbehaves.»</text>
+    <!-- ===== DEPLOY / RUNTIME NOTE (full width) =====
+         ✎ EDIT: state what triggers a production deploy, precisely. "Deploys from main"
+         is not enough — say whether EVERY push to main deploys or only a tagged release,
+         and which commit ends up running. Repos scaffolded with the tagged-only model
+         (gh-actions-init/references/tagged-deploy.md) should read like the placeholder
+         below; delete the tagged-only lines if this repo really does branch-auto-deploy. -->
+    <rect x="20" y="460" width="1000" height="132" rx="10" class="box"/>
+    <text x="40" y="488" class="lab">Deploy model — «tagged-only | branch auto-deploy»</text>
+    <text x="40" y="512" class="sm">«Host auto-deploy is OFF. Prod deploys only when release-please cuts a vX.Y.Z tag — its workflow triggers the deploy against that tagged commit.»</text>
+    <text x="40" y="532" class="sm">«So production runs the exact tagged commit, once; the untagged develop→main promotion merge never deploys.»</text>
+    <text x="40" y="552" class="sm">«Every promotion releases: release-please tracks the repo root, so any change anywhere cuts ≥ a patch (feat→minor, breaking→major) → no drift.»</text>
+    <text x="40" y="572" class="sm">«Migrations / build-time env needs · Logs and dashboards: where to look when it misbehaves.»</text>
   </svg>
   </div>
   <div class="legend">

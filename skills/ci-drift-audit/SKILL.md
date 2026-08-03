@@ -29,7 +29,7 @@ User says any of:
 
 - **The baseline itself.** The correct CI shape is defined by `gh-actions-init`
   (`references/ci-structure.md`, `ci-cost-migration.md`, `rebuild.md`,
-  `develop-to-main-pr.md`) and
+  `develop-to-main-pr.md`, `tagged-deploy.md`) and
   `testing-init` (`references/ci-test-job.md`). This skill only *checks* against them —
   when the baseline changes, update it there and add a check here.
 - **Branch protection / required checks** — `gitflow-init` owns that.
@@ -101,14 +101,16 @@ Full detail, rationale, and detection notes: `references/checks.md`.
 
 | # | Check | Severity |
 | --- | --- | --- |
-| 1 | `push:` triggers must not include `develop` | **high** — duplicate billed minutes |
+| 0 | The CI workflow is found by behaviour, and sits at `ci.yml` | precondition — a miss silently voids checks 1–4 |
+| 1 | `push:` triggers must not include `develop`, and must be branch-filtered | **high** — duplicate billed minutes |
 | 2 | `pull_request:` covers the branches that receive PRs | **high** — a gap means no CI gate |
 | 3 | Playwright e2e job caches browsers | medium — 1–2 min/run |
-| 4 | `workflow_dispatch:` present on `ci.yml` | low |
+| 4 | `workflow_dispatch:` present on the CI workflow | low |
 | 5 | `/rebuild` workflow present (gitflow repos) | low |
 | 6 | `develop → main` promotion workflow present | low (missing no-squash warning: medium) |
 | 7 | Jobs consolidated into `checks` | **informational only** — opt-in, breaking |
 | 8 | Release-tag verification present and correctly wired | low missing / **high** miswired |
+| 9 | Tagged-only deploy can actually fire | **high** scoped package / medium changelog gaps |
 
 Check 7 is reported, never failed: consolidation renames status checks, which is a
 breaking change for any repo with required checks. See `ci-cost-migration.md`.
@@ -118,6 +120,14 @@ gap (low); a repo that has it but reads `steps.release.outputs.release_created` 
 `.tag_name` with a non-root package path is **high** — those outputs are always empty
 there, so it cries "NO TAG created" on every healthy release while its real
 tag-missing branch can never fire.
+
+Check 9 covers the failure mode with no symptom at all. Under tagged-only deploys the
+tag *is* the trigger, so anything that stops release-please cutting a release also stops
+the deploy — silently, on a green run. A subdirectory-scoped package path ignores commits
+outside it, and default-hidden `chore`/`docs`/`ci` types make a docs-only promotion
+produce an empty changelog, which release-please skips entirely. Either way the release
+branch moves ahead of production and nothing fails. It reuses check 8's read of the
+release-please config; the two differ in what they conclude from it.
 
 ## Flow
 
@@ -146,20 +156,32 @@ A hand-maintained list has a silent failure mode: a repo created after setup is 
 audited and the report still says "all green." That's the same silently-shrinking-coverage
 problem this skill exists to catch, so the audit must not commit it itself.
 
-### 2. For each repo, fetch the workflow files
+### 2. Decide whether the repo is in scope, then fetch its workflows
+
+Skip before spending any workflow calls. A repo with no push in ~365 days, or with no
+commits at all, cannot be drifting or accruing minutes — report `skipped: <reason>` and
+move on. Discovery over a personal account otherwise drowns the report in a decade of
+finished work. See `references/checks.md` § *What the audit declines to check*, and
+prefer a dormancy threshold over listing the archive by hand.
+
+Then list the workflow directory once and reuse it — both the CI gate and `/rebuild` are
+found by scanning it, so one listing plus one fetch per file covers every check.
 
 ```bash
-gh api "repos/$REPO/contents/.github/workflows/ci.yml" --jq '.content' | base64 -d
+gh api "repos/$REPO/contents/.github/workflows" --jq '.[] | select(.type=="file") | .name'
+gh api -H "Accept: application/vnd.github.raw" \
+  "repos/$REPO/contents/.github/workflows/$NAME"
 ```
 
 Handle gracefully — these are normal, not errors:
 
-- repo has no `.github/workflows/` at all
-- CI lives under a different filename (`validate.yml`, `test.yml`)
-- repo is inaccessible with the current token
+- repo has no `.github/workflows/` at all → **drift**: no CI gate
+- CI lives under a different filename (`validate.yml`, `test.yml`) → **drift**: a rename.
+  Find it by behaviour and check it anyway — see check 0. Reporting this as "no CI"
+  voids checks 1–4 for that repo.
+- repo is inaccessible with the current token → `skipped`
 
-Report each as `skipped: <reason>`, distinct from `no drift`. Conflating them hides
-problems.
+Keep `skipped` distinct from `no drift`. Conflating them hides problems.
 
 ### 3. Run the checks
 
@@ -192,5 +214,5 @@ The list will grow. Keep each check:
 - `references/checks.md` — each check: rationale, detection, fix, severity
 - `references/repo-list.md` — where the audited set comes from: discovery vs explicit list, conventional paths, token caveats
 - `references/audit-token.md` — the read-only PAT: required scopes, why 404 means "no access", and the confirmed cause of a token that authenticates but sees nothing
-- Baseline sources: `gh-actions-init/references/{ci-structure,ci-cost-migration,rebuild,develop-to-main-pr}.md`,
+- Baseline sources: `gh-actions-init/references/{ci-structure,ci-cost-migration,rebuild,develop-to-main-pr,tagged-deploy,release-please}.md`,
   `testing-init/references/ci-test-job.md`

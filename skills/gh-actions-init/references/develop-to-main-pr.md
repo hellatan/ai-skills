@@ -208,4 +208,4 @@ pre-selected on the promotion PR. Don't rely on remembering:
 ## Notes for the report
 
 - The PR is opened as a **draft** on purpose: it accumulates silently and only becomes a release action when the user marks it ready / merges.
-- This does not replace release-please. The chain is: merge `develop → main` (this PR) → release-please opens a versioned release PR → merging that tags `vX.Y.Z` and triggers `deploy.yml`.
+- This does not replace release-please. The chain is: merge `develop → main` (this PR) → release-please opens a versioned release PR → that PR auto-merges → the merge tags `vX.Y.Z` and, in the same workflow run, deploys the tagged commit. **Merging this promotion PR is the only human gate in the whole release** — see `references/tagged-deploy.md`.
