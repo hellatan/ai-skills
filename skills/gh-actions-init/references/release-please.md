@@ -8,11 +8,13 @@ Automates versioning, changelogs, tags, and GitHub releases via PRs driven by co
 
 ## How it works
 
-1. Push to `main` (typically by merging `develop` → `main`).
+1. Push to `main` — the `develop → main` **promotion merge**. This is the only human gate in the chain.
 2. release-please scans new conventional commits since the last release.
-3. It opens (or updates) a "release PR" with a generated `CHANGELOG.md` and a version bump.
-4. When you merge the release PR, release-please tags the commit (e.g. `v1.2.0`) and creates a GitHub Release.
-5. The tag push triggers `deploy.yml`.
+3. It opens (or updates) a "release PR" with a generated `CHANGELOG.md` and a version bump — and the same run **auto-merges** that PR (squash, with the PAT).
+4. The release-PR merge fires a **second** run of the same workflow, which tags the commit (e.g. `v1.2.0`) and creates a GitHub Release.
+5. That second run **verifies the tag exists on the remote and then deploys that exact commit** — the deploy lives in this workflow, not a separate `deploy.yml` on a tag trigger.
+
+Steps 3–5 are the "tagged-only deploy" model: platform auto-deploy is off, so a push to `main` never ships by itself and production always runs the exact tagged commit, exactly once. The design, the deploy step, the auto-merge step, and the non-Render caveats are in **`references/tagged-deploy.md`** — read it before changing anything in this chain. Two of its five parts are release-please *config* and live in this file: root-scoping the package, and `changelog-sections` un-hiding every commit type.
 
 ## Workflow
 
@@ -58,14 +60,27 @@ jobs:
           manifest-file: .github/.release-please-manifest.json
 
       # verify-tag: a merged release PR MUST produce a tag. These steps (Evaluate
-      # release outcome / Alert gh_errors / Fail the run) catch a release-please
+      # release outcome / Alert on failure / Fail the run) catch a release-please
       # step failure AND the silent case where a release PR merges, the step
-      # reports success, but no tag is created. Full step bodies + the companion
+      # reports success, but no tag is created. They also emit the `released`
+      # output the deploy step below gates on. Full step bodies + the companion
       # release-health.yml + discord-alert composite are in
       # references/release-verification.md — scaffold them together.
+
+      # Deploy tagged release — runs only when `released == 'true'`, and deploys
+      # github.sha (the commit just tagged). Platform auto-deploy is OFF, so this
+      # is the only thing that ships production.
+      #
+      # Auto-merge the release PR — squash-merges the pending release PR with the
+      # PAT so the merge re-triggers this workflow and cuts the tag.
+      #
+      # Both step bodies, the RELEASE_AUTOMERGE pause switch, and the non-Render
+      # platform variants are in references/tagged-deploy.md.
 ```
 
-The three `verify-tag` steps that complete this job, plus the companion `release-health.yml` and `discord-alert` composite, live in `references/release-verification.md` — copy them from there rather than hand-rolling one, and note in particular that a tag check must **not** read `steps.release.outputs.release_created` / `.tag_name`: those are empty for every non-root package path, including the monorepo config below. Scaffold them **alongside** release-please (same skip condition). They no-op safely if the `DISCORD_GH_ERRORS_WEBHOOK` secret is unset.
+The `verify-tag` steps that complete this job, plus the companion `release-health.yml` and `discord-alert` composite, live in `references/release-verification.md`; the **deploy** and **auto-merge** steps live in `references/tagged-deploy.md`. Copy them from there rather than hand-rolling — and note in particular that a tag check must **not** read `steps.release.outputs.release_created` / `.tag_name`: those are empty for every non-root package path, including the monorepo config below. Scaffold all of it **alongside** release-please (same skip condition). The alerting no-ops safely if the webhook secret is unset.
+
+⚠️ **Never scaffold auto-merge without `verify-tag`.** Auto-merge removes the human who would have noticed a release that didn't tag; the verification steps are the replacement. And never gate the deploy on anything looser than `released == 'true'` — that output is `true` only after the tag ref is confirmed on the remote.
 
 Both `branches:` (the trigger) and `target-branch:` (the branch release-please
 manages) must point at the release branch — `main` here. **Setting
@@ -112,7 +127,20 @@ The `/rebuild` comment workflow (`rebuild.md`) remains the manual fallback for r
       "release-type": "node",
       "include-component-in-tag": false,
       "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": false
+      "bump-patch-for-minor-pre-major": false,
+      "changelog-sections": [
+        { "type": "feat", "section": "Features" },
+        { "type": "fix", "section": "Bug Fixes" },
+        { "type": "perf", "section": "Performance Improvements" },
+        { "type": "revert", "section": "Reverts" },
+        { "type": "refactor", "section": "Code Refactoring" },
+        { "type": "docs", "section": "Documentation" },
+        { "type": "chore", "section": "Chores" },
+        { "type": "style", "section": "Styles" },
+        { "type": "test", "section": "Tests" },
+        { "type": "build", "section": "Build System" },
+        { "type": "ci", "section": "Continuous Integration" }
+      ]
     }
   },
   "include-v-in-tag": true,
@@ -121,7 +149,9 @@ The `/rebuild` comment workflow (`rebuild.md`) remains the manual fallback for r
 }
 ```
 
-This exact shape was verified end-to-end on a throwaway repo: a real `feat` commit produced a `chore: release X.Y.Z` PR that, on merge, automatically created a clean `vX.Y.Z` tag + GitHub release with zero manual steps. Two non-obvious requirements make it work:
+For a monorepo whose **one deployable app** lives in a subdirectory, keep the package at `"."` and add `extra-files` to mirror the root version into the app — see "Scope the package to the repo root" below. That is not a stylistic preference; scoping to the app directory silently drops whole classes of change out of the release stream.
+
+This shape (minus `changelog-sections`) was verified end-to-end on a throwaway repo: a real `feat` commit produced a `chore: release X.Y.Z` PR that, on merge, automatically created a clean `vX.Y.Z` tag + GitHub release with zero manual steps. `changelog-sections` and root-scoping are the two additions verified separately on a production app (see the two sections below). Two non-obvious requirements make the base shape work:
 
 - **No `package-name`.** With an explicit `package-name` *and* `include-component-in-tag: false`, release-please expects the package's component in the merged release-PR title to associate the release — but `include-component-in-tag: false` strips the component from the title. They never match, so release-please logs `PR component: undefined does not match configured component: <name>` and **silently skips creating the tag/release** ([googleapis/release-please#2214](https://github.com/googleapis/release-please/issues/2214)). Omitting `package-name` makes release-please match by path (`.`) instead, which round-trips correctly and still yields clean `vX.Y.Z` tags. (`changelog-path` is also omitted — `CHANGELOG.md` is the default.)
 - **`group-pull-request-title-pattern` is required, not just `pull-request-title-pattern`.** In grouped mode (`separate-pull-requests: false`, the default) release-please titles the release PR from the **group** pattern, not the per-package one. If only `pull-request-title-pattern` is set, the group pattern defaults to a version-less `chore: release main`; a release PR whose title lacks `${version}` can't be parsed on merge, so the release strands ([googleapis/release-please#2712](https://github.com/googleapis/release-please/issues/2712)). Set both to the same value. `${component}` renders empty for a single root package, so titles read `chore: release 0.1.2` and tags read `v0.1.2`.
@@ -130,6 +160,45 @@ This exact shape was verified end-to-end on a throwaway repo: a real `feat` comm
 - `node` — for Node/TS projects, bumps `package.json`
 - `python` — for Python projects, bumps `pyproject.toml`
 - `simple` — manifest-only, no language-specific version file
+
+## ⚠️ Scope the package to the repo root (`"."`), not the app directory
+
+**release-please only counts commits that touch files under a package's path.** Point the package at `apps/web` and every change *outside* that directory is invisible to it: a fix confined to an internal workspace package that gets bundled into the app at build time, a dependency bump in the root lockfile, a CI or tooling change. Those produce **no release**, therefore no tag — and with tagged-only deploys (`references/tagged-deploy.md`), **no deploy**. The code is merged, present on `main`, and dead in production. Nothing fails; nothing alerts. This was a real production incident, not a hypothetical.
+
+Root-scoping means any file anywhere counts. For a monorepo with one deployable app, the **root** `package.json` holds the version and `extra-files` mirrors it into the app's:
+
+```json
+{
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "include-component-in-tag": false,
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": false,
+      "extra-files": [{ "type": "json", "path": "apps/web/package.json", "jsonpath": "$.version" }],
+      "changelog-sections": [ /* …as above… */ ]
+    }
+  }
+}
+```
+
+Internal workspace packages stay `"private": true` and unversioned — nothing tracks them, nothing tags them.
+
+Chosen over release-please's **`node-workspace` plugin**, which versions private packages too and can produce a second stream of tags that the deploy gate then has to disambiguate. For a single deployable, root-scoping is strictly simpler and has no failure mode of its own.
+
+The manifest keys must match: `{ ".": "1.4.2" }`. Retrofitting a repo that was scoped to a subdirectory means moving the manifest key *and* the version into the root `package.json`; the existing tags are unaffected because `include-component-in-tag: false` already made them plain `vX.Y.Z`.
+
+**When root-scoping is the wrong answer:** a repo with several *independently deployed* services. See the multi-deploy-monorepo section of `references/tagged-deploy.md` and the per-component config further down this file.
+
+## ⚠️ `changelog-sections` — un-hide every commit type, or docs-only releases silently vanish
+
+**release-please skips the release entirely when the changelog would be empty.** By default only `feat`, `fix`, and `perf` are visible; `chore` / `docs` / `ci` / `style` / `test` / `build` / `refactor` are hidden. So a promotion carrying only docs or CI commits generates an empty changelog, cuts **no release**, and — with tagged-only deploys — never ships. `main` drifts ahead of production again.
+
+Listing every type (as in the config above) makes every promotion produce a release, so `main == production` holds with no exceptions to remember.
+
+**Do not use `always-bump-patch` for this.** It looks like the same fix and isn't: it flattens `feat` → patch, so the version stops carrying meaning. The **default** versioning strategy already floors every release at a patch while keeping `feat` → minor and breaking → major — exactly what's wanted. `changelog-sections` changes *visibility*, not the bump computation.
+
+Tradeoff worth stating to the user: a docs-only promotion now triggers a build + deploy — a near-no-op rebuild. That is the price of a strict `main == production` invariant, and it is the right trade for anything with a real deploy.
 
 ## Config — single package, no language version file (`release-type: simple`)
 
@@ -155,6 +224,8 @@ The config mirrors the verified node single-package shape above — omit `packag
 ```
 
 The same two non-obvious requirements from the node block apply unchanged: **omit `package-name`** (release-please matches by path `.` instead of an unmatchable component, which would otherwise silently strand the tag) and set **both** `pull-request-title-pattern` and `group-pull-request-title-pattern` (grouped mode titles from the group pattern; a version-less title can't be parsed on merge). `${component}` renders empty for the single root package, so titles read `chore: release 0.1.2` and tags read `v0.1.2`.
+
+Add the same `changelog-sections` block as the node config above if the repo deploys anything — the empty-changelog skip is release-type-agnostic, and a config-only repo is *especially* prone to promotions made entirely of `chore:` / `docs:` commits.
 
 Seed the manifest at `0.1.0` — with no language version file to mirror, the manifest is the sole source of truth, and a `0.0.0` seed still trips the `1.0.0` first-release bootstrap (see "Manifest" below).
 

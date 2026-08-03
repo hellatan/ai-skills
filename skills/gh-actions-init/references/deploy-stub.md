@@ -1,6 +1,17 @@
 # Deploy stub
 
-Platform-agnostic. Triggers on `v*.*.*` tag pushes (which release-please creates when its release PR merges). User fills in the actual deploy step.
+Platform-agnostic. User fills in the actual deploy step.
+
+## ⚠️ Read `references/tagged-deploy.md` first
+
+The **default** deploy model this skill scaffolds does **not** use this standalone `deploy.yml`. It puts the deploy step inside `release-please.yml`, in the same job that cuts the tag, gated on the tag being verified on the remote. That file is the canonical design; this one is the fallback for cases that genuinely need a separate workflow.
+
+Two reasons the folded-in version is the default:
+
+1. **A tag pushed with `GITHUB_TOKEN` does not fire `on: push: tags`.** GitHub's recursion guard suppresses it. A `deploy.yml` wired exactly as below will simply never run in that setup — green pipeline, nothing deployed. It works only when the tag is pushed with a PAT (`RELEASE_PLEASE_TOKEN`), which is the case for repos scaffolded by this skill — but it is a live tripwire the moment someone "simplifies" the token config.
+2. **A separate workflow can't see the release verification result**, so it deploys on the existence of a tag rather than on a verified release outcome.
+
+Use this standalone `deploy.yml` when the deploy genuinely needs its own workflow: a build matrix, a GitHub `environment:` approval gate, or per-component fan-out in a multi-service monorepo. Otherwise fold the deploy into `release-please.yml`.
 
 ## Default tag pattern
 
@@ -157,6 +168,25 @@ When Render *is* the target, a `render.yaml` Blueprint is dramatically better th
 `render.yaml` (Next.js + Postgres example — **paid plan** shown; swap the two `plan:` lines to `free` for a free-tier blueprint, and adjust services/env to the project):
 
 ```yaml
+# Deploy model: TAGGED-ONLY. autoDeploy is OFF, so no push to `main` deploys on
+# its own — not the develop→main promotion merge (untagged), not the release-PR
+# merge. Production ships exactly once per release, triggered from
+# .github/workflows/release-please.yml AFTER release-please cuts the vX.Y.Z tag:
+# that step POSTs the deploy hook with `?ref=<tagged-sha>`, so the exact tagged
+# commit is built and never an untagged one.
+#
+# Required repo secret: RENDER_DEPLOY_HOOK_URL (dashboard → service → Settings →
+# Deploy Hook). Without it the release job fails loudly rather than shipping
+# nothing silently. Until a service exists at all, set the repo VARIABLE
+# RENDER_DEPLOY=false so a tagged release skips the deploy step instead of
+# failing on a hook that cannot exist yet (see references/tagged-deploy.md).
+#
+# NOTE — `autoDeploy: false` behaves differently depending on the service:
+#   * EXISTING service: this line alone does NOTHING. It takes effect only once
+#     the Blueprint is re-synced — flip auto-deploy off on the service in the
+#     dashboard too, or every push to `main` still deploys regardless of the file.
+#   * BRAND-NEW service created from this file: it is created with auto-deploy
+#     already off. There is nothing to flip; just confirm it.
 databases:
   - name: <project>-db
     plan: basic-256mb        # paid: smallest tier. Free tier = `free`, but it expires after 30 days.
@@ -170,7 +200,7 @@ services:
     plan: starter            # paid: smallest always-on tier. Free tier = `free` (spins down when idle).
     region: oregon
     branch: main             # deploy from main (release-please tags live here)
-    autoDeploy: false        # let deploy.yml / tag pushes drive deploys, not every commit
+    autoDeploy: false        # OFF on purpose — see the header. The release-please workflow deploys the tagged commit.
     buildCommand: npm ci && npm run db:migrate && npm run build
     startCommand: npm start
     healthCheckPath: /        # point at an endpoint that returns 200 unauthenticated
@@ -188,15 +218,15 @@ services:
 
 Conventions to bake in:
 - **Service naming**: `<project>-db`, `<project>-web`, `<project>-worker`, etc. (the `<project>-` prefix is required.)
-- **`autoDeploy: false`** so deploys are driven by tags/`deploy.yml`, not every push to `main`.
+- **`autoDeploy: false`** so deploys are driven by the verified tag, not every push to `main`. This is the load-bearing line of the whole deploy model — with it on, the untagged promotion merge ships the feature code and the release commit ships again, two deploys per release with the wrong one going first (`references/tagged-deploy.md`). **On an existing service, flipping it in the file is only half the change** — auto-deploy must also be turned off on the service in the dashboard (or the Blueprint re-synced). **On a brand-new service created from this file**, it starts off; don't send the user chasing a toggle that's already correct.
 - **`sync: false`** for every secret (auth secrets, API keys, credentials) — Render prompts for them on apply rather than reading from the repo.
 - **Idempotent build steps** — anything in `buildCommand` (e.g. `db:migrate`, a seed) must be safe to re-run on every deploy.
 - `region` is a placeholder — confirm with the user; don't assume Oregon.
 - `plan` follows the free-vs-paid answer from the question above — never assume the tier; ask, then seed both the web and Postgres `plan:` lines to match.
 
-With a Blueprint in place, `deploy.yml` still owns *when* to redeploy (trigger Render's deploy on tag push via its API/CLI); the Blueprint owns *what exists* in production.
+With a Blueprint in place, CI still owns *when* to redeploy — the tag-gated step in `release-please.yml` (`references/tagged-deploy.md`) — while the Blueprint owns *what exists* in production.
 
-For other known targets the equivalent IaC file is the natural analogue (Fly → `fly.toml`, Railway → `railway.toml`); generate it the same opt-in way. Vercel is mostly dashboard-driven, so `vercel.json` is optional.
+For other known targets the equivalent IaC file is the natural analogue (Fly → `fly.toml`, Railway → `railway.toml`); generate it the same opt-in way. Vercel is mostly dashboard-driven, so `vercel.json` is optional — note that Vercel's own "disable automatic deployments for the production branch" setting is the `autoDeploy: false` equivalent and lives only in the dashboard.
 
 ## Per-component releases (standard for the fullstack monorepo)
 

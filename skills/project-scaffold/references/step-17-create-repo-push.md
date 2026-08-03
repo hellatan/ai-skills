@@ -68,6 +68,24 @@ This is a **blocking chat callout right after the repo is created** — surface 
 
 Don't block the push on it (the workflows only matter once commits land), but re-surface it in the Step 21 report if the user hasn't confirmed it. Verify with `gh secret list --repo <owner>/<name>`.
 
+### Release/deploy repo variables (set these — no user action needed)
+
+The scaffolded `release-please.yml` reads two repo **variables** (not secrets, so Claude can set them directly). A brand-new repo has to start in the right state:
+
+```bash
+# No hosting service exists yet, so there's no deploy hook to configure. Without
+# this gate the repo's FIRST tagged release would fail the release workflow —
+# on a project that was never deployed. With it, the whole release chain works
+# (promote → release PR → auto-merge → tag) and only the deploy step is dormant.
+gh variable set RENDER_DEPLOY --body false --repo <owner>/<name>
+
+# RELEASE_AUTOMERGE is deliberately left UNSET — unset means auto-merge is ON,
+# which is the intended default. Only set it to `false` to pause hands-off
+# releases for manual review.
+```
+
+Both are documented in `gh-actions-init/references/tagged-deploy.md`. Surface the **go-live checklist** in the Step 21 report so the user knows how to switch deploys on later: create the service from the committed deploy config (it already carries `autoDeploy: false`, so a *fresh* service starts with auto-deploy off — nothing to flip), add the deploy-hook secret, then delete the `RENDER_DEPLOY` variable. The next release deploys automatically.
+
 ## Step 17c — POST-PUSH GATE (halt, tell user to re-enable auto-mode)
 
 Print **verbatim** and wait for explicit reply (`on` / `continue` / `done`) before continuing to Step 18. Don't auto-continue.

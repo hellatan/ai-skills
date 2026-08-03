@@ -69,8 +69,17 @@ rather than guessing.]
 
 ## Releases
 
-Merging to `develop` opens a promotion PR to `main`. Merging that triggers release-please,
-which opens a release PR; merging *that* tags the release.
+Merging to `develop` opens a promotion PR to `main`. **Merging that promotion PR is the only
+manual step in a release** — everything after it is automatic: release-please opens a release
+PR, auto-merges it, tags the commit, and deploys that exact tagged commit.
+
+Production deploys are **tagged-only**: the host's branch auto-deploy is off, so a push to
+`main` never ships on its own. Only the tagged commit deploys, and only once, which is what
+keeps `main` and production identical.
+
+To pause the automation — e.g. to eyeball a version bump by hand — set the repo variable
+`RELEASE_AUTOMERGE=false`. The release PR then stays open for you to review; merging it
+yourself still tags and deploys. Unset it to resume.
 
 ⚠️ **Merge the `develop → main` promotion PR with "Create a merge commit" — never squash.**
 Squashing rewrites `develop`'s commits into one new commit, so they stop being ancestors of
@@ -78,6 +87,21 @@ Squashing rewrites `develop`'s commits into one new commit, so they stop being a
 already-released commits forever, and release-please can no longer see the `feat:`/`fix:`
 messages it needs. Undoing it requires a force-push of `main`. GitHub's merge button
 remembers the last method used, so check it before clicking.
+
+## Reverting a release
+
+**Roll forward, don't roll back.**
+
+- **Don't redeploy an older tag** if this app runs database migrations on deploy. The schema
+  has already moved forward, and the old code was never tested against it.
+- **Don't `git revert` the tagged commit.** Its diff is only `CHANGELOG.md` + the version
+  bump — the released code landed one commit earlier, in the promotion merge. Reverting the
+  tag removes the changelog entry and leaves the bug in production.
+- **Do revert the offending feature commits.** On a `fix/…` branch off `develop`, revert the
+  PR commit(s) that introduced the bug — or `git revert -m 1 <promotion-merge-commit>` to back
+  out the whole release. PR into `develop`, promote, and it ships as the next patch version.
+- **Fix a bad migration forward** with a new corrective migration. Never write a
+  down-migration to un-apply one that has already been released.
 ```
 
 ## Notes
@@ -85,6 +109,10 @@ remembers the last method used, so check it before clicking.
 - **Keep it consistent with `CLAUDE.md`, don't duplicate it.** If the two disagree, a
   contributor and an agent will do different things. Cross-reference rather than restate:
   "conventions are in `CLAUDE.md`" is fine for detail that only agents need.
+- **Trim the Releases / Reverting sections to what the repo actually does.** The template
+  assumes the tagged-only deploy model (`gh-actions-init/references/tagged-deploy.md`). A repo
+  with no deploy at all should drop the deploy paragraph; a repo without release auto-merge
+  should drop the `RELEASE_AUTOMERGE` paragraph. Don't emit claims the repo doesn't back up.
 - **The `/rebuild` line matters.** It's the main discoverability path for that feature —
   someone who doesn't know it exists will never type it. Only include it if the repo
   actually has `rebuild.yml` (see
