@@ -9,6 +9,35 @@ worth a line in the report; **informational** must never fail a run.
 
 ---
 
+## 0. Locating the CI workflow — precondition for checks 1–4
+
+Checks 1 through 4 all read "the CI workflow." Finding it by filename is the most
+expensive mistake this audit can make, because a miss doesn't produce one wrong line —
+it **ends the audit of that repo**, and every check that would have run against the file
+goes unreported as a side effect.
+
+**Detect — by behaviour, not filename.** The defining behaviour of a CI gate is that it
+runs on `pull_request`. That one property excludes release, promotion, backmerge, deploy
+and `/rebuild` workflows without needing a list of their names. Where several workflows
+qualify, prefer ones named like CI (`validate*`, `test*`, `check*`, `verify*`, `build*`,
+`lint*`) so the file you report is the one a human would point at.
+
+Only after identifying it that way, judge the name. Anything other than
+`.github/workflows/ci.yml` is **present-but-drifted** — report it as a rename, the way
+checks 5 and 6 handle theirs, and **still run checks 1–4 against it**.
+
+> ⚠️ **Not hypothetical.** An audit matching the literal filename `ci.yml` reported two
+> repos as having "no baseline CI" when both ran a complete gate from `validate.yml`.
+> Because "no CI" terminated their audit at that line, a `push:` trigger including
+> `develop` — the highest-severity check here — sat unreported in one of them for the
+> entire life of the check. The audit was silent about its own blind spot, which is the
+> failure mode every check in this file is written to avoid.
+
+Genuinely missing (no workflow anywhere runs on `pull_request`) stays **high**: the repo
+has no gate at all.
+
+---
+
 ## 1. `push:` must not include `develop` — high
 
 **Why.** Every commit reaches `develop` through a PR, which already ran the full suite
@@ -21,12 +50,18 @@ may also appear.
 **Detect.**
 
 ```bash
-yq '.on.push.branches // [] | .[]' ci.yml     # `develop` present => drift
+yq '.on.push | has("branches")' ci.yml        # false => fires on EVERY branch => drift
+yq '.on.push.branches[]' ci.yml               # `develop` present => drift
 ```
 
 Beware `on` parsing: YAML 1.1 readers coerce a bare `on:` key to boolean `true`. In
 Python, `yaml.safe_load(...)[True]`. `yq` handles `.on` correctly; if using another
 parser, verify against a known file first.
+
+> ⚠️ **`// []` is the wrong default here.** A bare `push:` with no `branches:` filter
+> fires on *every* branch — develop included, plus every WIP feature branch. Collapsing
+> "no filter" to an empty list makes that read as "develop absent", so the worst case
+> passes silently. Ask whether the filter *exists* before asking what's in it.
 
 **Fix.** Remove `develop` from `on.push.branches`, keeping `main` and any
 `integration/**`. See `gh-actions-init/references/ci-cost-migration.md` — non-breaking,
@@ -47,8 +82,20 @@ not a cost saving. Worth flagging louder than a wasted minute.
 **Detect.**
 
 ```bash
-yq '.on.pull_request.branches // [] | .[]' ci.yml   # expect main + develop
+yq '.on | has("pull_request")' ci.yml              # false => no gate at all => drift
+yq '.on.pull_request | has("branches")' ci.yml     # false => covers every branch => PASS
+yq '.on.pull_request.branches[]' ci.yml            # only then: expect main + develop
 ```
+
+> ⚠️ **The same `// []` trap, pointing the other way.** A bare `pull_request:` covers
+> every branch, so it is the *most* complete gate there is. Defaulting it to an empty
+> list reports it as "missing main, missing develop — PRs into it run no CI" about repos
+> whose PRs all run CI. That fired on two repos in one run, and false positives at
+> **high** severity are how an alert channel gets muted.
+>
+> The asymmetry is the point: for `push:` an absent filter is worse than a broad one, for
+> `pull_request:` it is better. Same YAML shape, opposite verdicts — which is why the
+> existence of the filter has to be a separate fact from its contents.
 
 **Fix.** Add the missing branch(es). See `gh-actions-init/references/ci-structure.md`.
 
@@ -350,6 +397,36 @@ model and of each of these failure modes. Config in
 
 ---
 
+## What the audit declines to check
+
+Discovery mode enumerates every repo the token can see, which on a personal account means
+years of finished and abandoned work alongside the handful under active development. Those
+repos cannot be accruing billed minutes and cannot be drifting — nothing is running. Every
+line spent on them buries the repos that need attention, and a report where most entries
+are noise gets skimmed exactly like a report of nothing.
+
+Two conditions are therefore **skipped**, not drift:
+
+- **Dormant** — no push in a threshold window (365 days is a reasonable default; make it
+  configurable). Report the date: `skipped: dormant — last push 2015-01-07`.
+- **Empty** — no commits at all. GitHub answers `409 Conflict`, not 404, on the commits
+  endpoint for these.
+
+Prefer dormancy over listing the archive in an ignore file. A threshold needs no
+maintenance and re-audits a repo the moment it gets a commit; a hand-written list has to
+be maintained forever and goes on silently ignoring a repo that came back to life — the
+same shrinking-coverage failure this skill exists to catch.
+
+That leaves the ignore file for **deliberate** exceptions only: repos that are active but
+genuinely shouldn't have CI (source-only repos with nothing to build, config backups,
+generated-artifact archives). Require a reason on every entry — an ignore without one is
+indistinguishable from an oversight a year later.
+
+Report skips, never alert on them. A skip is the audit declining to have an opinion, not
+a finding.
+
+---
+
 ## Reporting shape
 
 Only drifted items, grouped by repo, each naming its fix:
@@ -361,9 +438,12 @@ hellatan/example-app
   ℹ         jobs: separate (not consolidated)
 
 hellatan/other-app
-  ⚠ skipped no .github/workflows/ci.yml found
+  ⚠ skipped dormant — last push 2016-11-22
+
+hellatan/third-app
+  ⚠ skipped repo unreadable with this token
 ```
 
-Keep `skipped` visually distinct from clean. A repo the audit couldn't read is an
-unknown, not a pass — the failure mode to avoid is a silently shrinking audit that keeps
-reporting "all green."
+Keep `skipped` visually distinct from both clean and drifted, and count the three
+separately in the footer. A repo the audit couldn't read is an unknown, not a pass — the
+failure mode to avoid is a silently shrinking audit that keeps reporting "all green."
