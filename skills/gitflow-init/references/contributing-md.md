@@ -72,7 +72,7 @@ rather than guessing.]
 
 Merging to `develop` opens a promotion PR to `main`. **Merging that promotion PR is the only
 manual step in a release** — everything after it is automatic: release-please opens a release
-PR, auto-merges it, tags the commit, and deploys that exact tagged commit.
+PR, auto-merges it once that PR's checks pass, tags the commit, and deploys that exact tagged commit.
 
 Production deploys are **tagged-only**: the host's branch auto-deploy is off, so a push to
 `main` never ships on its own. Only the tagged commit deploys, and only once, which is what
