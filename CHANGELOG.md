@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.2](https://github.com/hellatan/claude-skills/compare/v2.1.1...v2.1.2) (2026-08-04)
+
+
+### Bug Fixes
+
+* **gh-actions-init:** gate release-PR auto-merge on that PR's checks ([#131](https://github.com/hellatan/claude-skills/issues/131)) ([83ee0fe](https://github.com/hellatan/claude-skills/commit/83ee0fedbb038a01da2ba8abb4b7be4698fc845d))
+
 ## [2.1.1](https://github.com/hellatan/claude-skills/compare/v2.1.0...v2.1.1) (2026-08-04)
 
 
