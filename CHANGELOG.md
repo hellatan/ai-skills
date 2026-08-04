@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.3](https://github.com/hellatan/claude-skills/compare/v2.1.2...v2.1.3) (2026-08-04)
+
+
+### Bug Fixes
+
+* **gh-actions-init:** read the release PR's checks with GITHUB_TOKEN ([#134](https://github.com/hellatan/claude-skills/issues/134)) ([7e6ad53](https://github.com/hellatan/claude-skills/commit/7e6ad53e7d42971615c39ae09fe6571ef76700f8))
+
 ## [2.1.2](https://github.com/hellatan/claude-skills/compare/v2.1.1...v2.1.2) (2026-08-04)
 
 
