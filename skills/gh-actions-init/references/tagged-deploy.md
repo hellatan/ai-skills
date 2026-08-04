@@ -44,6 +44,12 @@ The step is additionally gated on a repo variable, `RENDER_DEPLOY`, so a repo th
 
 So a release is hands-off after the single human gate. Three load-bearing details, all of which silently break the chain if got wrong — see the step below.
 
+> **Scope: this part is not deploy-specific — scaffold it in every release-please repo.** The other four parts only matter when a tag ships something; this one earns its keep anywhere, because without it every release needs a human to merge the release PR by hand. It was previously rolled out only alongside deploys, which left most repos releasing manually and made the split look like a deliberate policy it never was. If a repo has `release-please.yml`, it should have this step.
+>
+> Two prerequisites, both of which the step needs regardless of deploys: a `RELEASE_PLEASE_TOKEN` repo secret, and the `.github/actions/discord-alert` composite for the failure path. And **the repo's CI must run on PRs targeting the release branch** — otherwise no checks ever register on the release PR, the grace period expires, and the gate correctly refuses to merge every time. Verify that trigger before scaffolding, not after.
+>
+> In a repo where a tag ships nothing, drop the deploy wording from the step's comments ("tags and deploys production" → "cuts the release tag", "no tag, no deploy" → "no tag, no release"). The logic is unchanged.
+
 The third one is the easiest to get wrong and the most expensive: the merge **must wait for the release PR's checks**, because that merge is what tags and therefore deploys. `gh pr merge --auto` does not do this on these repos — it needs `allow_auto_merge` on *and* a required status check to wait on, and required checks need branch protection, unavailable on free-plan private repos. So the step polls the checks itself, and refuses to merge (leaving the PR open, alerting) on failure, no checks, or timeout.
 
 ### 4. release-please scoped to the repo **root** (`"."`), not a subdirectory
