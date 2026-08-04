@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.0](https://github.com/hellatan/claude-skills/compare/v2.0.0...v2.1.0) (2026-08-03)
+
+
+### Features
+
+* **ci-drift-audit:** add check 9 for tagged-only deploy failure modes ([#123](https://github.com/hellatan/claude-skills/issues/123)) ([7dc5e23](https://github.com/hellatan/claude-skills/commit/7dc5e233fb630e53f2d55e5539bc9f6c7d7f2969))
+* **gh-actions-init:** bake in the tagged-only deploy release model ([#122](https://github.com/hellatan/claude-skills/issues/122)) ([40c24cc](https://github.com/hellatan/claude-skills/commit/40c24ccf0268910e86e39575399a97fba89eaf3a))
+
 ## [2.0.0](https://github.com/hellatan/claude-skills/compare/v1.12.0...v2.0.0) (2026-07-31)
 
 
