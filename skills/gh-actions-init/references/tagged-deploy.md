@@ -165,10 +165,11 @@ Do these in that order. Deleting the variable before the secret exists leaves a 
 # a SECOND release-please.yml run that cuts the tag and deploys (the step
 # above).
 #
-# Three load-bearing details:
+# Four load-bearing details:
 #  1. Merge with the PAT, not GITHUB_TOKEN. A GITHUB_TOKEN-authored merge
 #     push does NOT re-trigger workflows (GitHub's loop guard), so the
-#     tag+deploy run would never happen.
+#     tag+deploy run would never happen. Note this applies ONLY to the
+#     merge — see 4.
 #  2. Find the PR by its `autorelease: pending` label, NOT the action's
 #     `pr` output — release-please namespaces per-package outputs, so the
 #     bare `pr` output is unreliable (same reason the tag check above uses
@@ -180,6 +181,21 @@ Do these in that order. Deleting the variable before the secret exists leaves a 
 #     *required* status checks — which need branch protection, unavailable
 #     on free-plan private repos. With none required it merges instantly,
 #     which is the bug. So the wait has to live in this step.
+#  4. READ the checks with GITHUB_TOKEN, over REST. Only the merge needs
+#     the PAT. Reading with it does not work and fails 100% of the time:
+#     RELEASE_PLEASE_TOKEN is a fine-grained PAT without `Checks: read`,
+#     so `gh pr view --json statusCheckRollup` returns
+#       GraphQL: Resource not accessible by personal access token
+#       (…pullRequest.statusCheckRollup.nodes.0.commit.statusCheckRollup)
+#     on every poll until the timeout. That is exactly how this shipped and
+#     it stalled a production release for the full 30 minutes before this
+#     was caught — the PAT had always been able to LIST and MERGE PRs,
+#     which is all it needed before a step here read check state.
+#     The built-in token reads them fine given `checks: read` +
+#     `statuses: read` in the permissions block above. REST rather than
+#     GraphQL for a second reason: GraphQL quota is per-USER, so a busy
+#     local `gh` session on the same account can drain the bucket the
+#     release gate depends on. GITHUB_TOKEN's REST budget is per-repo.
 # Skipped on the tag-cutting run (released == 'true') and when
 # release-please itself failed, so we never merge a stale release PR.
 #
@@ -209,7 +225,11 @@ Do these in that order. Deleting the variable before the secret exists leaves a 
   id: automerge
   if: ${{ steps.release.outcome == 'success' && steps.check.outputs.released != 'true' && vars.RELEASE_AUTOMERGE != 'false' }}
   env:
-    GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+    # Reads run as the built-in token (needs checks:read + statuses:read).
+    # The PAT is deliberately NOT the ambient GH_TOKEN — it cannot read
+    # check state at all, and using it here stalls every release.
+    GH_TOKEN: ${{ github.token }}
+    MERGE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
     REPO: ${{ github.repository }}
     CHECKS_TIMEOUT_SECONDS: ${{ vars.RELEASE_CHECKS_TIMEOUT_SECONDS || '1800' }}
     CHECKS_GRACE_SECONDS: "180"
@@ -229,10 +249,12 @@ Do these in that order. Deleting the variable before the secret exists leaves a 
       } >> "$GITHUB_OUTPUT"
     }
 
+    # REST, not `gh pr list` — that is GraphQL, and GraphQL quota is
+    # per-user rather than per-repo (see detail 4 above).
     pr=""
     for attempt in 1 2 3; do
-      pr=$(gh pr list --base main --state open \
-        --label "autorelease: pending" --json number --jq '.[0].number // empty')
+      pr=$(gh api "repos/${REPO}/pulls?state=open&base=main&per_page=100" \
+        --jq 'map(select(any(.labels[]?; .name == "autorelease: pending")))[0].number // empty' 2>/dev/null || true)
       if [ -n "$pr" ]; then break; fi
       echo "No pending release PR yet (attempt ${attempt}/3), retrying in 5s..."
       sleep 5
@@ -256,9 +278,28 @@ Do these in that order. Deleting the variable before the secret exists leaves a 
       now=$(date +%s)
       elapsed=$((now - started))
 
+      # Re-read the head SHA every poll: release-please can push a new
+      # commit to the release PR mid-wait, which restarts its checks.
+      # Polling a stale SHA would report the OLD run's results as green.
       # A transient API blip must not be read as "no checks" — retry instead.
-      if ! rollup=$(gh pr view "$pr" --repo "$REPO" --json statusCheckRollup 2>&1); then
-        echo "  [${elapsed}s] could not read check status: ${rollup}"
+      if ! sha=$(gh api "repos/${REPO}/pulls/${pr}" --jq '.head.sha' 2>&1); then
+        echo "  [${elapsed}s] could not read the PR head: ${sha}"
+        if [ "$elapsed" -ge "$CHECKS_TIMEOUT_SECONDS" ]; then
+          outcome=timeout
+          reason="Could not read the release PR before the ${CHECKS_TIMEOUT_SECONDS}s timeout."
+          break
+        fi
+        sleep "$CHECKS_POLL_SECONDS"
+        continue
+      fi
+
+      # Two separate REST endpoints, because they cover different things and
+      # a repo can use either: /check-runs is Actions + GitHub Apps (what CI
+      # reports here); /status is legacy commit statuses, still emitted by
+      # some older integrations. Both are normalised to "<class>\t<name>".
+      if ! runs_json=$(gh api "repos/${REPO}/commits/${sha}/check-runs?per_page=100" 2>&1) \
+         || ! status_json=$(gh api "repos/${REPO}/commits/${sha}/status" 2>&1); then
+        echo "  [${elapsed}s] could not read check status: ${runs_json}${status_json}"
         if [ "$elapsed" -ge "$CHECKS_TIMEOUT_SECONDS" ]; then
           outcome=timeout
           reason="Could not read check status before the ${CHECKS_TIMEOUT_SECONDS}s timeout."
@@ -268,17 +309,22 @@ Do these in that order. Deleting the variable before the secret exists leaves a 
         continue
       fi
 
-      # Normalises both rollup node types: CheckRun (.name/.status/.conclusion)
-      # and the legacy StatusContext (.context/.state, no .status key).
-      classified=$(printf '%s' "$rollup" | jq -r '
-        def cls:
-          if (.status // "COMPLETED") as $s
-             | ($s == "QUEUED" or $s == "IN_PROGRESS" or $s == "WAITING" or $s == "PENDING" or $s == "REQUESTED")
-          then "pending"
-          elif ((.conclusion // .state // "") | . == "" or . == "PENDING" or . == "EXPECTED") then "pending"
-          elif ((.conclusion // .state // "") | . == "SUCCESS" or . == "NEUTRAL" or . == "SKIPPED") then "success"
-          else "failure" end;
-        .statusCheckRollup[]? | "\(cls)\t\(.name // .context // "unnamed")"')
+      # A check run with no conclusion yet is pending, whatever its status
+      # says. Legacy statuses have no status field at all — only .state.
+      classified=$(
+        printf '%s' "$runs_json" | jq -r '
+          .check_runs[]? |
+          (if (.status != "completed") or ((.conclusion // "") == "") then "pending"
+           elif (.conclusion | . == "success" or . == "neutral" or . == "skipped") then "success"
+           else "failure" end) as $cls |
+          "\($cls)\t\(.name // "unnamed")"'
+        printf '%s' "$status_json" | jq -r '
+          .statuses[]? |
+          (if (.state == "pending" or (.state // "") == "") then "pending"
+           elif (.state == "success") then "success"
+           else "failure" end) as $cls |
+          "\($cls)\t\(.context // "unnamed")"'
+      )
 
       total=$(printf '%s' "$classified" | grep -c . || true)
       pending=$(printf '%s' "$classified" | grep -c '^pending' || true)
@@ -326,8 +372,10 @@ Do these in that order. Deleting the variable before the secret exists leaves a 
       exit 0
     fi
 
+    # ONLY this call uses the PAT — a GITHUB_TOKEN-authored merge push
+    # would not re-trigger the workflow that cuts the tag (detail 1).
     echo "All ${total} checks green. Auto-merging release PR #${pr} with the release PAT"
-    if ! merge_err=$(gh pr merge "$pr" --squash --delete-branch 2>&1); then
+    if ! merge_err=$(GH_TOKEN="$MERGE_TOKEN" gh pr merge "$pr" --repo "$REPO" --squash --delete-branch 2>&1); then
       alert=true
       title="🟧 ${REPO} — release PR merge failed"
       detail="Release PR [#${pr}](${pr_url}) passed CI but the squash-merge failed, so it was left **open** — no tag, no deploy.
@@ -375,6 +423,23 @@ This is the part that gets "simplified" back into a bug. Merging the release PR 
 - Even enabled, GitHub's auto-merge waits only on **required** status checks. Required checks come from branch protection, which is **unavailable on free-plan private repos** — so there are none, and `--auto` merges immediately. Same bug, more indirection.
 
 Turning branch protection on isn't the alternative either: on those repos it can't be turned on at all without making the repo public or paying for Pro. Hence the poll.
+
+**⚠️ Read the checks with `GITHUB_TOKEN`, not the release PAT — and grant it `checks: read`.** This is the single most expensive mistake in this step, and it was shipped and hit in production. A fine-grained PAT scoped for release-please (contents + pull-requests) has **no `Checks: read`**, so reading check state with it fails on *every* poll:
+
+```
+GraphQL: Resource not accessible by personal access token
+(…pullRequest.statusCheckRollup.nodes.0.commit.statusCheckRollup)
+```
+
+The PAT can list and merge PRs perfectly well — which is all it ever needed until a step started reading checks — so nothing warns you. The gate simply never passes: every release stalls for the full timeout, alerts, and leaves its PR open. The logic is doing the right thing (unreadable ≠ green), but the pipeline can't complete.
+
+So the step splits its tokens: **reads use `${{ github.token }}`; the PAT is scoped to the single `gh pr merge` call**, the only thing that genuinely requires it. That in turn depends on `checks: read` + `statuses: read` in the workflow's `permissions:` block — and because declaring a block sets every unlisted scope to `none`, the built-in token can't read them either without it. Scaffold the permissions and the step together; either alone is broken.
+
+**Use REST, not GraphQL, for the reads.** Beyond the permission problem, GraphQL's rate limit is per-**user**: a busy local `gh` session on the same account can drain the very bucket the release gate depends on (observed — 5000/hr to zero during one debugging session). `GITHUB_TOKEN`'s REST budget is per-repo and can't be starved that way. `GET /commits/{sha}/check-runs` covers Actions/App check runs and `GET /commits/{sha}/status` covers legacy commit statuses; a repo may use either, so read both.
+
+**Watch the `/status` shape.** That endpoint returns `state: "pending"` with an **empty** `statuses` array when a repo has no legacy commit statuses at all — which is most repos. Keying the classifier off `.state` therefore makes every poll look permanently pending and the gate always times out. Read `.statuses[]` and let an empty array contribute nothing.
+
+**Re-read the head SHA each poll.** release-please can push to the release PR mid-wait, which restarts its checks. A SHA captured once would have the *previous* run's green results read as current.
 
 **The vacuous-pass trap.** Checks register a few seconds apart. A naive "are all checks green?" read moments after the PR is created sees only the one fast job that already finished, calls it green, and merges before the slow jobs have even posted — indistinguishable from a working gate until the day a slow job goes red. That's why green is only accepted once the observed **set of check names** has held steady for `CHECKS_SETTLE_SECONDS`; failures still short-circuit immediately.
 

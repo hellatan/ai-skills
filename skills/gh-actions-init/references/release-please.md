@@ -30,6 +30,13 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # Read-only, and both are load-bearing for the release-PR check gate.
+  # Declaring a permissions block sets every unlisted scope to `none`, so
+  # without these the built-in GITHUB_TOKEN cannot see the release PR's checks
+  # at all. `checks` covers Actions/App check runs; `statuses` covers legacy
+  # commit statuses. See references/tagged-deploy.md.
+  checks: read
+  statuses: read
 
 concurrency:
   group: release-please
