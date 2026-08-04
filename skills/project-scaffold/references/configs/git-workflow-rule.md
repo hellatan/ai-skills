@@ -70,6 +70,7 @@ Always `--force-with-lease`, never plain `--force`. Never force-push to `main`/`
 ## Pull requests
 
 - Open PRs against `develop` (the default branch). The PR can be **draft** until you want review.
+- **Before opening, audit the diff:** run `git diff --stat origin/develop...HEAD` and confirm every changed file is intentional. Machine-local state (`.claude/settings.local.json`, `.env.local`) and scratch files get staged by accident — strip them rather than explaining them in the PR body.
 - Let CI gate merges. The consolidated pipeline (`checks` = lint + format:check + typecheck + unit; plus e2e and build) must be green.
 - PR title should follow conventional-commit format (`feat:`, `fix:`, `chore:`, etc.) — release-please uses commit / PR titles to compute version bumps.
 - PR body should include a "Summary" and a "Test plan" (checkbox list of how to verify the change).

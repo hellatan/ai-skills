@@ -51,6 +51,7 @@ from them.
 ## Pull requests
 
 - Open PRs against `develop`. Draft is fine until you want review.
+- Before opening, run `git diff --stat origin/develop...HEAD` and confirm every changed file is intentional. Machine-local state (`.claude/settings.local.json`, `.env.local`) and scratch files get staged by accident — strip them instead of explaining them in the PR body.
 - PR title follows conventional-commit format — it feeds the release notes.
 - Include a **Summary** and a **Test plan** (checkbox list of how to verify).
 - CI gates the merge. [List the checks this repo runs.]

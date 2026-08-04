@@ -17,15 +17,70 @@ wrong.
 - Free tier depends on plan (2,000 min/month on Free for private repos). Public repos run
   free on standard runners.
 
-## Source of truth: the timing endpoint
+## First: check whether the timing endpoint returns anything
 
-`billable.UBUNTU.total_ms` is GitHub's own billed time for a run, already rounded per job.
-Don't compute duration from timestamps — that ignores rounding and queue time.
+`/actions/runs/{id}/timing` is *supposed* to report `billable.UBUNTU.total_ms` — GitHub's
+own billed time, already rounded per job. When it works, use it.
+
+**It frequently returns zeros.** Measured on a private repo: **347 of 347 runs across a full
+month returned `billable.UBUNTU.total_ms: 0`**, with every `job_runs[].duration_ms` also 0.
+`run_duration_ms` and `billable.UBUNTU.jobs` were populated normally — only the *billing*
+numbers were zeroed. This was not sampling: every run was fetched individually.
+
+So **probe before you build on it**:
 
 ```bash
-# billed Ubuntu ms for one run
-gh api "repos/<owner>/<repo>/actions/runs/<RUN_ID>/timing" --jq '.billable.UBUNTU.total_ms'
+gh api "repos/<owner>/<repo>/actions/runs/<RUN_ID>/timing" --jq '.billable.UBUNTU'
 ```
+
+- Non-zero `total_ms` → use it, it's authoritative.
+- `total_ms: 0` on a run you know took real time → **the endpoint is useless here.** Use the
+  job-timestamp method below. Do not average zeros into a result and report a saving.
+
+A `0` never means "this run was free". Treat it as *no data*.
+
+## Fallback that always works: compute from job timestamps
+
+Billed time = **sum over jobs of `ceil(job_duration / 60s)`**. Job start/end timestamps are
+always populated, so this is reconstructable even when the billing fields aren't.
+
+```bash
+gh api "repos/<owner>/<repo>/actions/runs/<RUN_ID>/jobs" \
+  --jq '.jobs[] | {name, started_at, completed_at}'
+```
+
+```python
+import math, datetime as dt
+def billed_minutes(jobs):   # jobs: [(name, started_at, completed_at), ...]
+    total = 0
+    for name, s, e in jobs:
+        secs = (dt.datetime.fromisoformat(e.replace("Z","+00:00"))
+              - dt.datetime.fromisoformat(s.replace("Z","+00:00"))).total_seconds()
+        total += math.ceil(secs / 60)     # per-JOB rounding, not per-run
+    return total
+```
+
+Two things this must get right, or the number is wrong:
+
+- **Round each job separately, then sum.** Rounding the total instead badly under-counts —
+  five 20-second jobs bill 5 minutes, not 2.
+- **Never substitute run wall-clock** (`run_duration_ms`). Parallel jobs make it far smaller
+  than billed time, and *consolidating jobs moves the two in opposite directions*: serialising
+  work makes wall-clock go **up** while billed minutes go **down**. Measured on a real
+  before/after pair — wall-clock 1.79 → 2.53 min per run while billed went 6 → 5.
+
+Label anything from this method as **derived**, not GitHub-reported. It applies the
+documented rounding rule but can't account for anything GitHub does silently.
+
+## For the account total, use the billing page
+
+Per-run numbers answer "did cost-per-run drop". They do **not** answer "did this month cost
+less" — that needs the account-wide figure, which also covers every other repo sharing the
+same allowance.
+
+**Settings → Billing and licensing → Usage**, filtered to the month. There are billing API
+endpoints too, but they need account-level (`Plan: Read`) scope that a repo-scoped token
+doesn't have — so a workflow can't read them with the same token it audits repos with.
 
 List recent runs and their ids, filtered to the fields that matter:
 
@@ -34,12 +89,8 @@ gh api "repos/<owner>/<repo>/actions/workflows/ci.yml/runs?per_page=40" \
   --jq '.workflow_runs[] | {id, event, head_branch, created_at, conclusion}'
 ```
 
-Per-job breakdown (to attribute a change to a specific job):
-
-```bash
-gh api "repos/<owner>/<repo>/actions/runs/<RUN_ID>/timing" \
-  --jq '.billable.UBUNTU.job_runs[] | {job_id, duration_ms}'
-```
+Pagination is capped around **30 per page** regardless of `per_page`, so paginate rather
+than assuming one call covers the window.
 
 ## Baseline (BEFORE the change)
 
@@ -90,12 +141,48 @@ volume — a percentage alone hides whether it's worth anything.
   Billing page for the period.
 - **The first post-cache run is a cache miss.** Using it as the "after" number understates
   the saving to roughly zero.
-- **Per-job rounding dominates short jobs.** A job that runs 20 seconds bills a full
-  minute, so merging four short jobs saves ~3 minutes/run before any work is deduplicated.
+- **Per-job rounding dominates short jobs.** A job that runs 20 seconds bills a full minute.
+  This cuts both ways — see the worked example below, where it made consolidation worth far
+  less than predicted.
 - **Changes only affect future cycles.** If the current cycle already exceeded the free
   allowance, the savings appear next cycle, not now.
 - **Don't measure across a runner-type change.** A repo that moved from `ubuntu-latest` to
   a larger runner changes the multiplier; the comparison is meaningless without noting it.
+
+## Worked example: estimate vs. measurement
+
+A real before/after on one repo, kept here because **the estimate was wrong in a way that
+generalises**. Both configs measured on the same morning, minutes apart, via the
+job-timestamp method.
+
+**Predicted:** ~14 billed min/run → ~10. **Actual:**
+
+| | Jobs | Per-job durations | Billed |
+| --- | --- | --- | --- |
+| Before | 5 | 92s, 28s, 42s, 56s, 53s | **6 min** |
+| After | 3 | 75s, 82s, 57s | **5 min** |
+
+**1 minute per run (~17%), not the ~30% predicted.**
+
+Why the estimate was wrong, and what to take from it:
+
+- **The estimate assumed ~2 min per job. Real jobs were 28–92 seconds.** Every job was
+  already at its 1-minute rounding floor, so removing two jobs removed two floors — nothing
+  more. Consolidation saves **~1 billed minute per job removed** when jobs are short, no
+  matter how much work they do.
+- **Merging jobs serialises them.** The surviving `checks` job grew to 75s doing three
+  jobs' work, crossing into a second billed minute and handing one of the saved minutes
+  straight back.
+- So **consolidation scales with job *count*, not job duration** — and on a suite of fast
+  jobs most of the theoretical saving evaporates. Estimate it as
+  `(jobs_removed − extra_minutes_from_serialising)`, not as a percentage.
+
+By contrast, **the trigger dedup was worth ~6× more**: 31 duplicate `push`@develop runs
+eliminated over 24 days, each a full 6-minute run — ~7.8 min/day, versus ~5.7 min/day from
+consolidation at that repo's volume. Deleting whole runs beats trimming existing ones.
+
+**Measure before promising a number.** Two API calls give the real figure; a plausible
+guess was off by nearly 2×.
 
 ## Keeping it from regressing
 
