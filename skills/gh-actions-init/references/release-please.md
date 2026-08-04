@@ -71,8 +71,9 @@ jobs:
       # github.sha (the commit just tagged). Platform auto-deploy is OFF, so this
       # is the only thing that ships production.
       #
-      # Auto-merge the release PR — squash-merges the pending release PR with the
-      # PAT so the merge re-triggers this workflow and cuts the tag.
+      # Auto-merge the release PR — waits for that PR's own checks to pass, then
+      # squash-merges it with the PAT so the merge re-triggers this workflow and
+      # cuts the tag. The wait is not optional: this merge IS the deploy trigger.
       #
       # Both step bodies, the RELEASE_AUTOMERGE pause switch, and the non-Render
       # platform variants are in references/tagged-deploy.md.
@@ -80,7 +81,7 @@ jobs:
 
 The `verify-tag` steps that complete this job, plus the companion `release-health.yml` and `discord-alert` composite, live in `references/release-verification.md`; the **deploy** and **auto-merge** steps live in `references/tagged-deploy.md`. Copy them from there rather than hand-rolling — and note in particular that a tag check must **not** read `steps.release.outputs.release_created` / `.tag_name`: those are empty for every non-root package path, including the monorepo config below. Scaffold all of it **alongside** release-please (same skip condition). The alerting no-ops safely if the webhook secret is unset.
 
-⚠️ **Never scaffold auto-merge without `verify-tag`.** Auto-merge removes the human who would have noticed a release that didn't tag; the verification steps are the replacement. And never gate the deploy on anything looser than `released == 'true'` — that output is `true` only after the tag ref is confirmed on the remote.
+⚠️ **Never scaffold auto-merge without `verify-tag`.** Auto-merge removes the human who would have noticed a release that didn't tag; the verification steps are the replacement. ⚠️ **And never scaffold it without the check gate** — merging the release PR is what tags and deploys, so a merge that doesn't wait for that PR's CI ships unverified code. `gh pr merge --auto` does not provide this (see `references/tagged-deploy.md`). And never gate the deploy on anything looser than `released == 'true'` — that output is `true` only after the tag ref is confirmed on the remote.
 
 Both `branches:` (the trigger) and `target-branch:` (the branch release-please
 manages) must point at the release branch — `main` here. **Setting

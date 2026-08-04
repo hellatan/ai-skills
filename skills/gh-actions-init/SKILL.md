@@ -103,7 +103,7 @@ Render the plan as a fenced code block with emoji headers (same convention as `p
 🔎 release-verify:  <scaffolding (verify-tag + release-health + discord-alert) | skipped (with release-please)>
 🚀 Deploy model:    <tagged-only, folded into release-please.yml (target: <platform>) | standalone deploy.yml | skipped (already present)>
 🚦 Deploy enabled:  <yes | no — setting RENDER_DEPLOY=false (no service yet; releases still tag, deploy step skips)>
-🤝 Release auto-merge: <on (pause with the RELEASE_AUTOMERGE repo variable) | off>
+🤝 Release auto-merge: <on, gated on the release PR's checks (pause with the RELEASE_AUTOMERGE repo variable) | off>
 🔁 develop→main PR: <scaffolding | skipped (main-only / staging / already present)>
 🔙 main→develop back-merge: <scaffolding | skipped (main-only / staging / already present)>
 🔁 /rebuild trigger: <scaffolding | skipped (main-only / already present)>
@@ -164,7 +164,7 @@ See `references/tagged-deploy.md` — the canonical design; don't restate or imp
 Two more steps folded into the same `release-please.yml` job, plus one platform setting:
 
 1. **Deploy tagged release** — gated on `steps.check.outputs.released == 'true' && vars.RENDER_DEPLOY != 'false'`, deploying `github.sha`, which *is* the commit release-please just tagged. Render is the verified path (POST the deploy hook with `&ref=<sha>`, `RENDER_DEPLOY_HOOK_URL` secret, fail loudly if unset **while deploys are enabled**). Vercel/Netlify/Cloudflare and generic-CI/AWS variants exist in the reference **commented out and marked unverified** — scaffold them that way; never present them as tested.
-2. **Auto-merge the release PR** — squash-merge via `RELEASE_PLEASE_TOKEN` (a `GITHUB_TOKEN` merge wouldn't re-trigger the workflow, so no tag would ever be cut), finding the PR by its `autorelease: pending` label rather than the action's `pr` output. Pause switch: repo variable `RELEASE_AUTOMERGE=false`.
+2. **Auto-merge the release PR, gated on that PR's own checks** — poll until every check has passed, then squash-merge via `RELEASE_PLEASE_TOKEN` (a `GITHUB_TOKEN` merge wouldn't re-trigger the workflow, so no tag would ever be cut), finding the PR by its `autorelease: pending` label rather than the action's `pr` output. The gate is load-bearing: this merge is what tags and deploys, and `gh pr merge --auto` can't do it (no `allow_auto_merge`, no required checks without branch protection). A failed / missing / timed-out check leaves the PR open and alerts. Pause switch: repo variable `RELEASE_AUTOMERGE=false`; wait ceiling: `RELEASE_CHECKS_TIMEOUT_SECONDS`.
 3. **Turn off the platform's native branch auto-deploy** (`autoDeploy: false` in `render.yaml`, or the equivalent dashboard setting elsewhere). **Existing service:** the file alone does nothing — say plainly in the report that the setting must also be flipped in the platform dashboard (or the Blueprint re-synced). **Brand-new service created from a Blueprint that already carries `autoDeploy: false`:** it starts off; don't send the user chasing a toggle that's already correct.
 
 **Set `RENDER_DEPLOY=false` whenever the repo has no deploy target yet.** A repo with no service has no deploy hook to configure, and without the gate its first tagged release would fail the release workflow — on something that was never deployed. With the gate, the release chain works from day one and only the deploy step is dormant. Give the go-live checklist (create service → add secret → delete the variable) from `references/tagged-deploy.md` in the report.

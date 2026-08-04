@@ -40,9 +40,11 @@ Not a separate `deploy.yml` on `on: push: tags` — see the loop-guard gotcha be
 
 The step is additionally gated on a repo variable, `RENDER_DEPLOY`, so a repo that has release automation but **no service yet** doesn't fail its releases — see "Repos with no deploy target yet" below. That gate is about *whether this repo deploys at all*; it never softens the failure when a repo that **does** deploy is missing its credential.
 
-### 3. Auto-merge the release PR
+### 3. Auto-merge the release PR — **gated on that PR's own CI**
 
-So a release is hands-off after the single human gate. Two load-bearing details, both of which silently break the chain if got wrong — see the step below.
+So a release is hands-off after the single human gate. Three load-bearing details, all of which silently break the chain if got wrong — see the step below.
+
+The third one is the easiest to get wrong and the most expensive: the merge **must wait for the release PR's checks**, because that merge is what tags and therefore deploys. `gh pr merge --auto` does not do this on these repos — it needs `allow_auto_merge` on *and* a required status check to wait on, and required checks need branch protection, unavailable on free-plan private repos. So the step polls the checks itself, and refuses to merge (leaving the PR open, alerting) on failure, no checks, or timeout.
 
 ### 4. release-please scoped to the repo **root** (`"."`), not a subdirectory
 
@@ -156,34 +158,77 @@ Do these in that order. Deleting the variable before the secret exists leaves a 
 ## The auto-merge step
 
 ```yaml
-# Auto-merge the release PR so a release is hands-off after the one human gate
-# (merging the develop→main promotion PR). On a promotion run, release-please
-# opens the "chore: release X.Y.Z" PR above; this squash-merges it, which pushes
-# to main and fires a SECOND release-please.yml run that cuts the tag and
-# deploys (the step above).
+# Auto-merge the release PR so a release is fully hands-off after the one
+# human gate (merging the develop→main promotion PR). On a promotion run,
+# release-please opens the "chore: release X.Y.Z" PR above; we wait for its
+# CI to go green, then squash-merge it here, which pushes to main and fires
+# a SECOND release-please.yml run that cuts the tag and deploys (the step
+# above).
 #
-# Two load-bearing details:
-#  1. Merge with the PAT, not GITHUB_TOKEN. A GITHUB_TOKEN-authored merge push
-#     does NOT re-trigger workflows (the recursion guard), so the tag+deploy run
-#     would never happen and the release would freeze silently.
-#  2. Find the PR by its `autorelease: pending` LABEL, not the action's `pr`
-#     output — release-please namespaces per-package outputs as `<path>--<key>`,
-#     so the bare output is empty for any non-root package (same trap as the tag
-#     check in references/release-verification.md).
+# Three load-bearing details:
+#  1. Merge with the PAT, not GITHUB_TOKEN. A GITHUB_TOKEN-authored merge
+#     push does NOT re-trigger workflows (GitHub's loop guard), so the
+#     tag+deploy run would never happen.
+#  2. Find the PR by its `autorelease: pending` label, NOT the action's
+#     `pr` output — release-please namespaces per-package outputs, so the
+#     bare `pr` output is unreliable (same reason the tag check above uses
+#     toJSON, not tag_name).
+#  3. WAIT FOR THE PR'S CHECKS. Merging this PR is what tags and deploys
+#     production, so merging before CI reports = deploying unverified code.
+#     `gh pr merge --auto` is NOT the fix: it errors outright unless the
+#     repo has `allow_auto_merge` enabled, and even then it waits only on
+#     *required* status checks — which need branch protection, unavailable
+#     on free-plan private repos. With none required it merges instantly,
+#     which is the bug. So the wait has to live in this step.
+# Skipped on the tag-cutting run (released == 'true') and when
+# release-please itself failed, so we never merge a stale release PR.
 #
-# Skipped on the tag-cutting run (released == 'true') and when release-please
-# itself failed, so a stale release PR is never merged.
+# The poll refuses to merge in three cases. Each leaves the release PR
+# OPEN and alerts gh_errors — an open release PR is safe (release-please
+# just updates it on the next run) but it is also silent: release-health's
+# daily sweep only flags MERGED+pending PRs, so nothing else would catch a
+# release that stopped here.
+#   - a check failed                        → red code must not tag/deploy
+#   - no checks registered within the grace  → merging with zero CI is the
+#     exact bug this guards against, so silence is treated as failure
+#   - checks still running at the timeout    → never block the runner forever
+#
+# Checks register a few seconds apart, so an immediate "all green" read can
+# pass vacuously (one fast job finished, the slow ones not posted yet).
+# Green is therefore only accepted once the observed check-name SET has been
+# unchanged for CHECKS_SETTLE_SECONDS. Failures are acted on immediately.
 #
 # PAUSE SWITCH: set the repo variable RELEASE_AUTOMERGE=false to keep the
-# release PR OPEN for manual review — e.g. to eyeball a version bump after a
-# release-please config change before it tags + deploys. Unset (or anything but
-# 'false') = auto-merge on. This gates ONLY the automatic merge; when you merge
-# the PR yourself, the tag + deploy still fire.
+# release PR OPEN for manual review — e.g. to eyeball the version bump
+# after a release-please config change before it tags + deploys. Unset (or
+# anything but 'false') = auto-merge on. This gates ONLY the automatic
+# merge; when you merge the PR yourself, the tag + deploy still fire.
+# Repos with slower CI can raise the wait with the repo variable
+# RELEASE_CHECKS_TIMEOUT_SECONDS.
 - name: Auto-merge the release PR
+  id: automerge
   if: ${{ steps.release.outcome == 'success' && steps.check.outputs.released != 'true' && vars.RELEASE_AUTOMERGE != 'false' }}
   env:
     GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+    REPO: ${{ github.repository }}
+    CHECKS_TIMEOUT_SECONDS: ${{ vars.RELEASE_CHECKS_TIMEOUT_SECONDS || '1800' }}
+    CHECKS_GRACE_SECONDS: "180"
+    CHECKS_SETTLE_SECONDS: "60"
+    CHECKS_POLL_SECONDS: "15"
   run: |
+    alert=false
+    title=""
+    detail=""
+    emit() {
+      {
+        echo "alert=$alert"
+        echo "title=$title"
+        echo "detail<<EOF"
+        echo "$detail"
+        echo "EOF"
+      } >> "$GITHUB_OUTPUT"
+    }
+
     pr=""
     for attempt in 1 2 3; do
       pr=$(gh pr list --base main --state open \
@@ -194,13 +239,150 @@ Do these in that order. Deleting the variable before the secret exists leaves a 
     done
     if [ -z "$pr" ]; then
       echo "No pending release PR to auto-merge this run."
+      emit
       exit 0
     fi
-    echo "Auto-merging release PR #${pr} with the release PAT"
-    gh pr merge "$pr" --squash --delete-branch
+
+    pr_url="${GITHUB_SERVER_URL}/${REPO}/pull/${pr}"
+    echo "Release PR #${pr} — waiting for its checks (timeout ${CHECKS_TIMEOUT_SECONDS}s)"
+
+    started=$(date +%s)
+    seen=""
+    stable_since=$started
+    outcome=""
+    reason=""
+
+    while :; do
+      now=$(date +%s)
+      elapsed=$((now - started))
+
+      # A transient API blip must not be read as "no checks" — retry instead.
+      if ! rollup=$(gh pr view "$pr" --repo "$REPO" --json statusCheckRollup 2>&1); then
+        echo "  [${elapsed}s] could not read check status: ${rollup}"
+        if [ "$elapsed" -ge "$CHECKS_TIMEOUT_SECONDS" ]; then
+          outcome=timeout
+          reason="Could not read check status before the ${CHECKS_TIMEOUT_SECONDS}s timeout."
+          break
+        fi
+        sleep "$CHECKS_POLL_SECONDS"
+        continue
+      fi
+
+      # Normalises both rollup node types: CheckRun (.name/.status/.conclusion)
+      # and the legacy StatusContext (.context/.state, no .status key).
+      classified=$(printf '%s' "$rollup" | jq -r '
+        def cls:
+          if (.status // "COMPLETED") as $s
+             | ($s == "QUEUED" or $s == "IN_PROGRESS" or $s == "WAITING" or $s == "PENDING" or $s == "REQUESTED")
+          then "pending"
+          elif ((.conclusion // .state // "") | . == "" or . == "PENDING" or . == "EXPECTED") then "pending"
+          elif ((.conclusion // .state // "") | . == "SUCCESS" or . == "NEUTRAL" or . == "SKIPPED") then "success"
+          else "failure" end;
+        .statusCheckRollup[]? | "\(cls)\t\(.name // .context // "unnamed")"')
+
+      total=$(printf '%s' "$classified" | grep -c . || true)
+      pending=$(printf '%s' "$classified" | grep -c '^pending' || true)
+      failing=$(printf '%s' "$classified" | awk -F'\t' '$1=="failure"{print $2}' | paste -sd, - || true)
+      names=$(printf '%s' "$classified" | awk -F'\t' '{print $2}' | sort | tr '\n' ',')
+
+      if [ "$names" != "$seen" ]; then
+        seen="$names"
+        stable_since=$now
+      fi
+      echo "  [${elapsed}s] checks=${total} pending=${pending} failing='${failing}' stable_for=$((now - stable_since))s"
+
+      if [ -n "$failing" ]; then
+        outcome=failed
+        reason="Failing check(s): ${failing}."
+        break
+      fi
+
+      if [ "$total" -eq 0 ]; then
+        if [ "$elapsed" -ge "$CHECKS_GRACE_SECONDS" ]; then
+          outcome=nochecks
+          reason="No checks registered on the release PR within ${CHECKS_GRACE_SECONDS}s. Refusing to merge an unverified release."
+          break
+        fi
+      elif [ "$pending" -eq 0 ] && [ $((now - stable_since)) -ge "$CHECKS_SETTLE_SECONDS" ]; then
+        outcome=green
+        break
+      fi
+
+      if [ "$elapsed" -ge "$CHECKS_TIMEOUT_SECONDS" ]; then
+        outcome=timeout
+        reason="Checks did not finish within ${CHECKS_TIMEOUT_SECONDS}s (${pending} still pending: ${names%,})."
+        break
+      fi
+
+      sleep "$CHECKS_POLL_SECONDS"
+    done
+
+    if [ "$outcome" != "green" ]; then
+      alert=true
+      title="🟧 ${REPO} — release PR NOT auto-merged (checks ${outcome})"
+      detail="Release PR [#${pr}](${pr_url}) was left **open** — no tag, no deploy. ${reason}"
+      echo "::error::${reason} Release PR #${pr} left open."
+      emit
+      exit 0
+    fi
+
+    echo "All ${total} checks green. Auto-merging release PR #${pr} with the release PAT"
+    if ! merge_err=$(gh pr merge "$pr" --squash --delete-branch 2>&1); then
+      alert=true
+      title="🟧 ${REPO} — release PR merge failed"
+      detail="Release PR [#${pr}](${pr_url}) passed CI but the squash-merge failed, so it was left **open** — no tag, no deploy.
+    \`\`\`
+    ${merge_err}
+    \`\`\`"
+      echo "::error::Failed to merge release PR #${pr}: ${merge_err}"
+      emit
+      exit 0
+    fi
+    echo "Merged release PR #${pr}."
+    emit
+
+# Separate from the tag-verification alert below: this one means the release
+# STOPPED cleanly (PR open, nothing tagged, nothing deployed), not that a
+# release went missing. Different fix, different message — but equally loud,
+# because no other job flags an open release PR.
+- name: Alert gh_errors — release PR left open
+  if: ${{ always() && steps.automerge.outputs.alert == 'true' }}
+  uses: ./.github/actions/discord-alert
+  with:
+    webhook: ${{ secrets.DISCORD_GH_ERRORS_WEBHOOK }}
+    title: ${{ steps.automerge.outputs.title }}
+    description: |
+      ${{ steps.automerge.outputs.detail }}
+
+      Fix the failure, then merge the release PR yourself — the tag + deploy still fire on merge.
+      **Repo:** ${{ github.server_url }}/${{ github.repository }}
+      [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · [Release PRs](${{ github.server_url }}/${{ github.repository }}/pulls?q=is%3Apr+label%3A%22autorelease%3A+pending%22)
 ```
 
 **Do not scaffold auto-merge without the `verify-tag` steps.** Auto-merge removes "a human happened to be watching" as the only guard that a release actually tagged; the verification steps are what replace it. Scaffold them together, always.
+
+**Wire the new alert into the fail step.** The final "fail the run" step from `references/release-verification.md` keys off `steps.check.outputs.alert`; widen its condition so a refused merge is red in Actions too:
+
+```yaml
+if: ${{ always() && (steps.check.outputs.alert == 'true' || steps.automerge.outputs.alert == 'true') }}
+```
+
+### Why the step polls instead of using `gh pr merge --auto`
+
+This is the part that gets "simplified" back into a bug. Merging the release PR is what cuts the tag, and under tagged-only deploys the tag *is* the deploy — so **merging before CI reports ships unverified code to production.** The obvious fix looks like `--auto`, and it does not work:
+
+- `--auto` **errors outright** unless the repo has `allow_auto_merge` enabled (it is off by default).
+- Even enabled, GitHub's auto-merge waits only on **required** status checks. Required checks come from branch protection, which is **unavailable on free-plan private repos** — so there are none, and `--auto` merges immediately. Same bug, more indirection.
+
+Turning branch protection on isn't the alternative either: on those repos it can't be turned on at all without making the repo public or paying for Pro. Hence the poll.
+
+**The vacuous-pass trap.** Checks register a few seconds apart. A naive "are all checks green?" read moments after the PR is created sees only the one fast job that already finished, calls it green, and merges before the slow jobs have even posted — indistinguishable from a working gate until the day a slow job goes red. That's why green is only accepted once the observed **set of check names** has held steady for `CHECKS_SETTLE_SECONDS`; failures still short-circuit immediately.
+
+**No checks at all is a failure, not a pass.** If nothing registers within `CHECKS_GRACE_SECONDS`, the step refuses to merge. Silence is the state a broken gate produces, and merging with zero CI is exactly what this guards against. A repo whose release PRs genuinely run no checks needs a deliberate decision, not a default that quietly ships.
+
+**Every refusal is loud.** Failure, no-checks, timeout, and a merge that errors all leave the release PR **open** and alert. This matters more than it looks: an open release PR is *not* the freeze signal that `release-health.yml`'s daily sweep looks for (that's a **merged** PR still labelled `autorelease: pending`), so nothing else in the system would ever notice a release that stopped here. Without the alert, releases just quietly stop happening.
+
+Recovery is the pause-switch path: fix the failure, merge the release PR yourself, and the tag + deploy still fire.
 
 `RELEASE_AUTOMERGE` is a repo **variable**, not a secret: `gh variable set RELEASE_AUTOMERGE --body false --repo <owner>/<repo>` to pause, `gh variable delete RELEASE_AUTOMERGE --repo <owner>/<repo>` to resume.
 

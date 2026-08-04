@@ -127,7 +127,10 @@ the deploy — silently, on a green run. A subdirectory-scoped package path igno
 outside it, and default-hidden `chore`/`docs`/`ci` types make a docs-only promotion
 produce an empty changelog, which release-please skips entirely. Either way the release
 branch moves ahead of production and nothing fails. It reuses check 8's read of the
-release-please config; the two differ in what they conclude from it.
+release-please config; the two differ in what they conclude from it. Its fourth shape is
+the inverse — a release that ships when it *shouldn't*: an auto-merge step that squash-merges
+the release PR without waiting for that PR's checks tags and deploys unverified code, and
+`gh pr merge --auto` doesn't fix it on a repo with no required status checks.
 
 ## Flow
 
