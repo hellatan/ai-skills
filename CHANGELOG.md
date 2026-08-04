@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/hellatan/claude-skills/compare/v2.1.0...v2.1.1) (2026-08-04)
+
+
+### Bug Fixes
+
+* **gh-actions-init:** correct the cost-verification method and record estimate vs actual ([#127](https://github.com/hellatan/claude-skills/issues/127)) ([8075d7a](https://github.com/hellatan/claude-skills/commit/8075d7ae705a7b51588d6fbe680e778d8a7719ae))
+
 ## [2.1.0](https://github.com/hellatan/claude-skills/compare/v2.0.0...v2.1.0) (2026-08-03)
 
 
