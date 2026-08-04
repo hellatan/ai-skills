@@ -293,7 +293,7 @@ quiet by design, which is exactly why it needs surfacing:
 
 ---
 
-## 9. Tagged-only deploy can actually fire — **high** scoped package / medium changelog gaps
+## 9. Tagged-only deploy can actually fire, and only when it should — **high** scoped package / **high** unguarded auto-merge / medium changelog gaps
 
 **Why.** Under the tagged-only deploy model, the tag *is* the deploy trigger: nothing ships
 except a commit release-please tagged. That makes "release-please declined to cut a
@@ -320,7 +320,43 @@ gh api "repos/$REPO/actions/variables/RENDER_DEPLOY" --jq '.value' 2>/dev/null
 `false` → the deploy step is dormant by design; report nothing. Anything else, including
 a 404, means this repo deploys.
 
-**Three drift shapes.**
+**Four drift shapes.**
+
+- **Auto-merge doesn't wait for the release PR's checks — high.** Merging the release PR is
+  what cuts the tag, and under this model the tag *is* the deploy. So an auto-merge step
+  that merges the moment the PR exists deploys code whose CI hasn't reported — or has
+  reported red. It looks completely healthy: the release tags, the deploy fires, and the
+  checks usually happen to pass. Detect by reading the auto-merge step's script:
+
+  ```bash
+  yq '.jobs.*.steps[] | select(.run // "" | test("gh pr merge")) | .run' <release workflow>
+  ```
+
+  Drift = a `gh pr merge` with no wait in front of it. Two shapes count as waiting: a poll
+  loop over the PR's `statusCheckRollup` / `gh pr checks --watch`, or `gh pr merge --auto`
+  **backed by required status checks that actually exist**.
+
+  **`--auto` alone is not a pass — verify both preconditions**, because it silently
+  degrades to an instant merge:
+
+  ```bash
+  gh api "repos/$REPO" --jq '.allow_auto_merge'                        # false => --auto errors
+  gh api "repos/$REPO/branches/<release-branch>/protection" --jq '.required_status_checks.contexts'
+  ```
+
+  `allow_auto_merge: false`, or a 403 on the protection endpoint (free-plan private repo —
+  branch protection unavailable), means `--auto` has nothing to wait on. **Do not report
+  "enable branch protection" as the fix on those repos** — it can't be enabled without
+  making the repo public or paying for Pro. The fix is an in-step poll.
+
+  **Also check the refusal path.** A gate that merges anyway on a red or check-less PR is
+  no gate. Expect: failure / no-checks-registered / timeout all leave the PR **open** and
+  alert. An open release PR is *not* what `release-health.yml`'s sweep flags (that's a
+  **merged** PR still labelled `autorelease: pending`), so without its own alert a release
+  that stops there is invisible — report a missing alert as part of this finding.
+
+  **Not drift:** repos where auto-merge is off entirely (a human merges the release PR) —
+  the human is the gate. Check the `RELEASE_AUTOMERGE` variable.
 
 - **release-please scoped to a subdirectory — high** (when the repo has code outside that
   path). release-please only counts commits touching files **under** a package's path, so
