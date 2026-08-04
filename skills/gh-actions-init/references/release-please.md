@@ -30,6 +30,13 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # Read-only, and both are load-bearing for the release-PR check gate.
+  # Declaring a permissions block sets every unlisted scope to `none`, so
+  # without these the built-in GITHUB_TOKEN cannot see the release PR's checks
+  # at all. `checks` covers Actions/App check runs; `statuses` covers legacy
+  # commit statuses. See references/tagged-deploy.md.
+  checks: read
+  statuses: read
 
 concurrency:
   group: release-please
@@ -176,7 +183,10 @@ Root-scoping means any file anywhere counts. For a monorepo with one deployable 
       "include-component-in-tag": false,
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
-      "extra-files": [{ "type": "json", "path": "apps/web/package.json", "jsonpath": "$.version" }],
+      "extra-files": [
+        { "type": "json", "path": "apps/web/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "package-lock.json", "jsonpath": "$.packages['apps/web'].version" }
+      ],
       "changelog-sections": [ /* …as above… */ ]
     }
   }
@@ -185,7 +195,42 @@ Root-scoping means any file anywhere counts. For a monorepo with one deployable 
 
 Internal workspace packages stay `"private": true` and unversioned — nothing tracks them, nothing tags them.
 
-Chosen over release-please's **`node-workspace` plugin**, which versions private packages too and can produce a second stream of tags that the deploy gate then has to disambiguate. For a single deployable, root-scoping is strictly simpler and has no failure mode of its own.
+### ⚠️ The lockfile needs its own `extra-files` entry
+
+**Every versioned workspace needs a second entry pointing at `package-lock.json`, or the lockfile goes stale on every release.** This is the entry people leave out, because the `node` release-type *does* ship a `package-lock.json` updater and the root keys visibly update — so the file looks handled.
+
+It isn't. That built-in updater writes exactly two keys: `.version` and `.packages[""].version`. Both belong to the **root**. It touches workspace entries only when handed a `versionsMap`, which nothing but the `node-workspace` plugin populates — so with root-scoping it is always empty. The result:
+
+| key | built-in updater | needs `extra-files` |
+| --- | --- | --- |
+| `.version` | ✅ | |
+| `.packages[""].version` | ✅ | |
+| `.packages["apps/web"].version` | ❌ **stale** | ✅ |
+
+So `apps/web/package.json` moves to the new version while the lockfile still claims the old one. Nothing fails — the symptom is that `npm install` in a fresh clone or worktree writes a one-line diff nobody asked for, on every release, forever. A one-off lockfile commit doesn't fix it; the next release re-breaks it. It has to be config.
+
+Two updaters now claim `package-lock.json`. That is fine and by design: release-please's `mergeUpdates()` groups updates by path into a `CompositeUpdater` and runs them in order, so the built-in one fixes the root keys and the generic-json one fixes the workspace key.
+
+Note the quoting — the workspace key contains a `/`, so it needs bracket notation, not dot notation:
+
+```json
+{ "type": "json", "path": "package-lock.json", "jsonpath": "$.packages['apps/web'].version" }
+```
+
+**Verified** against release-please 17.11.1 (what `release-please-action@v5` resolves via `^17.6.1`) by running the real `CompositeUpdater(PackageLockJson, GenericJson)` over a genuine ~680-entry workspace lockfile: exactly three version lines change, private `0.0.0` workspace packages are untouched, and the file's formatting is preserved byte-for-byte. The same run without the entry reproduces the stale key.
+
+**`extra-files` has no way to discover workspaces** — add or rename one and you must add or rename its entry by hand. Nothing warns you; the drift just resumes silently.
+
+### When to use `node-workspace` instead
+
+Root-scoping + `extra-files` is chosen over release-please's **`node-workspace` plugin**, which versions private packages too and can produce a second stream of tags that the deploy gate then has to disambiguate. For a single deployable, root-scoping is strictly simpler and has no failure mode of its own.
+
+That calculus flips with scale. `extra-files` is hand-maintained, so its cost grows per workspace while its reliability drops:
+
+- **One or two versioned workspaces → `extra-files`.** Two entries, no plugin, no extra tags.
+- **Several versioned workspaces → `node-workspace`.** Once you're hand-maintaining five or six entries that silently rot whenever someone adds a package, the plugin's `versionsMap` — which is what makes the built-in lockfile updater handle workspace entries on its own — is the honest answer. Accept the tag-stream complexity rather than a list that quietly stops matching reality.
+
+The private-package objection only bites when there *are* private packages you refuse to version. A monorepo whose workspaces are all genuinely versioned doesn't have that objection, and should reach for the plugin sooner.
 
 The manifest keys must match: `{ ".": "1.4.2" }`. Retrofitting a repo that was scoped to a subdirectory means moving the manifest key *and* the version into the root `package.json`; the existing tags are unaffected because `include-component-in-tag: false` already made them plain `vX.Y.Z`.
 

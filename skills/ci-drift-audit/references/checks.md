@@ -358,6 +358,27 @@ a 404, means this repo deploys.
   **Not drift:** repos where auto-merge is off entirely (a human merges the release PR) —
   the human is the gate. Check the `RELEASE_AUTOMERGE` variable.
 
+  **A gate that can't read is as broken as no gate — check the token and the permissions.**
+  A poll that reads check state with the *release PAT* fails on every iteration
+  (`Resource not accessible by personal access token`) because a fine-grained PAT scoped
+  for release-please has no `Checks: read`. The release then stalls for the whole timeout,
+  alerts, and leaves its PR open — every time. This shipped and hit production, and it is
+  invisible to a reviewer reading only the polling logic, which is correct. Two reads:
+
+  ```bash
+  # 1. does the poll read with the PAT? (drift)
+  yq '.jobs.*.steps[] | select(.run // "" | test("gh pr merge")) | .env' <release workflow>
+  # 2. can the built-in token see checks at all?
+  yq '.permissions' <release workflow>
+  ```
+
+  Drift = the step's read calls run under `secrets.*` rather than `github.token`, **or** a
+  declared `permissions:` block without `checks: read` (and `statuses: read`). The second
+  is easy to miss: declaring a block sets every unlisted scope to `none`, so adding the
+  check gate without widening permissions breaks it just as thoroughly. The fix is to read
+  with `github.token` and scope the PAT to the `gh pr merge` call alone — **not** to widen
+  the PAT, which would have to be redone per repo and per token rotation.
+
 - **release-please scoped to a subdirectory — high** (when the repo has code outside that
   path). release-please only counts commits touching files **under** a package's path, so
   a change confined to an internal workspace package or to root-level tooling cuts no
