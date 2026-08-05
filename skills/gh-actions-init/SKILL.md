@@ -52,6 +52,35 @@ Read these without asking:
 
 Surface findings in one line: *"Detected: Next.js 16 + TS, default branch `develop`, package.json version 0.3.1, no existing workflows."*
 
+#### Then lead with the credential manifest — before the plan, not after
+
+**Emit one consolidated list of every secret and variable the scaffolded workflows will reference, up front.** Not scattered through the plan, and not only in the closing summary.
+
+The reason is that these credentials come from **outside** the repo — a PAT from GitHub settings, a webhook URL from Discord, a deploy hook from the platform dashboard. Each one is a context switch into another tool. Surfacing them one at a time, at the end, means the user either does several separate trips or postpones them all — and a postponed webhook secret never gets set, because nothing afterwards ever complains (see `references/release-verification.md`). One list up front is one trip.
+
+Mark each with what happens if it's absent, because the severities are genuinely different and the silent one is the dangerous one:
+
+```
+🔑 Credentials these workflows will need
+   RELEASE_PLEASE_TOKEN          ⛔ blocking  — release-please + develop→main PR fail with an auth error
+                                   fine-grained PAT · Contents + Pull requests: read/write
+   <DEPLOY_CREDENTIAL>           ⛔ blocking IF this repo deploys — a tagged release fails by design
+                                   e.g. RENDER_DEPLOY_HOOK_URL (Render → service → Settings → Deploy Hook)
+                                   not deploying yet? set the variable RENDER_DEPLOY=false instead
+   <ALERT_WEBHOOK_SECRET>        🔕 silent   — release alerts no-op with a warning; runs still go red
+                                   Discord → Server Settings → Integrations → Webhooks
+   <PR_ALERT_WEBHOOK_SECRET>     🔕 silent   — back-merge conflict alerts no-op (only if back-merge is in scope)
+
+   Optional variables: RENDER_DEPLOY (false = deploy dormant) · RELEASE_AUTOMERGE (false = pause
+   release auto-merge) · RELEASE_CHECKS_TIMEOUT_SECONDS (raise the 30 min gate ceiling)
+
+   gh secret set <NAME> --repo <owner>/<repo>
+```
+
+Show every row, including ones already set — mark those `✅ already set` rather than omitting them, so the list doubles as a checklist the user can re-read later. Skip only rows for workflows that aren't being scaffolded at all.
+
+**`🔕 silent` is the row that needs the emphasis**, counterintuitive as that is. A blocking secret announces itself the first time a release runs. A silent one never does: the repo shows green runs and no alerts, which is indistinguishable from healthy. Measured on one fleet, that state persisted on 12 of 13 repos for months.
+
 See `references/detection.md` for the detection cheat-sheet.
 
 ### 2. Pick what to add
