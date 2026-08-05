@@ -16,6 +16,8 @@ The Discord webhook secret is **optional**: the composite no-ops (with a warning
 
 `<ALERT_WEBHOOK_SECRET>` in the templates below is a **placeholder you fill in at scaffold time**. A Discord webhook URL points at exactly one channel, so the secret *is* the channel: which secret name a repo's workflows read is how that project picks where its alerts land.
 
+**Name the destination channel in the test alert itself.** Substitute `<ALERT_CHANNEL_LABEL>` (a short token, e.g. `gh_errors`) and `<ALERT_CHANNEL>` (the channel as it reads in Discord, e.g. `#gh-errors`) alongside the secret name. A test that only says "alert pipe test" proves a message *arrived* but not that it arrived in the *right place* — a webhook copied from the wrong channel delivers a clean 204 and looks exactly like success. Naming the expected channel in the title and body makes a misroute obvious on sight instead of silently passing. Same for the PR-alerts arm.
+
 Ask the user which secret to use and substitute it into all three files before writing them. Default to **`DISCORD_GH_ERRORS_WEBHOOK`** — the shared errors channel — when they have no preference; a project that wants its own channel (`DISCORD_<PROJECT>_ALERTS`, `DISCORD_DEPLOY_WEBHOOK`, …) just names a different secret. Keep the name identical across `release-please.yml` and `release-health.yml`; a mismatch means half the alerts silently no-op.
 
 To repoint an existing repo later, either overwrite the secret's value with a different channel's webhook URL (name unchanged, nothing to edit) or rename it and update every `secrets.` reference in `.github/workflows/`.
@@ -214,9 +216,9 @@ jobs:
         with:
           webhook: ${{ secrets.<ALERT_WEBHOOK_SECRET> }}
           color: "3066993" # green — this is a test, not a real failure
-          title: "✅ ${{ github.repository }} — alert pipe test"
+          title: "✅ ${{ github.repository }} — <ALERT_CHANNEL_LABEL> pipe test"
           description: |
-            Test alert from `release-health.yml`. If you can read this, delivery works.
+            Test alert from `release-health.yml`. If you can read this in **<ALERT_CHANNEL>**, delivery works.
             [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
       # Second channel, included ONLY when this repo also scaffolds the
@@ -231,9 +233,9 @@ jobs:
         with:
           webhook: ${{ secrets.<PR_ALERT_WEBHOOK_SECRET> }}
           color: "3066993"
-          title: "✅ ${{ github.repository }} — PR-alerts pipe test"
+          title: "✅ ${{ github.repository }} — <PR_ALERT_CHANNEL_LABEL> pipe test"
           description: |
-            Test alert from `release-health.yml`. If you can read this, delivery works.
+            Test alert from `release-health.yml`. If you can read this in **<PR_ALERT_CHANNEL>**, delivery works.
             [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
   pending-sweep:
