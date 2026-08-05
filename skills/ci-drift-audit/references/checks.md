@@ -484,6 +484,68 @@ a finding.
 
 ---
 
+## 9. Referenced secrets exist — medium (dead alerts) / **high** (failing run)
+
+**What.** Every `secrets.NAME` a workflow references should exist on the repo. Collect the
+names from `.github/workflows/*` and `.github/actions/*/action.yml`, then diff against the
+repo's actual secret list.
+
+**Why this is worth an automated check.** A referenced-but-unset secret produces **no error
+at scaffold time and no error at run time** in the common case, because the alerting
+composite deliberately no-ops (warn + `exit 0`) when its webhook is empty. So the repo
+shows green runs and no alerts — and no alerts is also exactly what a healthy repo looks
+like. There is no signal to notice. Measured on one fleet: the errors webhook was set on
+**1 of 13** repos; twelve had been silently discarding every alert since scaffold, for
+months, with nothing anywhere reporting it. Scaffold-time prompts help but are skippable —
+this check is the part that doesn't rely on anyone remembering.
+
+**Detection.**
+
+```bash
+# referenced (workflows + composite actions)
+grep -rhoE 'secrets\.[A-Z0-9_]+' .github/workflows .github/actions 2>/dev/null \
+  | sed 's/secrets\.//' | sort -u
+# present
+gh secret list -R "$REPO" --json name -q '.[].name' | sort -u
+```
+
+Report names in the first set and not the second.
+
+**Exclusions — do not report these:**
+
+- `GITHUB_TOKEN` — always injected, never a repo secret.
+- Anything matched inside a `${{ secrets.X != '' }}` style guard *only*, where the workflow
+  already handles absence explicitly.
+- Organization- or environment-scoped secrets. `gh secret list` on a repo shows repo-level
+  secrets only, so an org secret reads as missing. If the owner uses org secrets, either
+  add `--app actions --org` lookups or add the name to an allowlist; **say which** in the
+  report rather than emitting a known-false finding every run.
+
+**Severity split.**
+
+- **medium** when absence degrades silently — the alerting webhooks
+  (`DISCORD_*_WEBHOOK`), where the composite no-ops by design. The pipeline works; you
+  just never hear from it. This is the common, invisible case.
+- **high** when absence fails the run — `RELEASE_PLEASE_TOKEN` (release-please errors with
+  `Input required and not supplied: token`), or a deploy credential on a repo whose deploy
+  is enabled, which fails loudly by design.
+
+**Fix.** `gh secret set <NAME> --repo <owner>/<repo>`. Then **prove delivery** for webhook
+secrets rather than trusting that it's set — the run's conclusion is `success` either way:
+
+```bash
+gh workflow run release-health.yml -R <owner>/<repo> --ref <default-branch> -f test_alert=true
+gh run view <run-id> -R <owner>/<repo> --log | grep -E 'alert delivered|skipping alert'
+```
+
+**Token requirement.** Needs `Secrets: Read` on the audit PAT (names only — values are not
+retrievable through the API at any permission level). The base audit token doesn't have it.
+When the call 403s, report `skipped: token lacks Secrets:Read` — **never a pass.** A
+missing-secret check that reports "all good" because it couldn't look is precisely the
+silent-coverage-loss this skill exists to prevent.
+
+---
+
 ## Reporting shape
 
 Only drifted items, grouped by repo, each naming its fix:

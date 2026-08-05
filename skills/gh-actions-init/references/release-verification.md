@@ -219,6 +219,23 @@ jobs:
             Test alert from `release-health.yml`. If you can read this, delivery works.
             [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
+      # Second channel, included ONLY when this repo also scaffolds the
+      # main→develop back-merge (which alerts a different channel — see
+      # references/main-to-develop-backmerge.md). Its real alert fires only on a
+      # merge conflict, which cannot be manufactured on demand, so without this
+      # step that webhook is the one credential in the whole setup with no way
+      # to prove it works until the day it's needed. No `if:` guard is needed:
+      # the composite no-ops with a warning when the secret is unset.
+      - name: Send test alert — PR alerts channel
+        uses: ./.github/actions/discord-alert
+        with:
+          webhook: ${{ secrets.<PR_ALERT_WEBHOOK_SECRET> }}
+          color: "3066993"
+          title: "✅ ${{ github.repository }} — PR-alerts pipe test"
+          description: |
+            Test alert from `release-health.yml`. If you can read this, delivery works.
+            [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
   pending-sweep:
     if: ${{ github.event_name == 'schedule' || !inputs.test_alert }}
     runs-on: ubuntu-latest
@@ -319,6 +336,27 @@ gh secret set <ALERT_WEBHOOK_SECRET> --repo <owner>/<repo>
 Create the webhook on the channel the project's alerts should land in (Discord → Server Settings → Integrations → Webhooks → Copy Webhook URL) and paste it when prompted. The secret name is whatever was chosen above; the URL inside it is what selects the channel.
 
 Unlike `RELEASE_PLEASE_TOKEN`, this is **not** required — the composite skips the alert (with a warning) when the secret is absent, so the release pipeline still functions; you just don't get Discord notifications until it's set. Say so in the summary rather than blocking on it.
+
+**But "optional" is exactly why it gets forgotten, and the failure mode is silence.** A repo with the workflows and no webhook looks identical to a healthy one: green runs, no alerts, and no alert is also what "nothing is wrong" looks like. Measured on one fleet, **only 1 of 13 repos** had the errors webhook set — every other repo had been no-opping its alerts since the day it was scaffolded, and nothing surfaced it. So:
+
+- Put it in the **post-scaffold action list**, not just a summary line. Optional-but-forgotten is still broken.
+- `ci-drift-audit` check 9 catches this repo-wide after the fact — a workflow that references a secret the repo doesn't have. Scaffold-time is the cheap fix; the audit is the backstop.
+
+### Prove it, don't assume it
+
+Setting the secret is not evidence it works — a revoked webhook, a URL pasted from the wrong channel, or a truncated paste all store fine and fail silently later. GitHub secrets are write-only, so the only proof is delivery:
+
+```bash
+gh workflow run release-health.yml -R <owner>/<repo> --ref <default-branch> -f test_alert=true
+```
+
+Then confirm from the run log, **not** the run's conclusion — the job exits 0 either way, because a missing webhook is a deliberate no-op:
+
+```bash
+gh run view <run-id> -R <owner>/<repo> --log | grep -E 'alert delivered|skipping alert'
+```
+
+`alert delivered` only prints on a 2xx from Discord. `skipping alert` means the secret is empty. A green checkmark on its own tells you nothing.
 
 ## Activation timing (gitflow)
 
