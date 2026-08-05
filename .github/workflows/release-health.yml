@@ -31,9 +31,9 @@ jobs:
         with:
           webhook: ${{ secrets.DISCORD_GH_ERRORS_WEBHOOK }}
           color: "3066993" # green — this is a test, not a real failure
-          title: "✅ ${{ github.repository }} — alert pipe test"
+          title: "✅ ${{ github.repository }} — gh_errors pipe test"
           description: |
-            Test alert from `release-health.yml`. If you can read this, delivery works.
+            Test alert from `release-health.yml`. If you can read this in **#gh-errors**, delivery works.
             [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
       # The PR-alerts channel, used by main-to-develop-backmerge.yml. Its real
@@ -47,9 +47,9 @@ jobs:
         with:
           webhook: ${{ secrets.DISCORD_PR_ALERTS_WEBHOOK }}
           color: "3066993"
-          title: "✅ ${{ github.repository }} — PR-alerts pipe test"
+          title: "✅ ${{ github.repository }} — pr_alerts pipe test"
           description: |
-            Test alert from `release-health.yml`. If you can read this, delivery works.
+            Test alert from `release-health.yml`. If you can read this in **#pr-alerts**, delivery works.
             [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
   pending-sweep:
