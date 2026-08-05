@@ -36,6 +36,22 @@ jobs:
             Test alert from `release-health.yml`. If you can read this, delivery works.
             [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
+      # The PR-alerts channel, used by main-to-develop-backmerge.yml. Its real
+      # alert fires only when the back-merge hits a conflict and opens a PR — a
+      # condition that cannot be manufactured on demand — so without this step
+      # that webhook is the one credential in the setup with no way to prove it
+      # works until the day it's needed. No `if:` guard: the composite already
+      # no-ops with a warning when the secret is unset.
+      - name: Send test alert — PR alerts channel
+        uses: ./.github/actions/discord-alert
+        with:
+          webhook: ${{ secrets.DISCORD_PR_ALERTS_WEBHOOK }}
+          color: "3066993"
+          title: "✅ ${{ github.repository }} — PR-alerts pipe test"
+          description: |
+            Test alert from `release-health.yml`. If you can read this, delivery works.
+            [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
   pending-sweep:
     if: ${{ github.event_name == 'schedule' || !inputs.test_alert }}
     runs-on: ubuntu-latest
