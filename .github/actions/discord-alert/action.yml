@@ -26,8 +26,24 @@ runs:
         DESC: ${{ inputs.description }}
         COLOR: ${{ inputs.color }}
       run: |
+        # Record the alert on the run itself FIRST, before any webhook call and
+        # regardless of whether one is configured. The webhook is a push
+        # channel, not the system of record: a repo with no webhook — or one
+        # whose webhook was revoked — must still be able to find out what
+        # happened, from the run page, with no external service involved.
+        # Previously an unset webhook logged only the title, so the detail
+        # (which PRs, which checks) was discarded entirely.
+        if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+          {
+            echo "### ${TITLE}"
+            echo
+            echo "${DESC}"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+        fi
+
         if [ -z "$WEBHOOK" ]; then
-          echo "::warning::alert webhook secret is unset — skipping alert (would have sent: $TITLE)"
+          echo "::warning::${TITLE} — no alert webhook configured, so this was not sent to Discord. Full detail is in this run's summary."
           exit 0
         fi
         payload=$(jq -n --arg t "$TITLE" --arg d "$DESC" --argjson c "${COLOR:-15158332}" \

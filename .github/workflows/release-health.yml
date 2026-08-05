@@ -97,3 +97,14 @@ jobs:
 
             Fix: relabel to `autorelease: tagged` + re-run, or tag by hand.
             **Repo:** ${{ github.server_url }}/${{ github.repository }}
+
+      # A stuck release PR blocks every future release, so the run must go red.
+      # This is the fallback notification path: GitHub emails on a failed run by
+      # default, so the finding reaches someone even with no webhook configured.
+      # Without this the sweep found the problem and exited 0 — a green run on a
+      # frozen release pipeline.
+      - name: Fail the run if a release PR is stuck
+        if: steps.sweep.outputs.alert == 'true'
+        run: |
+          echo "::error::a merged release PR is stuck on 'autorelease: pending' — all future releases are blocked until it is cleared. See this run's summary."
+          exit 1
