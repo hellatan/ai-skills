@@ -546,6 +546,53 @@ silent-coverage-loss this skill exists to prevent.
 
 ---
 
+## 10. Prettier must not format YAML — medium
+
+**What.** If a repo's `format:check` runs prettier over the whole tree, its
+`.prettierignore` must exclude `*.yml` / `*.yaml`.
+
+**Why.** Prettier reflows the inline comments that carry the *reasoning* in workflow
+files — the "why this token, not that one" notes that are the whole point of those
+comments — for no benefit. Worse, the failure is **latent**: it only surfaces the next
+time someone edits a workflow, and then it lands as a red `format:check` on a PR that has
+nothing to do with formatting, which reads as "my change broke CI." Observed live: two
+repos went red on `.github/workflows/release-please.yml` during an unrelated CI rollout;
+both had a `.prettierignore` that simply predated the convention.
+
+**Detection.**
+
+```bash
+# does this repo run prettier over the tree at all?
+fc=$(jq -r '.scripts["format:check"] // .scripts.format // ""' package.json)
+case "$fc" in
+  *prettier*)
+    grep -qE '^\*\.ya?ml|^\*\*/\*\.ya?ml|^\.github' .prettierignore 2>/dev/null || echo "DRIFT" ;;
+esac
+```
+
+**Only flag repos that actually run prettier across the repo root.** Three shapes are
+*not* drift and must not be reported:
+
+- no `format:check` script at all,
+- a scoped script (`prettier --check apps/web`, `npm run format:check:web`) that never
+  reaches `.github/`,
+- a non-prettier formatter (`ruff format --check .` on Python repos).
+
+A blanket "no `.prettierignore`" check would flag every one of those. Read the script
+first, then the ignore file.
+
+**Fix.** Append to `.prettierignore` — keep the comment, it's what stops someone deleting
+the lines as noise:
+
+```
+# Prettier's YAML formatting mangles hand-maintained GitHub Actions workflow
+# files (reflowing inline comments) for zero benefit — skip all YAML.
+*.yml
+*.yaml
+```
+
+---
+
 ## Reporting shape
 
 Only drifted items, grouped by repo, each naming its fix:

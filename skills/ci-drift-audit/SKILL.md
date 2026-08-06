@@ -111,6 +111,7 @@ Full detail, rationale, and detection notes: `references/checks.md`.
 | 7 | Jobs consolidated into `checks` | **informational only** — opt-in, breaking |
 | 8 | Release-tag verification present and correctly wired | low missing / **high** miswired |
 | 9 | Every secret a workflow references actually exists on the repo | medium — silently dead alerts / **high** if the run fails on it |
+| 10 | A repo running `prettier` over the tree ignores `*.yml` / `*.yaml` | medium — CI red on any workflow edit |
 | 9 | Tagged-only deploy can actually fire | **high** scoped package / medium changelog gaps |
 
 Check 7 is reported, never failed: consolidation renames status checks, which is a
