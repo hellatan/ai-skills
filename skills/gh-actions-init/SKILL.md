@@ -48,9 +48,38 @@ Read these without asking:
 - `RELEASE_PLEASE_TOKEN` secret — `gh secret list` (if scaffolding release-please or develop→main). The scaffolded workflows author their PRs with this PAT instead of `GITHUB_TOKEN`; if it's missing, flag it in the summary and report (see `references/release-please.md`).
 - Existing back-merge workflow — scan `.github/workflows/` for one that merges `main` into `develop` (**by behaviour, not filename**: it pushes to `develop` on a `push: main` trigger). Skip scaffolding if present; a second one would fight the first.
 - Deploy target + its credential — needed for the tagged-only deploy step folded into `release-please.yml`. **First establish whether the repo is deployed at all.** If it isn't — no service exists yet, the normal state for a fresh scaffold, an internal tool, or a library — the answer is the `RENDER_DEPLOY=false` repo variable (`gh variable list`), **not** a missing-secret callout: the deploy step skips cleanly and releases still tag. If it *is* deployed, check the credential (`gh secret list` — `RENDER_DEPLOY_HOOK_URL` for Render) and flag a missing one as **blocking** alongside `RELEASE_PLEASE_TOKEN`, because deploys-enabled-with-no-credential fails the run by design. If the target isn't Render, scaffold the deploy step commented out. See `references/tagged-deploy.md`.
-- Alert webhook secret — `gh secret list` (if scaffolding release verification). The secret name is the project's **choice of Discord channel** (default `DISCORD_GH_ERRORS_WEBHOOK`); if a differently-named `DISCORD_*` secret already exists, offer it as the default instead. Optional; note its presence in the summary. When absent, the alerting composite no-ops with a warning, so no blocking callout is needed (see `references/release-verification.md`).
+- Alert webhook secret(s) — `gh secret list` (if scaffolding release verification). The secret name is the project's **choice of Discord channel** (default `DISCORD_GH_ERRORS_WEBHOOK`); if a differently-named `DISCORD_*` secret already exists, offer it as the default instead. **Check for a second one too** when the back-merge workflow is in scope: it alerts a *different* channel (default `DISCORD_PR_ALERTS_WEBHOOK`) because a conflict PR is a thing waiting on a human, not an outage. Optional; note both in the summary. When absent, the alerting composite no-ops with a warning, so no blocking callout is needed — **but list them as post-scaffold actions anyway.** "Optional" is why these get skipped, and a repo with no webhook is indistinguishable from a healthy one: green runs, no alerts, and silence is also what "nothing is wrong" looks like. Measured on one fleet, only 1 of 13 repos had the errors webhook set, every one of them silently. See `references/release-verification.md`.
 
 Surface findings in one line: *"Detected: Next.js 16 + TS, default branch `develop`, package.json version 0.3.1, no existing workflows."*
+
+#### Then lead with the credential manifest — before the plan, not after
+
+**Emit one consolidated list of every secret and variable the scaffolded workflows will reference, up front.** Not scattered through the plan, and not only in the closing summary.
+
+The reason is that these credentials come from **outside** the repo — a PAT from GitHub settings, a webhook URL from Discord, a deploy hook from the platform dashboard. Each one is a context switch into another tool. Surfacing them one at a time, at the end, means the user either does several separate trips or postpones them all — and a postponed webhook secret never gets set, because nothing afterwards ever complains (see `references/release-verification.md`). One list up front is one trip.
+
+Mark each with what happens if it's absent, because the severities are genuinely different and the silent one is the dangerous one:
+
+```
+🔑 Credentials these workflows will need
+   RELEASE_PLEASE_TOKEN          ⛔ blocking  — release-please + develop→main PR fail with an auth error
+                                   fine-grained PAT · Contents + Pull requests: read/write
+   <DEPLOY_CREDENTIAL>           ⛔ blocking IF this repo deploys — a tagged release fails by design
+                                   e.g. RENDER_DEPLOY_HOOK_URL (Render → service → Settings → Deploy Hook)
+                                   not deploying yet? set the variable RENDER_DEPLOY=false instead
+   <ALERT_WEBHOOK_SECRET>        🔕 silent   — release alerts no-op with a warning; runs still go red
+                                   Discord → Server Settings → Integrations → Webhooks
+   <PR_ALERT_WEBHOOK_SECRET>     🔕 silent   — back-merge conflict alerts no-op (only if back-merge is in scope)
+
+   Optional variables: RENDER_DEPLOY (false = deploy dormant) · RELEASE_AUTOMERGE (false = pause
+   release auto-merge) · RELEASE_CHECKS_TIMEOUT_SECONDS (raise the 30 min gate ceiling)
+
+   gh secret set <NAME> --repo <owner>/<repo>
+```
+
+Show every row, including ones already set — mark those `✅ already set` rather than omitting them, so the list doubles as a checklist the user can re-read later. Skip only rows for workflows that aren't being scaffolded at all.
+
+**`🔕 silent` is the row that needs the emphasis**, counterintuitive as that is. A blocking secret announces itself the first time a release runs. A silent one never does: the repo shows green runs and no alerts, which is indistinguishable from healthy. Measured on one fleet, that state persisted on 12 of 13 repos for months.
 
 See `references/detection.md` for the detection cheat-sheet.
 
@@ -110,6 +139,7 @@ Render the plan as a fenced code block with emoji headers (same convention as `p
 🔑 RELEASE_PLEASE_TOKEN: <secret present | ⚠️ MISSING — setup required before first release>
 🔑 Deploy credential (<e.g. RENDER_DEPLOY_HOOK_URL>): <secret present | not needed yet (deploys gated off) | ⚠️ MISSING while deploys are enabled — tagged releases will fail>
 🔔 Alerts → <CHOSEN_SECRET_NAME>: <secret present | not set — alerts no-op until added (optional)>
+🔔 PR alerts → <PR_ALERT_SECRET_NAME>: <secret present | not set — back-merge conflict alerts no-op until added | n/a (no back-merge workflow)>
 📝 Files to write:  <list>
 📝 Files to extend: <list>
 🌿 Branch triggers: <main only | main + develop | main + develop + stage>
