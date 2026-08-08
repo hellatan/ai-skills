@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/hellatan/claude-skills/compare/v2.1.3...v2.2.0) (2026-08-08)
+
+
+### Features
+
+* **ci-drift-audit,gh-actions-init:** catch secrets a workflow needs but the repo lacks ([#139](https://github.com/hellatan/claude-skills/issues/139)) ([a6d4109](https://github.com/hellatan/claude-skills/commit/a6d41090c56955dd50fc06f37ba9f56e88b79134))
+
 ## [2.1.3](https://github.com/hellatan/claude-skills/compare/v2.1.2...v2.1.3) (2026-08-04)
 
 
