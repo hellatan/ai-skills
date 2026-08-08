@@ -110,6 +110,8 @@ Full detail, rationale, and detection notes: `references/checks.md`.
 | 6 | `develop → main` promotion workflow present | low (missing no-squash warning: medium) |
 | 7 | Jobs consolidated into `checks` | **informational only** — opt-in, breaking |
 | 8 | Release-tag verification present and correctly wired | low missing / **high** miswired |
+| 9 | Every secret a workflow references actually exists on the repo | medium — silently dead alerts / **high** if the run fails on it |
+| 10 | A repo running `prettier` over the tree ignores `*.yml` / `*.yaml` | medium — CI red on any workflow edit |
 | 9 | Tagged-only deploy can actually fire | **high** scoped package / medium changelog gaps |
 
 Check 7 is reported, never failed: consolidation renames status checks, which is a
@@ -120,6 +122,12 @@ gap (low); a repo that has it but reads `steps.release.outputs.release_created` 
 `.tag_name` with a non-root package path is **high** — those outputs are always empty
 there, so it cries "NO TAG created" on every healthy release while its real
 tag-missing branch can never fire.
+
+Check 9 needs **`Secrets: Read`** on the audit token, which the base setup does not
+grant — see `references/audit-token.md`. Without it, report the check as
+`skipped: token lacks Secrets:Read`, **never as a pass**. A missing-secret check that
+silently reports "all good" because it couldn't look is the exact failure it exists to
+catch. Secret *names* are all this reads; values are never retrievable through the API.
 
 Check 9 covers the failure mode with no symptom at all. Under tagged-only deploys the
 tag *is* the trigger, so anything that stops release-please cutting a release also stops

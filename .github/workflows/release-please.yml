@@ -7,6 +7,11 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  # The auto-merge gate reads the release PR's checks over REST as the built-in
+  # token; without these the built-in GITHUB_TOKEN cannot see them. Declaring a
+  # permissions block sets every unlisted scope to `none`, so they must be explicit.
+  checks: read
+  statuses: read
 
 concurrency:
   group: release-please
@@ -65,6 +70,11 @@ jobs:
           alert=false
           title=""
           detail=""
+          # released=true ONLY when this run cut a tag AND the tag ref is
+          # confirmed on the remote (the `-n "$tags"` clean branch below).
+          # The auto-merge step keys off this so it never re-merges on the
+          # tag-cutting run.
+          released=false
           head_line=$(printf '%s\n' "$HEAD_MSG" | head -n1)
 
           # Did this push merge a release PR? The release commit's subject comes
@@ -119,6 +129,7 @@ jobs:
             detail="release-please reported tag(s):${missing} but the ref does not exist on the remote (${context})."
           elif [ -n "$tags" ]; then
             echo "OK: tagged $(printf '%s' "$tags" | tr '\n' ' ') (${context})."
+            released=true
           else
             echo "OK: no release expected this run (feature push or PR-only update)."
           fi
@@ -126,10 +137,259 @@ jobs:
           {
             echo "alert=$alert"
             echo "title=$title"
+            echo "released=$released"
             echo "detail<<EOF"
             echo "$detail"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
+
+
+      # Auto-merge the release PR so a release is fully hands-off after the one
+      # human gate (merging the develop→main promotion PR). On a promotion run,
+      # release-please opens the "chore: release X.Y.Z" PR above; we wait for its
+      # CI to go green, then squash-merge it here, which pushes to main and fires
+      # a SECOND release-please.yml run that cuts the tag.
+      #
+      # Four load-bearing details:
+      #  1. Merge with the PAT, not GITHUB_TOKEN. A GITHUB_TOKEN-authored merge
+      #     push does NOT re-trigger workflows (GitHub's loop guard), so the
+      #     tag+deploy run would never happen. Note this applies ONLY to the
+      #     merge — see 4.
+      #  2. Find the PR by its `autorelease: pending` label, NOT the action's
+      #     `pr` output — release-please namespaces per-package outputs, so the
+      #     bare `pr` output is unreliable (same reason the tag check above uses
+      #     toJSON, not tag_name).
+      #  3. WAIT FOR THE PR'S CHECKS. Merging this PR is what cuts the
+      #     release tag, so merging before CI reports = tagging unverified code.
+      #     GitHub's own gates cannot do this here: `allow_auto_merge` is off on
+      #     this repo, and branch protection / required status checks are
+      #     unavailable on a free-plan private repo — so `gh pr merge --auto`
+      #     would either error outright or, with no *required* check to wait on,
+      #     merge immediately anyway. The wait has to live in this step.
+      #  4. READ the checks with GITHUB_TOKEN, over REST. Only the merge needs
+      #     the PAT. Reading with it does not work and fails 100% of the time:
+      #     RELEASE_PLEASE_TOKEN is a fine-grained PAT without `Checks: read`,
+      #     so `gh pr view --json statusCheckRollup` returns
+      #       GraphQL: Resource not accessible by personal access token
+      #       (…pullRequest.statusCheckRollup.nodes.0.commit.statusCheckRollup)
+      #     on every poll until the timeout. That is exactly how this shipped and
+      #     it stalled release 0.30.2 for the full 30 minutes (run 30944579805) —
+      #     the PAT had always been able to LIST and MERGE PRs, which is all it
+      #     needed before a step here read check state.
+      #     The built-in token reads them fine given `checks: read` +
+      #     `statuses: read` in the permissions block above. REST rather than
+      #     GraphQL for a second reason: GraphQL quota is per-USER, so a busy
+      #     local `gh` session on the same account can drain the bucket the
+      #     release gate depends on. GITHUB_TOKEN's REST budget is per-repo.
+      # Skipped on the tag-cutting run (released == 'true') and when
+      # release-please itself failed, so we never merge a stale release PR.
+      #
+      # The poll refuses to merge in three cases. Each leaves the release PR
+      # OPEN and alerts gh_errors — an open release PR is safe (release-please
+      # just updates it on the next run) but it is also silent: release-health's
+      # daily sweep only flags MERGED+pending PRs, so nothing else would catch a
+      # release that stopped here.
+      #   - a check failed                        → red code must not be tagged
+      #   - no checks registered within the grace  → merging with zero CI is the
+      #     exact bug this guards against, so silence is treated as failure
+      #   - checks still running at the timeout    → never block the runner forever
+      #
+      # Checks register a few seconds apart, so an immediate "all green" read can
+      # pass vacuously (one fast job finished, the slow ones not posted yet).
+      # Green is therefore only accepted once the observed check-name SET has been
+      # unchanged for CHECKS_SETTLE_SECONDS. Failures are acted on immediately.
+      #
+      # PAUSE SWITCH: set the repo variable RELEASE_AUTOMERGE=false to keep the
+      # release PR OPEN for manual review — e.g. to eyeball the version bump
+      # after a release-please config change before it tags. Unset (or
+      # anything but 'false') = auto-merge on. This gates ONLY the automatic
+      # merge; when you merge the PR yourself, the tag still fires.
+      # Repos with slower CI can raise the wait with the repo variable
+      # RELEASE_CHECKS_TIMEOUT_SECONDS.
+      - name: Auto-merge the release PR
+        id: automerge
+        if: ${{ steps.release.outcome == 'success' && steps.check.outputs.released != 'true' && vars.RELEASE_AUTOMERGE != 'false' }}
+        env:
+          # Reads run as the built-in token (needs checks:read + statuses:read).
+          # The PAT is deliberately NOT the ambient GH_TOKEN — it cannot read
+          # check state at all, and using it here is what stalled 0.30.2.
+          GH_TOKEN: ${{ github.token }}
+          MERGE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          REPO: ${{ github.repository }}
+          CHECKS_TIMEOUT_SECONDS: ${{ vars.RELEASE_CHECKS_TIMEOUT_SECONDS || '1800' }}
+          CHECKS_GRACE_SECONDS: "180"
+          CHECKS_SETTLE_SECONDS: "60"
+          CHECKS_POLL_SECONDS: "15"
+        run: |
+          alert=false
+          title=""
+          detail=""
+          emit() {
+            {
+              echo "alert=$alert"
+              echo "title=$title"
+              echo "detail<<EOF"
+              echo "$detail"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          }
+
+          # REST, not `gh pr list` — that is GraphQL, and GraphQL quota is
+          # per-user rather than per-repo (see detail 4 above).
+          pr=""
+          for attempt in 1 2 3; do
+            pr=$(gh api "repos/${REPO}/pulls?state=open&base=main&per_page=100" \
+              --jq 'map(select(any(.labels[]?; .name == "autorelease: pending")))[0].number // empty' 2>/dev/null || true)
+            if [ -n "$pr" ]; then break; fi
+            echo "No pending release PR yet (attempt ${attempt}/3), retrying in 5s..."
+            sleep 5
+          done
+          if [ -z "$pr" ]; then
+            echo "No pending release PR to auto-merge this run."
+            emit
+            exit 0
+          fi
+
+          pr_url="${GITHUB_SERVER_URL}/${REPO}/pull/${pr}"
+          echo "Release PR #${pr} — waiting for its checks (timeout ${CHECKS_TIMEOUT_SECONDS}s)"
+
+          started=$(date +%s)
+          seen=""
+          stable_since=$started
+          outcome=""
+          reason=""
+
+          while :; do
+            now=$(date +%s)
+            elapsed=$((now - started))
+
+            # Re-read the head SHA every poll: release-please can push a new
+            # commit to the release PR mid-wait, which restarts its checks.
+            # Polling a stale SHA would report the OLD run's results as green.
+            # A transient API blip must not be read as "no checks" — retry instead.
+            if ! sha=$(gh api "repos/${REPO}/pulls/${pr}" --jq '.head.sha' 2>&1); then
+              echo "  [${elapsed}s] could not read the PR head: ${sha}"
+              if [ "$elapsed" -ge "$CHECKS_TIMEOUT_SECONDS" ]; then
+                outcome=timeout
+                reason="Could not read the release PR before the ${CHECKS_TIMEOUT_SECONDS}s timeout."
+                break
+              fi
+              sleep "$CHECKS_POLL_SECONDS"
+              continue
+            fi
+
+            # Two separate REST endpoints, because they cover different things and
+            # a repo can use either: /check-runs is Actions + GitHub Apps (what CI
+            # reports here); /status is legacy commit statuses, still emitted by
+            # some older integrations. Both are normalised to "<class>\t<name>".
+            if ! runs_json=$(gh api "repos/${REPO}/commits/${sha}/check-runs?per_page=100" 2>&1) \
+               || ! status_json=$(gh api "repos/${REPO}/commits/${sha}/status" 2>&1); then
+              echo "  [${elapsed}s] could not read check status: ${runs_json}${status_json}"
+              if [ "$elapsed" -ge "$CHECKS_TIMEOUT_SECONDS" ]; then
+                outcome=timeout
+                reason="Could not read check status before the ${CHECKS_TIMEOUT_SECONDS}s timeout."
+                break
+              fi
+              sleep "$CHECKS_POLL_SECONDS"
+              continue
+            fi
+
+            # A check run with no conclusion yet is pending, whatever its status
+            # says. Legacy statuses have no status field at all — only .state.
+            classified=$(
+              printf '%s' "$runs_json" | jq -r '
+                .check_runs[]? |
+                (if (.status != "completed") or ((.conclusion // "") == "") then "pending"
+                 elif (.conclusion | . == "success" or . == "neutral" or . == "skipped") then "success"
+                 else "failure" end) as $cls |
+                "\($cls)\t\(.name // "unnamed")"'
+              printf '%s' "$status_json" | jq -r '
+                .statuses[]? |
+                (if (.state == "pending" or (.state // "") == "") then "pending"
+                 elif (.state == "success") then "success"
+                 else "failure" end) as $cls |
+                "\($cls)\t\(.context // "unnamed")"'
+            )
+
+            total=$(printf '%s' "$classified" | grep -c . || true)
+            pending=$(printf '%s' "$classified" | grep -c '^pending' || true)
+            failing=$(printf '%s' "$classified" | awk -F'\t' '$1=="failure"{print $2}' | paste -sd, - || true)
+            names=$(printf '%s' "$classified" | awk -F'\t' '{print $2}' | sort | tr '\n' ',')
+
+            if [ "$names" != "$seen" ]; then
+              seen="$names"
+              stable_since=$now
+            fi
+            echo "  [${elapsed}s] checks=${total} pending=${pending} failing='${failing}' stable_for=$((now - stable_since))s"
+
+            if [ -n "$failing" ]; then
+              outcome=failed
+              reason="Failing check(s): ${failing}."
+              break
+            fi
+
+            if [ "$total" -eq 0 ]; then
+              if [ "$elapsed" -ge "$CHECKS_GRACE_SECONDS" ]; then
+                outcome=nochecks
+                reason="No checks registered on the release PR within ${CHECKS_GRACE_SECONDS}s. Refusing to merge an unverified release."
+                break
+              fi
+            elif [ "$pending" -eq 0 ] && [ $((now - stable_since)) -ge "$CHECKS_SETTLE_SECONDS" ]; then
+              outcome=green
+              break
+            fi
+
+            if [ "$elapsed" -ge "$CHECKS_TIMEOUT_SECONDS" ]; then
+              outcome=timeout
+              reason="Checks did not finish within ${CHECKS_TIMEOUT_SECONDS}s (${pending} still pending: ${names%,})."
+              break
+            fi
+
+            sleep "$CHECKS_POLL_SECONDS"
+          done
+
+          if [ "$outcome" != "green" ]; then
+            alert=true
+            title="🟧 ${REPO} — release PR NOT auto-merged (checks ${outcome})"
+            detail="Release PR [#${pr}](${pr_url}) was left **open** — no tag, no release. ${reason}"
+            echo "::error::${reason} Release PR #${pr} left open."
+            emit
+            exit 0
+          fi
+
+          # ONLY this call uses the PAT — a GITHUB_TOKEN-authored merge push
+          # would not re-trigger the workflow that cuts the tag (detail 1).
+          echo "All ${total} checks green. Auto-merging release PR #${pr} with the release PAT"
+          if ! merge_err=$(GH_TOKEN="$MERGE_TOKEN" gh pr merge "$pr" --repo "$REPO" --squash --delete-branch 2>&1); then
+            alert=true
+            title="🟧 ${REPO} — release PR merge failed"
+            detail="Release PR [#${pr}](${pr_url}) passed CI but the squash-merge failed, so it was left **open** — no tag, no release.
+          \`\`\`
+          ${merge_err}
+          \`\`\`"
+            echo "::error::Failed to merge release PR #${pr}: ${merge_err}"
+            emit
+            exit 0
+          fi
+          echo "Merged release PR #${pr}."
+          emit
+
+      # Separate from the tag-verification alert below: this one means the release
+      # STOPPED cleanly (PR open, nothing tagged), not that a
+      # release went missing. Different fix, different message — but equally loud,
+      # because no other job flags an open release PR.
+      - name: Alert gh_errors — release PR left open
+        if: ${{ always() && steps.automerge.outputs.alert == 'true' }}
+        uses: ./.github/actions/discord-alert
+        with:
+          webhook: ${{ secrets.DISCORD_GH_ERRORS_WEBHOOK }}
+          title: ${{ steps.automerge.outputs.title }}
+          description: |
+            ${{ steps.automerge.outputs.detail }}
+
+            Fix the failure, then merge the release PR yourself — the tag still fires on merge.
+            **Repo:** ${{ github.server_url }}/${{ github.repository }}
+            [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · [Release PRs](${{ github.server_url }}/${{ github.repository }}/pulls?q=is%3Apr+label%3A%22autorelease%3A+pending%22)
 
       - name: Alert on failure
         if: ${{ always() && steps.check.outputs.alert == 'true' }}
@@ -145,7 +405,7 @@ jobs:
             [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) · [Release PRs](${{ github.server_url }}/${{ github.repository }}/pulls?q=is%3Apr+label%3A%22autorelease%3A+pending%22)
 
       - name: Fail the run if a release was expected but missing
-        if: ${{ always() && steps.check.outputs.alert == 'true' }}
+        if: ${{ always() && (steps.check.outputs.alert == 'true' || steps.automerge.outputs.alert == 'true') }}
         run: |
-          echo "::error::release verification failed — see the alert"
+          echo "::error::release verification failed or the release PR was left open — see the gh_errors alert"
           exit 1

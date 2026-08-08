@@ -31,9 +31,25 @@ jobs:
         with:
           webhook: ${{ secrets.DISCORD_GH_ERRORS_WEBHOOK }}
           color: "3066993" # green — this is a test, not a real failure
-          title: "✅ ${{ github.repository }} — alert pipe test"
+          title: "✅ ${{ github.repository }} — gh_errors pipe test"
           description: |
-            Test alert from `release-health.yml`. If you can read this, delivery works.
+            Test alert from `release-health.yml`. If you can read this in **#gh-errors**, delivery works.
+            [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+      # The PR-alerts channel, used by main-to-develop-backmerge.yml. Its real
+      # alert fires only when the back-merge hits a conflict and opens a PR — a
+      # condition that cannot be manufactured on demand — so without this step
+      # that webhook is the one credential in the setup with no way to prove it
+      # works until the day it's needed. No `if:` guard: the composite already
+      # no-ops with a warning when the secret is unset.
+      - name: Send test alert — PR alerts channel
+        uses: ./.github/actions/discord-alert
+        with:
+          webhook: ${{ secrets.DISCORD_PR_ALERTS_WEBHOOK }}
+          color: "3066993"
+          title: "✅ ${{ github.repository }} — pr_alerts pipe test"
+          description: |
+            Test alert from `release-health.yml`. If you can read this in **#pr-alerts**, delivery works.
             [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
   pending-sweep:
@@ -81,3 +97,14 @@ jobs:
 
             Fix: relabel to `autorelease: tagged` + re-run, or tag by hand.
             **Repo:** ${{ github.server_url }}/${{ github.repository }}
+
+      # A stuck release PR blocks every future release, so the run must go red.
+      # This is the fallback notification path: GitHub emails on a failed run by
+      # default, so the finding reaches someone even with no webhook configured.
+      # Without this the sweep found the problem and exited 0 — a green run on a
+      # frozen release pipeline.
+      - name: Fail the run if a release PR is stuck
+        if: steps.sweep.outputs.alert == 'true'
+        run: |
+          echo "::error::a merged release PR is stuck on 'autorelease: pending' — all future releases are blocked until it is cleared. See this run's summary."
+          exit 1
