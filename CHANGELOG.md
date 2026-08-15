@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.1](https://github.com/hellatan/claude-skills/compare/v2.2.0...v2.2.1) (2026-08-15)
+
+
+### Bug Fixes
+
+* **project-scaffold,claude-md-init:** prefix Next.js typecheck with next typegen ([#143](https://github.com/hellatan/claude-skills/issues/143)) ([d63b2cd](https://github.com/hellatan/claude-skills/commit/d63b2cd6131251859e03ed4adef73f8647d8ad91))
+
 ## [2.2.0](https://github.com/hellatan/claude-skills/compare/v2.1.3...v2.2.0) (2026-08-08)
 
 
