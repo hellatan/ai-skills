@@ -119,6 +119,7 @@ Run from the repo root:
 - Imports use the `@/` alias for `src/`.
 - **Styling: CSS Modules.** Co-locate a `*.module.css` per component; reference `className={styles.x}`. No inline `style={{...}}` (beyond truly dynamic values), no Tailwind utility classes. (Replace this line with the chosen styling approach if not CSS Modules.)
 - **Env-reading modules are lazy** — throw on first use, not at module eval, or `next build` crashes in CI where env vars are unset.
+- **`typecheck` must keep its `next typegen &&` prefix.** `layout.tsx`/`page.tsx` reference globally-generated route types (`LayoutProps`, `PageProps`) that only exist once Next writes `.next/types`. Trimming the prefix passes locally (stale `.next/` on disk) and fails on CI's clean checkout with `TS2304: Cannot find name 'LayoutProps'`.
 - **Don't write `BREAKING CHANGE:` / `feat!:` in commit-body prose** unless you mean them — parsers will corrupt the CHANGELOG. Paraphrase instead.
 - Conventional commits required (release-please drives off them).
 ```
@@ -246,6 +247,7 @@ Use this only when the user explicitly opted out of the Next.js-only fullstack d
 - Frontend talks to backend via `NEXT_PUBLIC_API_URL` env var.
 - API routes are versioned (`/api/v1/...`).
 - **Env-reading modules are lazy** — throw on first use, not at module eval; `next build` and pytest collection run in CI with no prod env vars set.
+- **The frontend's `typecheck` must keep its `next typegen &&` prefix** — `layout.tsx`/`page.tsx` reference route types Next only generates into `.next/types`. Trimming it passes locally and fails on CI's clean checkout (`TS2304: Cannot find name 'LayoutProps'`).
 - **Don't write `BREAKING CHANGE:` / `feat!:` in commit-body prose** unless you mean them — parsers will corrupt the CHANGELOG. Paraphrase instead.
 - Conventional commits required.
 ```
@@ -287,6 +289,7 @@ Use this only when the user explicitly opted out of the Next.js-only fullstack d
 - Conventional commits required.
 - TypeScript strict mode in both workspaces.
 - **Env-reading modules are lazy** — throw on first use, not at module eval, or builds/typechecks crash in CI where env vars are unset.
+- **The frontend's `typecheck` must keep its `next typegen &&` prefix** — `layout.tsx`/`page.tsx` reference route types Next only generates into `.next/types`. Trimming it passes locally and fails on CI's clean checkout (`TS2304: Cannot find name 'LayoutProps'`).
 - **Don't write `BREAKING CHANGE:` / `feat!:` in commit-body prose** unless you mean them — parsers will corrupt the CHANGELOG. Paraphrase instead.
 ```
 
