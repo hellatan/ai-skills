@@ -138,7 +138,7 @@ export default eslintConfig;
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run --dir src",
     "test:integration": "vitest run --dir tests/integration",
@@ -149,5 +149,15 @@ export default eslintConfig;
 ```
 
 **Note on `"lint"`:** Use `eslint`, not `next lint`. The `next lint` command was deprecated in Next.js 15 and **removed in Next.js 16** (the version `create-next-app` installs by default now). The ESLint flat config that Next.js scaffolds (`eslint.config.mjs`) already extends `next/core-web-vitals` + `next/typescript`, so running `eslint` directly applies all the same rules with no functional loss. `create-next-app` itself generates `"lint": "eslint"` in its scripts as of Next 16 — overriding with `"next lint"` would re-introduce a broken script.
+
+**Note on `"typecheck"`:** Prefix `tsc --noEmit` with `next typegen`. On Next.js 16 the code `create-next-app` generates references globally-declared route types — `src/app/layout.tsx` uses `LayoutProps`, pages use `PageProps` — that don't exist in the type graph until Next writes them into `.next/types`. `next typegen` generates exactly those declarations without a full build (seconds, not a compile). Bare `tsc --noEmit` on a checkout with no `.next/` fails with:
+
+```
+src/app/layout.tsx(22,50): error TS2304: Cannot find name 'LayoutProps'.
+```
+
+This is a CI-only failure with a local false negative, so **the Step 20 smoke test cannot catch it**: `create-next-app` runs typegen while scaffolding and leaves `.next/` on disk, so `npm run typecheck` passes on the scaffolding machine and fails on CI's first clean checkout. Reproduce the CI condition with `rm -rf .next && npx tsc --noEmit`; `rm -rf .next && npx next typegen && npx tsc --noEmit` passes. (Confirmed on Next 16.3.1.)
+
+Non-Next TypeScript projects keep the bare `"typecheck": "tsc --noEmit"` — see `nodejs-backend.md`. This is a Next-specific requirement, not a general one.
 
 6. **Test stubs + runner configs are owned by `/testing-init`** (Step 14 runs its execution phase): smoke stubs, `vitest.config.ts` — including the required `**/e2e/**` exclude, without which `npm run test` crashes on Playwright specs — and `playwright.config.ts`. See `testing-init/references/test-stubs.md` and `testing-init/references/runners.md`.
