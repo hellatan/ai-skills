@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.2.2](https://github.com/hellatan/claude-skills/compare/v2.2.1...v2.2.2) (2026-08-18)
+
+
+### Bug Fixes
+
+* **release:** un-hide every commit type in changelog-sections ([#148](https://github.com/hellatan/claude-skills/issues/148)) ([8fac1f4](https://github.com/hellatan/claude-skills/commit/8fac1f42663ce28d8ac568c617e441df5524f846))
+
+
+### Chores
+
+* **release:** develop → main ([e359486](https://github.com/hellatan/claude-skills/commit/e3594864a4c56be0d4f60f41c684abb0a4199fa5))
+* **release:** develop → main ([d6bef8c](https://github.com/hellatan/claude-skills/commit/d6bef8c5cd26805b10be8d9378e25c486273c465))
+
+
+### Continuous Integration
+
+* rename validate.yml to ci.yml, drop develop from push ([#146](https://github.com/hellatan/claude-skills/issues/146)) ([765b551](https://github.com/hellatan/claude-skills/commit/765b551df6aeaeb20599c084eb4f66c8f8f0e738))
+
 ## [2.2.1](https://github.com/hellatan/claude-skills/compare/v2.2.0...v2.2.1) (2026-08-15)
 
 
