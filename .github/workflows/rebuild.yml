@@ -60,6 +60,6 @@ jobs:
             for id in "${ids[@]}"; do gh run rerun "$id" --failed || gh run rerun "$id"; done
             gh pr comment "$PR" --body "🚀 Re-running ${#ids[@]} failed/cancelled run(s) for \`$head\`."
           else
-            gh workflow run validate.yml --ref "$head"
-            gh pr comment "$PR" --body "🚀 No prior run to re-run — dispatched \`validate.yml\` on \`$head\`."
+            gh workflow run ci.yml --ref "$head"
+            gh pr comment "$PR" --body "🚀 No prior run to re-run — dispatched \`ci.yml\` on \`$head\`."
           fi

@@ -4,7 +4,8 @@ on:
   pull_request:
     branches: [develop, main]
   push:
-    branches: [develop, main]
+    branches: [main]            # NOT develop — a PR already runs CI before merge, so a
+                                # post-merge push run on develop just re-tests passing code
   workflow_dispatch:        # manual rebuild + dispatch target for /rebuild
 
 jobs:
