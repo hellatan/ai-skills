@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.3.0](https://github.com/hellatan/claude-skills/compare/v2.2.3...v2.3.0) (2026-08-19)
+
+
+### Features
+
+* **ci-drift-audit:** add check 12 — release-please files prettier-ignored ([#154](https://github.com/hellatan/claude-skills/issues/154)) ([04a9a94](https://github.com/hellatan/claude-skills/commit/04a9a94175e80644dc1fd4edc491b2fc2682e1a3))
+* **install:** auto-sync skills on pull and prune dead symlinks ([#157](https://github.com/hellatan/claude-skills/issues/157)) ([1e6be9d](https://github.com/hellatan/claude-skills/commit/1e6be9db84f221f184a5048f5e6556e3a85d628e))
+
+
+### Documentation
+
+* **gh-actions-init:** document the staging deploy convention ([#155](https://github.com/hellatan/claude-skills/issues/155)) ([dbf98ea](https://github.com/hellatan/claude-skills/commit/dbf98ea394e4f13228e06a86f0c59dc093e42043))
+
+
+### Chores
+
+* **release:** develop → main ([e7ece9f](https://github.com/hellatan/claude-skills/commit/e7ece9fb3104f74099deaea1dd666382ff2c3859))
+
 ## [2.2.3](https://github.com/hellatan/claude-skills/compare/v2.2.2...v2.2.3) (2026-08-19)
 
 
