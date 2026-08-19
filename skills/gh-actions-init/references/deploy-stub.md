@@ -111,33 +111,42 @@ jobs:
       - run: echo "TODO — fill in deploy steps for production"
 ```
 
-## With staging (when project uses a `stage` branch)
+## With staging (only when the project has a `stage` branch)
 
-Detect via `git ls-remote --heads origin stage`. If `stage` exists, scaffold this variant instead:
+Detect via `git ls-remote --heads origin stage`. **No `stage` branch means no staging environment** — that is the normal, intentional state for most repos, not a gap to fill. Don't scaffold a staging job, a staging service, or a `develop`-watching deploy for a repo that doesn't have the branch. See the "Environments" section of `references/tagged-deploy.md` for why, and for the release-please pre-release config a staging environment needs.
+
+If `stage` *does* exist, staging is driven by **pre-release tags** (`vX.Y.Z-rc.N`) cut from `stage` — the same tagged-only discipline as production, just a different class of tag. It is **not** triggered by a push to `stage`: a branch-triggered deploy has the same "which commit is on staging?" problem that `autoDeploy` has on production.
+
+The default remains folding both deploys into their respective release-please workflows (`release-please.yml` for prod, `release-please-stage.yml` for staging). Use the standalone variant below only for the same reasons as the prod-only stub above — build matrix, `environment:` approval gate, per-component fan-out — and remember the loop guard: these triggers only ever fire if the tags were pushed with `RELEASE_PLEASE_TOKEN`, never with `GITHUB_TOKEN`.
 
 ```yaml
 name: Deploy
 
 on:
   push:
-    branches: [stage]
     tags:
+      # This ONE glob matches both classes. `*` matches `.` and `-` in GitHub's
+      # ref filters, so 'v*.*.*' matches `v1.2.0-rc.1` as well as `v1.2.0` —
+      # the trigger cannot separate them, and a second '-rc' glob would be dead
+      # weight. The split happens in the jobs' `if:` conditions below, which is
+      # the only place it can happen.
       - 'v*.*.*'
 
 jobs:
   deploy-staging:
     name: Deploy to staging
-    if: github.ref == 'refs/heads/stage'
+    if: contains(github.ref, '-rc.')
     runs-on: ubuntu-latest
     environment: staging
     steps:
       - uses: actions/checkout@v6
-      # TODO: staging deploy steps (typically point to a staging URL/instance)
+      # TODO: staging deploy steps (point at the staging service/URL).
+      # The checked-out tree IS the tagged pre-release commit.
       - run: echo "TODO — fill in deploy steps for staging"
 
   deploy-prod:
     name: Deploy to production
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-rc.')
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -145,6 +154,8 @@ jobs:
       # TODO: prod deploy steps
       - run: echo "TODO — fill in deploy steps for production"
 ```
+
+**The `-rc.` guard on `deploy-prod` is load-bearing, and the trigger cannot replace it.** `v*.*.*` matches `v1.2.0-rc.1` as well as `v1.2.0`, because `*` matches `.` and `-` in GitHub's ref-filter globs. There is no tag pattern that admits `v1.2.0` and rejects `v1.2.0-rc.1` — `tags-ignore` can't be combined with `tags` on the same event either. So the discrimination has to live in `if:`, and without the `!contains(...)` every release candidate ships straight to production, which is the exact opposite of what a staging environment is for.
 
 ## Render Blueprint (`render.yaml`) — opt-in, only when the target is Render
 
@@ -218,7 +229,7 @@ services:
 
 Conventions to bake in:
 - **Service naming**: `<project>-db`, `<project>-web`, `<project>-worker`, etc. (the `<project>-` prefix is required.)
-- **`autoDeploy: false`** so deploys are driven by the verified tag, not every push to `main`. This is the load-bearing line of the whole deploy model — with it on, the untagged promotion merge ships the feature code and the release commit ships again, two deploys per release with the wrong one going first (`references/tagged-deploy.md`). **On an existing service, flipping it in the file is only half the change** — auto-deploy must also be turned off on the service in the dashboard (or the Blueprint re-synced). **On a brand-new service created from this file**, it starts off; don't send the user chasing a toggle that's already correct.
+- **`autoDeploy: false`** so deploys are driven by the verified tag, not every push to `main`. This is the load-bearing line of the whole deploy model — with it on, the untagged promotion merge ships the feature code and the release commit ships again, two deploys per release with the wrong one going first (`references/tagged-deploy.md`). **On an existing service, flipping it in the file is only half the change** — auto-deploy must also be turned off on the service in the dashboard (or the Blueprint re-synced). **On a brand-new service created from this file**, it starts off; don't send the user chasing a toggle that's already correct. **This applies to every service in the file, staging included** — a repo with a `stage` branch gets a second service block, also `autoDeploy: false`, deployed from its pre-release tags and never from a push to `stage`.
 - **`sync: false`** for every secret (auth secrets, API keys, credentials) — Render prompts for them on apply rather than reading from the repo.
 - **Idempotent build steps** — anything in `buildCommand` (e.g. `db:migrate`, a seed) must be safe to re-run on every deploy.
 - `region` is a placeholder — confirm with the user; don't assume Oregon.
@@ -263,6 +274,6 @@ Use the single-tag `v*.*.*` flow only for single-package projects (or a fullstac
 
 ## Notes for the report
 
-- `environment: production` and `environment: staging` map to GitHub Environments. Set those up in **repo settings → Environments** to add per-env secrets and approval gates.
+- `environment: production` and `environment: staging` map to GitHub Environments. Set those up in **repo settings → Environments** to add per-env secrets and approval gates. Only create the `staging` environment if the repo actually has a `stage` branch.
 - Deploy secrets use `${{ secrets.NAME }}` and live on the GitHub Environment, not in the repo.
 - The TODO comments in the scaffolded file include the most common deploy patterns. The user picks one.

@@ -15,6 +15,22 @@
    - The `checks` job's lint + format:check + typecheck steps — merged into the `checks` job `testing-init` just seeded (unit stays last) — plus the `build` job.
    - `release-please.yml` + `release-please-config.json` + `.release-please-manifest.json`.
    - The tagged-only deploy: the deploy + release-PR auto-merge steps folded into `release-please.yml`, and `autoDeploy: false` (or the platform equivalent) in the deploy config. A standalone `deploy.yml` with the deploy-target picker only when one is actually needed — see `gh-actions-init/references/tagged-deploy.md`.
+   - **The staging environment, but only if Step 6 asked for one — and you must tell it so** (next section).
+
+## ⚠️ Staging: pass the Step 6 answer in, don't let it probe
+
+`gh-actions-init` decides whether to scaffold a staging environment by running `git ls-remote --heads origin stage`. That is correct for its own retrofit path and **wrong here**, because of ordering: this step runs at Step 14, the GitHub repo isn't created until **Step 17**, and `stage` isn't created even locally until **Step 15**. The probe therefore returns empty on every new scaffold, `gh-actions-init` correctly concludes "no `stage` branch → no staging environment", and a user who answered `yes` gets a `stage` branch that deploys nothing — with nothing in the run flagging the omission.
+
+Same rule as the stack: **pass the decision forward instead of letting the sub-skill re-detect it.** State it explicitly when invoking `gh-actions-init` — *"Step 6 answered yes to staging; the `stage` branch will exist after Step 15. Scaffold the staging environment as if the probe had found it."*
+
+When staging **is** on, `gh-actions-init` additionally owns:
+
+- `.github/workflows/release-please-stage.yml` (`target-branch: stage`, plus `config-file` / `manifest-file` naming the stage-specific paths).
+- `.github/release-please-config.stage.json` + `.github/.release-please-manifest.stage.json` — the stage config carries `"versioning": "prerelease"`, `"prerelease": true`, `"prerelease-type": "rc"`, and a distinct `"changelog-path"`. Do not drop any of the four; `gh-actions-init/references/tagged-deploy.md` explains what each one silently breaks.
+- A second service block in the deploy config, also `autoDeploy: false`.
+- **Skipping** `develop-to-main-pr.yml` + `main-to-develop-backmerge.yml` (single-hop promotion workflows; the chain is now two hops).
+
+Step 17 then sets `RENDER_STAGE_DEPLOY=false` alongside `RENDER_DEPLOY=false`. When staging is **off** — the default — none of the above is written, and that is a complete outcome, not a deferred one.
 
 ## Manifest-version invariant (new projects)
 

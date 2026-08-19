@@ -170,7 +170,9 @@ This decision depends on the backend language.
 
 (No alternative offered — workspaces literally can't help when one side is Python.)
 
-### 6. Staging branch
+### 6. Staging branch **and staging environment**
+
+This one answer decides two things, not one: whether the repo gets a `stage` branch, **and** whether it gets a staging deploy environment at all. There is no staging environment without a `stage` branch — see the "Environments" section of `gh-actions-init/references/tagged-deploy.md`, which is the canonical statement of that rule.
 
 Ask:
 
@@ -178,8 +180,21 @@ Ask:
 >
 > A staging branch is like a dress rehearsal — code goes there first, deploys to a separate copy of your site only you can see, and you click around to make sure nothing's broken before it goes live to real users. If you're solo or just starting out, you can skip this and add it later.
 >
-> - `yes` — set up a `stage` branch with its own protected workflow (lifecycle becomes feature → develop → stage → main)
-> - `no` — go straight from develop → production (default)
+> - `yes` — set up a `stage` branch (lifecycle becomes feature → develop → stage → main) **plus a staging deploy environment**: a second release-please instance on `stage` that cuts pre-release tags (`v0.2.0-rc.1`), and a staging service that deploys those tags
+> - `no` — go straight from develop → production, and **no staging environment** (default)
+
+**`no` is a complete answer, and it's the default.** Don't scaffold a staging service, a staging workflow, or a staging entry in the deploy config for a repo that answered `no`, and don't flag its absence as something to fix later in the report. In particular, **never** offer a staging service pointed at `develop` with the platform's own auto-deploy as a substitute — auto-deploy is off on every service in every repo this skill scaffolds, without exception, and `develop` carries nothing tagged.
+
+**⚠️ If `yes`, carry the answer forward to Step 14 explicitly.** `gh-actions-init` decides staging by probing `git ls-remote --heads origin stage`, which is the right test when *retrofitting* an existing repo and useless here: at Step 14 the GitHub repo does not exist yet (Step 17 creates it) and `stage` has not been created even locally (Step 15). The probe returns empty, staging is silently skipped, and the user ends up with a `stage` branch that deploys nothing. **Pass the Step 6 decision to `gh-actions-init` the same way Step 14 already passes the stack forward instead of re-detecting it** — see `references/step-14-delegate.md`.
+
+**If `yes`, what the later steps additionally do:**
+
+- **Step 14** (delegating to `gh-actions-init`) writes `.github/workflows/release-please-stage.yml`, the stage-specific `release-please-config.stage.json` / `.release-please-manifest.stage.json`, and a second service block in the deploy config (also `autoDeploy: false`). It also **skips** `develop-to-main-pr.yml` + `main-to-develop-backmerge.yml` — they model a single-hop promotion and the chain is now two hops.
+- **Step 15** creates the `stage` branch locally; **Step 17** pushes it and sets `RENDER_STAGE_DEPLOY=false`; **Steps 18–19** extend branch protection to `stage`.
+
+The stage config carries four keys production's doesn't — `"versioning": "prerelease"`, `"prerelease": true`, `"prerelease-type": "rc"`, and a distinct `"changelog-path"` — at **stage-specific file paths**, never the production ones. All four are load-bearing and the reasons are non-obvious; take them from `gh-actions-init/references/tagged-deploy.md`, §"If the repo *does* have a `stage` branch", rather than reconstructing them.
+
+This path is **not verified in production** (no repo in the fleet runs a `stage` branch yet). Say so in the report rather than presenting it as a tested default.
 
 ### 7. GitHub repo
 
@@ -273,7 +288,7 @@ The config dispatches by file pattern: staging only Python files runs only Pytho
 
 ### 14. Tests + GitHub Actions (delegate to sister skills)
 
-Run `/testing-init`'s execution phase, then `/gh-actions-init`'s. Treat the stack as already-known and skip their detection + summary-halt gates (project-scaffold's Step 9 covered those).
+Run `/testing-init`'s execution phase, then `/gh-actions-init`'s. Treat the stack as already-known and skip their detection + summary-halt gates (project-scaffold's Step 9 covered those). **Pass the Step 6 staging decision in explicitly** — `gh-actions-init`'s own `git ls-remote` probe cannot see a branch that doesn't exist yet.
 
 See `references/step-14-delegate.md` for what each sister skill owns, the manifest-version invariant, and the full sub-skill protocol.
 
@@ -303,7 +318,7 @@ Create the remote with `gh repo create`, flip on the repo-level setting that let
 The push is bracketed by two **real halts** (not text-only notes — text mid-flow gets skipped past):
 
 - **17a — PRE-PUSH GATE.** Surface a verbatim message telling the user that Claude Code's auto-mode classifier will block the bootstrap push without surfacing an approval dialog, and to toggle auto-mode OFF before replying `go`.
-- **17b — Push.** Run the `gh repo create` + `gh api … actions/permissions/workflow` + `git push` sequence, then surface the **`RELEASE_PLEASE_TOKEN` secret callout** — every new repo needs this PAT-backed secret (`gh secret set RELEASE_PLEASE_TOKEN`) or the release-please and develop→main workflows fail on first run. User action; don't ask for the PAT value in chat. Also set `RENDER_DEPLOY=false` (a repo **variable**, so no user action) — a brand-new repo has no hosting service and therefore no deploy hook, and without the gate its first tagged release would fail the release workflow on a project that was never deployed. Leave `RELEASE_AUTOMERGE` unset (unset = auto-merge on).
+- **17b — Push.** Run the `gh repo create` + `gh api … actions/permissions/workflow` + `git push` sequence, then surface the **`RELEASE_PLEASE_TOKEN` secret callout** — every new repo needs this PAT-backed secret (`gh secret set RELEASE_PLEASE_TOKEN`) or the release-please and develop→main workflows fail on first run. User action; don't ask for the PAT value in chat. Also set `RENDER_DEPLOY=false` (a repo **variable**, so no user action) — a brand-new repo has no hosting service and therefore no deploy hook, and without the gate its first tagged release would fail the release workflow on a project that was never deployed. **If staging was opted in at Step 6, set `RENDER_STAGE_DEPLOY=false` in the same breath** — unset reads as *enabled*, so skipping it makes the first pre-release tag off `stage` fail on the missing staging hook, which is the identical failure one environment over. Leave `RELEASE_AUTOMERGE` unset (unset = auto-merge on).
 - **17c — POST-PUSH GATE.** Surface a verbatim message that the bootstrap exception is done and the user can toggle auto-mode back ON. Wait for `continue` before proceeding to Step 18.
 
 See `references/step-17-create-repo-push.md` for the bash sequence, the verbatim gate messages, and the full bootstrap-exception contract.

@@ -246,6 +246,16 @@ Listing every type (as in the config above) makes every promotion produce a rele
 
 Tradeoff worth stating to the user: a docs-only promotion now triggers a build + deploy — a near-no-op rebuild. That is the price of a strict `main == production` invariant, and it is the right trade for anything with a real deploy.
 
+## Config — staging pre-releases (only in a repo with a `stage` branch)
+
+A repo with a `stage` branch runs a **second** release-please instance against it, cutting pre-release tags (`v0.3.0-rc.1`) that the staging environment deploys. It uses its own config + manifest **file paths** — `.github/release-please-config.stage.json` and `.github/.release-please-manifest.stage.json` — and a `release-please-stage.yml` workflow that names them via the action's `config-file` / `manifest-file` inputs alongside `target-branch: stage`.
+
+The stage config needs **four** keys the production one doesn't, and three of them are load-bearing: `"versioning": "prerelease"` (this, not `prerelease: true`, is what makes the version an rc — `prerelease` alone only flags the GitHub Release, so omitting it mints ordinary `vX.Y.Z` tags that collide with production's), `"prerelease": true`, `"prerelease-type": "rc"`, and `"changelog-path": "CHANGELOG-stage.md"` (it defaults to `CHANGELOG.md` for both instances, so sharing it pollutes and conflicts the production changelog).
+
+Reusing the production paths and relying on `target-branch` alone is the trap: release-please reads config and manifest *from the target branch*, so the two variants would have to differ in content per branch, and the next `stage → main` merge carries `prerelease: true` onto `main` — where production then cuts `v1.3.0-rc.0` and ships it.
+
+Full config, workflow, deploy step, and the caveats (two drifting version streams, the untouched production workflow, the skipped `develop-to-main-pr.yml` pair) live in `references/tagged-deploy.md`, §"Environments". **Not verified in production.** A repo with no `stage` branch needs none of this and has no staging environment — which is the default.
+
 ## Config — single package, no language version file (`release-type: simple`)
 
 For a repo with **no `package.json` / `pyproject.toml`** to bump — a chezmoi/shell dotfiles repo, a config-only repo, a pile of scripts — use `release-type: "simple"`. It's the right pick whenever there's no language version file: release-please tracks the version in the manifest alone (manifest-only) and still cuts clean `vX.Y.Z` tags + GitHub releases from conventional commits.
