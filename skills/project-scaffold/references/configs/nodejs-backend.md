@@ -141,7 +141,7 @@ coverage/
 *.lock
 package-lock.json
 
-# release-please rewrites both of these in its own style on every release PR — keep prettier off them.
+# release-please owns and rewrites both of these on every release PR — keep prettier off them.
 CHANGELOG.md
 .github/.release-please-manifest.json
 
