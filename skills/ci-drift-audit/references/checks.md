@@ -593,6 +593,54 @@ the lines as noise:
 
 ---
 
+## 11. Release-please-owned files are prettier-ignored — medium
+
+**What.** If a repo runs prettier over the whole tree **and** uses release-please, its
+`.prettierignore` must carry both `CHANGELOG.md` and
+`.github/.release-please-manifest.json`.
+
+**Why.** release-please rewrites both files on every release PR, and what it writes
+doesn't reliably satisfy prettier's `--check` (the generated changelog never does; the
+manifest keeps whatever JSON style it already had). Without the carve-out the release PR
+itself fails `format:check` — and since these repos auto-merge release PRs gated on green
+checks, the release **freezes** there. Nobody is watching the release PR precisely
+because auto-merge normally handles it. Observed live 2026-08-18: a fresh scaffold's
+first release PR sat blocked until the manifest line was added. Rationale and canonical
+lines: `project-scaffold/references/configs/node-ts.md` § `.prettierignore`;
+`gh-actions-init/references/release-please.md` § "Manifest — match current version".
+
+**Detection.**
+
+```bash
+# gate exactly like check 10: only repos that run prettier over the tree...
+fc=$(jq -r '.scripts["format:check"] // .scripts.format // ""' package.json)
+case "$fc" in
+  *prettier*)
+    # ...and that actually use release-please
+    if [[ -f .github/.release-please-manifest.json ]]; then
+      grep -qxF 'CHANGELOG.md' .prettierignore 2>/dev/null \
+        || echo "DRIFT: CHANGELOG.md not prettier-ignored"
+      grep -qxF '.github/.release-please-manifest.json' .prettierignore 2>/dev/null \
+        || echo "DRIFT: release-please manifest not prettier-ignored"
+    fi ;;
+esac
+```
+
+The same non-drift shapes as check 10 apply (no `format:check`, scoped script,
+non-prettier formatter) — plus one more: **no release-please manifest means no finding**,
+whatever the ignore file says. A repo without release-please has nothing rewriting these
+files.
+
+**Fix.** Append to `.prettierignore` — keep the comment, same reasoning as check 10:
+
+```
+# release-please owns and rewrites both of these on every release PR — keep prettier off them.
+CHANGELOG.md
+.github/.release-please-manifest.json
+```
+
+---
+
 ## Reporting shape
 
 Only drifted items, grouped by repo, each naming its fix:
