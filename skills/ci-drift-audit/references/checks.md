@@ -484,7 +484,7 @@ a finding.
 
 ---
 
-## 9. Referenced secrets exist — medium (dead alerts) / **high** (failing run)
+## 10. Referenced secrets exist — medium (dead alerts) / **high** (failing run)
 
 **What.** Every `secrets.NAME` a workflow references should exist on the repo. Collect the
 names from `.github/workflows/*` and `.github/actions/*/action.yml`, then diff against the
@@ -546,7 +546,7 @@ silent-coverage-loss this skill exists to prevent.
 
 ---
 
-## 10. Prettier must not format YAML — medium
+## 11. Prettier must not format YAML — medium
 
 **What.** If a repo's `format:check` runs prettier over the whole tree, its
 `.prettierignore` must exclude `*.yml` / `*.yaml`.
@@ -593,7 +593,7 @@ the lines as noise:
 
 ---
 
-## 11. Release-please-owned files are prettier-ignored — medium
+## 12. Release-please-owned files are prettier-ignored — medium
 
 **What.** If a repo runs prettier over the whole tree **and** uses release-please, its
 `.prettierignore` must carry both `CHANGELOG.md` and
@@ -612,7 +612,7 @@ lines: `project-scaffold/references/configs/node-ts.md` § `.prettierignore`;
 **Detection.**
 
 ```bash
-# gate exactly like check 10: only repos that run prettier over the tree...
+# gate exactly like check 11: only repos that run prettier over the tree...
 fc=$(jq -r '.scripts["format:check"] // .scripts.format // ""' package.json)
 case "$fc" in
   *prettier*)
@@ -629,16 +629,16 @@ case "$fc" in
 esac
 ```
 
-The same non-drift shapes as check 10 apply (no `format:check`, scoped script,
+The same non-drift shapes as check 11 apply (no `format:check`, scoped script,
 non-prettier formatter) — plus two more. **No release-please at all means no finding**,
 whatever the ignore file says: nothing is rewriting these files. (The workflow filename
 gate is a shortcut — a repo that named it differently should be caught by the same
 behaviour-based search check 8 uses.) And **a broader covering pattern is a pass, not
-drift**: a `.prettierignore` carrying `.github/` covers the manifest just as check 10
+drift**: a `.prettierignore` carrying `.github/` covers the manifest just as check 11
 accepts it for workflow YAML — the regex above allows that shape; don't demand the
 canonical line when a wider one already does the job.
 
-**Fix.** Append to `.prettierignore` — keep the comment, same reasoning as check 10:
+**Fix.** Append to `.prettierignore` — keep the comment, same reasoning as check 11:
 
 ```
 # release-please owns and rewrites both of these on every release PR — keep prettier off them.
