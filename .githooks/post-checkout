@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+# Re-sync ~/.claude/skills after a branch switch — branches differ in which
+# skills exist. $3 is 1 for a branch checkout, 0 for a file checkout; only the
+# former can change skills/.
+# Installed by scripts/install.sh. Never fails the git operation.
+[ "$3" = "1" ] || exit 0
+"$(git rev-parse --show-toplevel)/scripts/install.sh" --quiet || true

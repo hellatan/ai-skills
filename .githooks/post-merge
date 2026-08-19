@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+# Re-sync ~/.claude/skills after `git pull` / `git merge` — a pull that adds a
+# new skills/<name>/ directory has no symlink until install.sh runs again.
+# Installed by scripts/install.sh. Never fails the git operation.
+"$(git rev-parse --show-toplevel)/scripts/install.sh" --quiet || true
