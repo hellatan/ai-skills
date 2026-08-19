@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.2.3](https://github.com/hellatan/claude-skills/compare/v2.2.2...v2.2.3) (2026-08-19)
+
+
+### Documentation
+
+* **scaffold:** prettierignore the release-please manifest alongside CHANGELOG.md ([#151](https://github.com/hellatan/claude-skills/issues/151)) ([d9aaeb8](https://github.com/hellatan/claude-skills/commit/d9aaeb83426af113895fc792544fb06bd583f8a9))
+
+
+### Chores
+
+* **release:** develop → main ([d557bd5](https://github.com/hellatan/claude-skills/commit/d557bd50e2de6842a66958a6762b0bdbef7f5cfe))
+
 ## [2.2.2](https://github.com/hellatan/claude-skills/compare/v2.2.1...v2.2.2) (2026-08-18)
 
 
