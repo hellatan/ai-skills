@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# Re-sync ~/.claude/skills after `git pull --rebase`, which fires no post-merge.
+# $1 is the command that rewrote the commits: rebase or amend.
+# Installed by scripts/install.sh. Never fails the git operation.
+[ "$1" = "rebase" ] || exit 0
+"$(git rev-parse --show-toplevel)/scripts/install.sh" --quiet || true

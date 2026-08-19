@@ -28,6 +28,19 @@ cd ~/projects/claude-skills
 
 This symlinks each `skills/<skill-name>/` into `~/.claude/skills/<skill-name>`. Invocation is the bare skill name: `/project-scaffold`, `/testing-init`, etc.
 
+It also installs `.githooks/{post-merge,post-checkout,post-rewrite}`, so **you only run this script once per clone**. After that, `git pull`, `git pull --rebase`, and branch switches re-sync the symlinks on their own: a new skill gets linked, and a renamed or deleted one gets its dead link pruned. Editing an existing skill never needed a re-run — the symlink makes those changes live immediately.
+
+A hook run prints only what changed, and never fails the git operation. Re-running by hand is always safe:
+
+```bash
+./scripts/install.sh          # full output
+./scripts/install.sh --quiet  # changes and warnings only
+```
+
+Two things it deliberately won't do: replace a real directory sitting where a symlink belongs, or remove a dangling link that points at some other repo. Both are reported with the `rm` command to run yourself.
+
+Note that a **linked worktree can't install** — `~/.claude/skills` has to point at the primary checkout, or `git worktree remove` would break every skill. Run it from `~/projects/claude-skills` instead.
+
 ### Plugin (for marketplace users)
 
 Once published to the marketplace, users will install this as the `ht-skills` plugin. Plugin invocations are namespaced: `/ht-skills:project-scaffold`, `/ht-skills:testing-init`, etc.
