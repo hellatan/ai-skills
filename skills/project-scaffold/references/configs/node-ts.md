@@ -72,7 +72,10 @@ out/
 coverage/
 *.lock
 package-lock.json
+
+# release-please owns and rewrites both of these on every release PR — keep prettier off them.
 CHANGELOG.md
+.github/.release-please-manifest.json
 
 # Prettier's YAML formatting mangles hand-maintained GitHub Actions workflow
 # files (reflowing inline comments) for zero benefit — skip all YAML.
@@ -80,7 +83,7 @@ CHANGELOG.md
 *.yaml
 ```
 
-`CHANGELOG.md` is ignored because release-please owns its formatting — the changelog it generates doesn't satisfy prettier's `--check`, so without this line the first release turns CI's `format:check` red on `main` the moment it lands.
+`CHANGELOG.md` and `.github/.release-please-manifest.json` are ignored because release-please owns both and rewrites them on every release PR, and what it writes doesn't reliably satisfy prettier's `--check` (the generated changelog never does; the manifest keeps whatever JSON style it already had, prettier-clean or not). Without these lines the release PR turns CI's `format:check` red, and since auto-merge is gated on checks, the release freezes there (hit live 2026-08-18: a fresh scaffold's first release PR sat blocked until the manifest line was added).
 
 `*.yml` / `*.yaml` are ignored because prettier's YAML formatting is finicky and mangles GitHub Actions workflow files (reflowing inline comments into wrapped messes) for zero benefit — workflow files are small, hand-maintained, and benefit from intentional formatting.
 
