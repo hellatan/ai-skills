@@ -109,6 +109,8 @@ Scaffold **release verification** alongside release-please (same skip condition)
 
 Default: the tag-gated deploy step from `references/tagged-deploy.md`, in the same job that cuts the tag. **Don't** scaffold a `deploy.yml` on `on: push: tags` unless the deploy genuinely needs its own workflow (build matrix, `environment:` approval gate, per-component fan-out) — a tag pushed with `GITHUB_TOKEN` never fires that trigger at all.
 
+**Staging** is decided by one question — does the repo have a `stage` branch? On a retrofit that's a `git ls-remote` probe; invoked from `project-scaffold` it's that skill's Step 6 answer, passed in (the probe would fire before the branch exists). No `stage` branch → no staging environment, full stop (the default; report it as `n/a`). `stage` present → a second release-please instance cutting pre-release tags, per §7. Never propose a staging service that watches a branch.
+
 If a `deploy.yml` already exists: skip with a "you already have a deploy workflow" note, and mention that the tagged-only model would fold it into `release-please.yml`.
 
 If a standalone stub *is* wanted: scaffold it from `references/deploy-stub.md`. It lists Render, Vercel, Fly.io, Railway, GHCR, and SSH/rsync as commented alternatives, all on equal footing (each needs user-supplied credentials), with a "How to use this file" header that walks the user through picking a target and adding the secrets it needs.
@@ -132,6 +134,7 @@ Render the plan as a fenced code block with emoji headers (same convention as `p
 🔎 release-verify:  <scaffolding (verify-tag + release-health + discord-alert) | skipped (with release-please)>
 🚀 Deploy model:    <tagged-only, folded into release-please.yml (target: <platform>) | standalone deploy.yml | skipped (already present)>
 🚦 Deploy enabled:  <yes | no — setting RENDER_DEPLOY=false (no service yet; releases still tag, deploy step skips)>
+🧪 Staging env:     <n/a — no `stage` branch (the default) | scaffolding release-please-stage.yml + pre-release-tag deploy (unverified)>
 🤝 Release auto-merge: <on, gated on the release PR's checks (pause with the RELEASE_AUTOMERGE repo variable) | off>
 🔁 develop→main PR: <scaffolding | skipped (main-only / staging / already present)>
 🔙 main→develop back-merge: <scaffolding | skipped (main-only / staging / already present)>
@@ -196,6 +199,12 @@ Two more steps folded into the same `release-please.yml` job, plus one platform 
 1. **Deploy tagged release** — gated on `steps.check.outputs.released == 'true' && vars.RENDER_DEPLOY != 'false'`, deploying `github.sha`, which *is* the commit release-please just tagged. Render is the verified path (POST the deploy hook with `&ref=<sha>`, `RENDER_DEPLOY_HOOK_URL` secret, fail loudly if unset **while deploys are enabled**). Vercel/Netlify/Cloudflare and generic-CI/AWS variants exist in the reference **commented out and marked unverified** — scaffold them that way; never present them as tested.
 2. **Auto-merge the release PR, gated on that PR's own checks** — poll until every check has passed, then squash-merge via `RELEASE_PLEASE_TOKEN` (a `GITHUB_TOKEN` merge wouldn't re-trigger the workflow, so no tag would ever be cut), finding the PR by its `autorelease: pending` label rather than the action's `pr` output. The gate is load-bearing: this merge is what tags and deploys, and `gh pr merge --auto` can't do it (no `allow_auto_merge`, no required checks without branch protection). A failed / missing / timed-out check leaves the PR open and alerts. Pause switch: repo variable `RELEASE_AUTOMERGE=false`; wait ceiling: `RELEASE_CHECKS_TIMEOUT_SECONDS`.
 3. **Turn off the platform's native branch auto-deploy** (`autoDeploy: false` in `render.yaml`, or the equivalent dashboard setting elsewhere). **Existing service:** the file alone does nothing — say plainly in the report that the setting must also be flipped in the platform dashboard (or the Blueprint re-synced). **Brand-new service created from a Blueprint that already carries `autoDeploy: false`:** it starts off; don't send the user chasing a toggle that's already correct.
+
+**Staging: only if the repo has a `stage` branch — and then it is tagged too.** Detect with `git ls-remote --heads origin stage` when retrofitting an existing repo. **When invoked from `project-scaffold`, take the decision from its Step 6 instead** — the probe runs before the repo or the branch exists and would always answer "no" (`project-scaffold/references/step-14-delegate.md`).
+
+- **No `stage` branch (the common case): scaffold no staging environment at all.** That is the intended end state, not a gap — report it as `n/a`, don't hedge, and never substitute a `develop`-watching auto-deploy for it. If the user wants staging, the `stage` branch comes first (`gitflow-init`), and the environment follows from it.
+- **`stage` branch present:** staging deploys from **pre-release** tags (`vX.Y.Z-rc.N`) cut by a second release-please instance targeting `stage` — `release-please-stage.yml` plus its own `release-please-config.stage.json` / `.release-please-manifest.stage.json`, and a staging deploy step gated on `RENDER_STAGE_DEPLOY` / `RENDER_STAGE_DEPLOY_HOOK_URL`. Marked **unverified** in the reference; scaffold it deliberately and say so in the report.
+- **Either way, `autoDeploy` stays off on every service.** The rule has no per-environment exception — see the "Environments" section of `references/tagged-deploy.md`, which is the canonical statement of all of the above.
 
 **Set `RENDER_DEPLOY=false` whenever the repo has no deploy target yet.** A repo with no service has no deploy hook to configure, and without the gate its first tagged release would fail the release workflow — on something that was never deployed. With the gate, the release chain works from day one and only the deploy step is dormant. Give the go-live checklist (create service → add secret → delete the variable) from `references/tagged-deploy.md` in the report.
 

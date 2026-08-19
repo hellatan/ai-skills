@@ -72,6 +72,8 @@ Three independent decisions:
 
 > Want a `stage` branch as a pre-production rehearsal? Code goes there before `main`, deploys to a staging environment, gives you a click-around safety net before real users see it. If you're solo or just starting out, you can skip this and add it later.
 
+**The branch is the gate on the whole staging environment.** No `stage` branch → no staging deploy target, and that is the intended end state for most repos, not a gap. If `stage` *is* created, the staging environment deploys from **pre-release tags** (`vX.Y.Z-rc.N`) cut off it — never from a push to `stage`, and never from a platform auto-deploy watching a branch. This skill only creates the branch; the workflows and config that make it deploy live in `gh-actions-init` — see the "Environments" section of `gh-actions-init/references/tagged-deploy.md`. Mention that in the summary so the user knows the branch alone doesn't ship anything.
+
 **c. Apply branch protection?** Default yes — but skip silently if Step 1 detected free-tier + private (see Step 6 fallback).
 
 ### 3. Show summary, halt for confirmation
@@ -159,6 +161,6 @@ Next steps:
 ## Why these defaults
 
 - **`develop` as default branch** — PRs land in `develop` first; `main` stays release-only. release-please opens its release PR from `develop` → `main`. `main` getting touched only on release means the deploy workflow tied to `v*.*.*` tags is unambiguously the production trigger.
-- **`stage` is opt-in** — most projects don't need it day one; adding it later is a one-command operation.
+- **`stage` is opt-in** — most projects don't need it day one; adding it later is a one-command operation. Its absence is also the absence of a staging *environment*, deliberately: `gh-actions-init` scaffolds a staging deploy only when the branch exists (`gh-actions-init/references/tagged-deploy.md`, "Environments").
 - **Skip protection on free-tier private** — branch protection requires GitHub Pro for private repos. The skill scaffolds the rest of the workflow and surfaces the limitation rather than failing the whole flow.
 - **Composes with `project-scaffold`** — its Steps 18 + 19 point directly at `references/branch-protection.md` and the `gh repo edit --default-branch develop` command. Run order doesn't matter (project-scaffold wraps gitflow-init's logic; gitflow-init standalone is for retrofits).

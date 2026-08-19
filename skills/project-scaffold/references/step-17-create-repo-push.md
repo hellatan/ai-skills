@@ -79,6 +79,10 @@ The scaffolded `release-please.yml` reads two repo **variables** (not secrets, s
 # (promote → release PR → auto-merge → tag) and only the deploy step is dormant.
 gh variable set RENDER_DEPLOY --body false --repo <owner>/<name>
 
+# Only when Step 6 opted into staging — unset reads as ENABLED, so skipping this
+# makes the first pre-release tag off `stage` fail on the missing staging hook.
+gh variable set RENDER_STAGE_DEPLOY --body false --repo <owner>/<name>
+
 # RELEASE_AUTOMERGE is deliberately left UNSET — unset means auto-merge is ON,
 # which is the intended default. Only set it to `false` to pause hands-off
 # releases for manual review.
