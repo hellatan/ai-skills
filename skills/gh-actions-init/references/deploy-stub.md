@@ -125,11 +125,12 @@ name: Deploy
 on:
   push:
     tags:
-      # Production releases only — the `-rc` suffix makes pre-releases fail this
-      # glob, which is what keeps a release candidate out of production.
+      # This ONE glob matches both classes. `*` matches `.` and `-` in GitHub's
+      # ref filters, so 'v*.*.*' matches `v1.2.0-rc.1` as well as `v1.2.0` —
+      # the trigger cannot separate them, and a second '-rc' glob would be dead
+      # weight. The split happens in the jobs' `if:` conditions below, which is
+      # the only place it can happen.
       - 'v*.*.*'
-      # Pre-releases cut from `stage`.
-      - 'v*.*.*-rc.*'
 
 jobs:
   deploy-staging:
@@ -154,7 +155,7 @@ jobs:
       - run: echo "TODO — fill in deploy steps for production"
 ```
 
-**The `-rc.` guard on `deploy-prod` is load-bearing.** `v*.*.*` matches `v1.2.0-rc.1` as well as `v1.2.0` — without the `!contains(...)`, every release candidate would ship straight to production, which is the exact opposite of what a staging environment is for.
+**The `-rc.` guard on `deploy-prod` is load-bearing, and the trigger cannot replace it.** `v*.*.*` matches `v1.2.0-rc.1` as well as `v1.2.0`, because `*` matches `.` and `-` in GitHub's ref-filter globs. There is no tag pattern that admits `v1.2.0` and rejects `v1.2.0-rc.1` — `tags-ignore` can't be combined with `tags` on the same event either. So the discrimination has to live in `if:`, and without the `!contains(...)` every release candidate ships straight to production, which is the exact opposite of what a staging environment is for.
 
 ## Render Blueprint (`render.yaml`) — opt-in, only when the target is Render
 

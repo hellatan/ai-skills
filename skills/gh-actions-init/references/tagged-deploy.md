@@ -117,8 +117,10 @@ Staging gets its **own release-please instance**, targeting `stage` and cutting 
       "include-component-in-tag": false,
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
+      "versioning": "prerelease",
       "prerelease": true,
       "prerelease-type": "rc",
+      "changelog-path": "CHANGELOG-stage.md",
       "changelog-sections": [ … same list as production — un-hide every type … ]
     }
   },
@@ -128,11 +130,20 @@ Staging gets its **own release-please instance**, targeting `stage` and cutting 
 }
 ```
 
-`prerelease: true` + `prerelease-type: "rc"` produce `v0.3.0-rc.0`, `v0.3.0-rc.1`, … Everything else — root scoping, no `package-name`, both title patterns, un-hidden `changelog-sections` — carries over unchanged, and for the same reasons. A hidden type here strands a staging release exactly the way it strands a production one.
+Four added keys. Two of them behave nothing like their names suggest, so read these before copying:
+
+- **⚠️ `"versioning": "prerelease"` is what actually produces an rc version — `prerelease: true` does not.** Per release-please's own schema, `prerelease` means only *"Create the GitHub release as prerelease"*, and `prerelease-type` is *"Configuration option for the prerelease versioning strategy"* — inert unless that strategy is selected. `versioning` defaults to `default`. So a config with `prerelease: true` + `prerelease-type: "rc"` and **no** `versioning` key cuts ordinary `v0.3.0` tags that merely carry GitHub's prerelease flag. That is a silent, severe failure: staging and production then mint tags in the **same `vX.Y.Z` namespace** (so a staging tag can collide with a production one), and the `-rc.` discriminator every deploy condition keys on never matches — routing staging's tags to **production**. `versioning` / `prerelease` / `prerelease-type` are a set — none of them does the job alone.
+- **⚠️ `changelog-path` must differ from production's.** It defaults to `CHANGELOG.md` for *both* instances, so without this key the staging instance prepends its `## 0.3.0-rc.0` sections to the same file production owns. Those entries then ride the `stage → main` promotion into the production changelog permanently, and the two streams conflict on the file's leading lines at every promotion and back-merge.
+- `prerelease-type: "rc"` just picks the label; `"beta"` or `"alpha"` work identically.
+- **⚠️ All three staging files need a `.prettierignore` entry**, exactly like their production counterparts: `CHANGELOG-stage.md`, `.github/.release-please-manifest.stage.json`, and (if the repo lints JSON config) `.github/release-please-config.stage.json`. release-please rewrites the first two on every staging release PR and its output doesn't reliably satisfy prettier, so without the carve-out the staging release PR fails `format:check` — and with auto-merge gated on green checks, the staging release freezes there. Same failure as the production pair (`references/release-please.md`, "Keep prettier off the manifest"); the scaffolded `.prettierignore` only carries the production names.
+
+Everything else — root scoping, no `package-name`, both title patterns, un-hidden `changelog-sections` — carries over unchanged, and for the same reasons. A hidden type here strands a staging release exactly the way it strands a production one.
 
 **A second manifest — `.github/.release-please-manifest.stage.json`.** Seed it to match the current version, same as the production manifest.
 
-**⚠️ Use distinct file paths, not `target-branch` alone.** release-please reads its config and manifest *from the target branch*. Reuse the production paths and the two variants must differ in content **on different branches of the same repo** — so every `stage → main` merge carries `prerelease: true` onto `main`, where the next production release cuts `v1.3.0-rc.0` and ships it as prod. Distinct paths keep both variants present on every branch and let each workflow name the one it wants.
+**⚠️ The root version file is still shared, and there is no config key that separates it.** `release-type: node` bumps the root `package.json` on whichever branch it runs, so `stage` carries `0.3.0-rc.0` while `main` carries `0.2.0`. Every `stage → main` promotion and `main → stage` back-merge therefore conflicts on the `version` line. Resolve in favour of the **target** branch every time — the receiving instance's manifest is its source of truth and its release commit rewrites the field anyway — but budget for the conflict rather than being surprised by it. This is the one cost of the two-stream model that config cannot design away, and it is the main reason to leave staging opt-in.
+
+**⚠️ Use distinct file paths, not `target-branch` alone.** release-please reads its config and manifest *from the target branch*. Reuse the production paths and the two variants must differ in content **on different branches of the same repo** — so every `stage → main` merge carries the prerelease keys onto `main`, where the next production release cuts `v1.3.0-rc.0` and ships it as prod. Distinct paths keep both variants present on every branch and let each workflow name the one it wants.
 
 **Workflow — `.github/workflows/release-please-stage.yml`.** Same shape as `release-please.yml` (same permissions block, same `verify-tag` steps, same auto-merge step), with four changes:
 
@@ -191,7 +202,7 @@ concurrency:
 Four things that are easy to get wrong here:
 
 - **The production workflow is untouched.** It runs only on push to `main`, so an `-rc` tag can never reach it, and the production config has no `prerelease` key — so promoting `stage → main` cuts an ordinary `vX.Y.Z`. Do not add tag filters to the prod workflow to "keep rc out"; there is nothing to keep out.
-- **Two manifests means two version streams, and they drift.** Staging runs ahead of production by design. That is the expected state, not a bug to reconcile — the staging number is a rehearsal label, the production number is the one that means something.
+- **Two manifests means two version streams, and they drift.** Staging runs ahead of production by design. That is the expected state, not a bug to reconcile — the staging number is a rehearsal label, the production number is the one that means something. The visible cost is the recurring `package.json` conflict noted above; resolve toward the target branch and move on.
 - **`develop-to-main-pr.yml` and `main-to-develop-backmerge.yml` are not scaffolded in a staging topology.** The promotion chain is two hops (`develop → stage → main`), so the single-hop pair doesn't fit — see `gh-actions-init/SKILL.md` §8.
 - **Protect `stage` like the other two** (`gitflow-init/references/branch-protection.md`), where the plan allows protection at all.
 

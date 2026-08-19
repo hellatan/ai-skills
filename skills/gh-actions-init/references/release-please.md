@@ -248,7 +248,9 @@ Tradeoff worth stating to the user: a docs-only promotion now triggers a build +
 
 ## Config — staging pre-releases (only in a repo with a `stage` branch)
 
-A repo with a `stage` branch runs a **second** release-please instance against it, cutting pre-release tags (`v0.3.0-rc.1`) that the staging environment deploys. It uses its own config + manifest **file paths** — `.github/release-please-config.stage.json` and `.github/.release-please-manifest.stage.json` — carrying `"prerelease": true` and `"prerelease-type": "rc"` on the package, and a `release-please-stage.yml` workflow that names them via the action's `config-file` / `manifest-file` inputs alongside `target-branch: stage`.
+A repo with a `stage` branch runs a **second** release-please instance against it, cutting pre-release tags (`v0.3.0-rc.1`) that the staging environment deploys. It uses its own config + manifest **file paths** — `.github/release-please-config.stage.json` and `.github/.release-please-manifest.stage.json` — and a `release-please-stage.yml` workflow that names them via the action's `config-file` / `manifest-file` inputs alongside `target-branch: stage`.
+
+The stage config needs **four** keys the production one doesn't, and three of them are load-bearing: `"versioning": "prerelease"` (this, not `prerelease: true`, is what makes the version an rc — `prerelease` alone only flags the GitHub Release, so omitting it mints ordinary `vX.Y.Z` tags that collide with production's), `"prerelease": true`, `"prerelease-type": "rc"`, and `"changelog-path": "CHANGELOG-stage.md"` (it defaults to `CHANGELOG.md` for both instances, so sharing it pollutes and conflicts the production changelog).
 
 Reusing the production paths and relying on `target-branch` alone is the trap: release-please reads config and manifest *from the target branch*, so the two variants would have to differ in content per branch, and the next `stage → main` merge carries `prerelease: true` onto `main` — where production then cuts `v1.3.0-rc.0` and ships it.
 
