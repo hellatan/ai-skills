@@ -6,6 +6,8 @@ The deploy model this skill scaffolds by default, and the canonical explanation 
 
 Verified end-to-end on a production Next.js app deployed to Render. The Render pieces below are the tested path; the other platform blocks are documented-but-unverified and clearly marked as such.
 
+**Scope:** the five parts below describe **production**. Whether the repo also has a *staging* environment — and the answer is usually no — is settled by "Environments: production, and staging only if a `stage` branch exists" below. Read that section before proposing any second service; the one rule that spans both is that platform auto-deploy is off **everywhere**.
+
 ---
 
 ## The problem it solves
@@ -23,9 +25,11 @@ The fix is the same shape everywhere: **turn off the platform's native git auto-
 
 ## The five parts
 
-### 1. Platform auto-deploy off
+### 1. Platform auto-deploy off — on **every** service, no exceptions
 
 Render: `autoDeploy: false` in `render.yaml`.
+
+**No service in the repo is exempt, staging included.** GitHub Actions is the only thing that ever triggers a deploy, anywhere, so every deploy that has ever happened is a run in the Actions log with a tag attached to it. One service left watching a branch — most tempting for a staging environment pointed at `develop` — breaks that property for the whole repo, not just for itself. See "Environments" below.
 
 **The answer differs for a brand-new service vs. an existing one, and mixing them up is the most-copied mistake here:**
 
@@ -67,6 +71,140 @@ release-please **skips the release entirely when the changelog would be empty**,
 Un-hiding every type means every promotion produces a release. Versioning stays semantic: **do not** reach for `always-bump-patch`, which flattens `feat` → patch. The default strategy already floors everything at a patch while keeping `feat` → minor and breaking → major.
 
 Tradeoff, stated plainly: a docs-only promotion also triggers a build + deploy — a near-no-op rebuild. That is the price of a strict `main == production` invariant.
+
+---
+
+## Environments: production, and staging **only if a `stage` branch exists**
+
+The five parts above describe **production**. This section answers the question the rest of this doc used to leave unanswered — *what about staging?* — because the silence itself caused drift: a session scaffolding a new project proposed creating a staging service with the platform's own `autoDeploy` **on**, watching `develop`. That is precisely the failure this whole design exists to eliminate, one environment over.
+
+### The rule
+
+**Platform auto-deploy is off on every service, staging included** (part 1). GitHub Actions is the only thing that ever triggers a deploy, so *every* environment is answerable to the same question — "which tagged commit is on it, and which Actions run put it there?" That property is repo-wide or it is nothing: one exempt service and the audit trail has a hole in it.
+
+| Environment | Exists when | Deploys from | Tag class | Triggered by |
+|---|---|---|---|---|
+| production | whenever the repo deploys anywhere at all | `main` | release tag `vX.Y.Z` | the deploy step in `release-please.yml` |
+| staging | **only if the repo has a `stage` branch** | `stage` | **pre-release** tag `vX.Y.Z-rc.N` | the deploy step in `release-please-stage.yml` |
+
+Same discipline in both rows: auto-deploy off, CI-driven, gated on a verified tag, deploying that exact commit once. The only thing that differs is the class of tag.
+
+### No `stage` branch → no staging environment. That is a complete answer.
+
+Most repos here have no `stage` branch and therefore have **no staging environment at all**. That is a deliberate, common, correct end state — not an omission, not a gap to fill in, not something to hedge about in a scaffold report. `develop → main` behind one human gate is the default topology; staging is an opt-in that buys a rehearsal at the cost of a second service, a second version stream, and a second deploy path.
+
+Two corollaries. The second one is the drift that prompted this section:
+
+- **Do not invent a staging service for a repo with no `stage` branch.** There is nothing for it to deploy — no branch, no pre-release tag stream, no trigger.
+- **Do not point a staging service at `develop`** (or at any branch) with the platform's auto-deploy. That is a branch-watching auto-deploy wearing a different hat, and it violates part 1. `develop` is *pre-promotion* work; nothing tagged lives there.
+
+If someone wants staging, the move is to add the `stage` branch first — `gitflow-init` step b, or `project-scaffold` Step 6 — which is what brings the environment with it.
+
+### If the repo *does* have a `stage` branch: pre-release tags
+
+> ⚠️ **NOT verified in production.** No repo in this fleet currently runs a `stage` branch, so everything below is derived from release-please's documented behaviour and belongs in the same category as the "Other platforms" section further down. Scaffold it deliberately and walk the first-deploy checklist before trusting it.
+
+Staging gets its **own release-please instance**, targeting `stage` and cutting pre-release tags.
+
+**Config — `.github/release-please-config.stage.json`.** Identical to the production config (`references/release-please.md`), plus two keys on the package:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "node",
+      "include-component-in-tag": false,
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": false,
+      "prerelease": true,
+      "prerelease-type": "rc",
+      "changelog-sections": [ … same list as production — un-hide every type … ]
+    }
+  },
+  "include-v-in-tag": true,
+  "pull-request-title-pattern": "chore: release${component} ${version}",
+  "group-pull-request-title-pattern": "chore: release${component} ${version}"
+}
+```
+
+`prerelease: true` + `prerelease-type: "rc"` produce `v0.3.0-rc.0`, `v0.3.0-rc.1`, … Everything else — root scoping, no `package-name`, both title patterns, un-hidden `changelog-sections` — carries over unchanged, and for the same reasons. A hidden type here strands a staging release exactly the way it strands a production one.
+
+**A second manifest — `.github/.release-please-manifest.stage.json`.** Seed it to match the current version, same as the production manifest.
+
+**⚠️ Use distinct file paths, not `target-branch` alone.** release-please reads its config and manifest *from the target branch*. Reuse the production paths and the two variants must differ in content **on different branches of the same repo** — so every `stage → main` merge carries `prerelease: true` onto `main`, where the next production release cuts `v1.3.0-rc.0` and ships it as prod. Distinct paths keep both variants present on every branch and let each workflow name the one it wants.
+
+**Workflow — `.github/workflows/release-please-stage.yml`.** Same shape as `release-please.yml` (same permissions block, same `verify-tag` steps, same auto-merge step), with four changes:
+
+```yaml
+on:
+  push:
+    branches: [stage] # not main
+
+concurrency:
+  group: release-please-stage # its own group — must not queue behind prod
+  cancel-in-progress: false
+
+# …
+      - id: release
+        uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          target-branch: stage
+          config-file: .github/release-please-config.stage.json
+          manifest-file: .github/.release-please-manifest.stage.json
+```
+
+…and the auto-merge step's PR lookup uses `base=stage` rather than `base=main`.
+
+**The staging deploy step.** Identical in shape to the production one, pointed at the staging service's own hook and gated on its own variable:
+
+```yaml
+# Staging deploy — the ONLY thing that ships staging. The staging service also
+# carries autoDeploy: false; nothing deploys on a push to `stage` itself, only
+# on a verified PRE-RELEASE tag cut from it.
+- name: Deploy tagged pre-release to staging
+  if: ${{ steps.check.outputs.released == 'true' && vars.RENDER_STAGE_DEPLOY != 'false' }}
+  env:
+    RENDER_STAGE_DEPLOY_HOOK_URL: ${{ secrets.RENDER_STAGE_DEPLOY_HOOK_URL }}
+    SHA: ${{ github.sha }}
+  run: |
+    if [ -z "$RENDER_STAGE_DEPLOY_HOOK_URL" ]; then
+      echo "::error::RENDER_STAGE_DEPLOY_HOOK_URL secret is unset — a pre-release was tagged but staging cannot be deployed. If this repo has no staging service yet, set the repo variable RENDER_STAGE_DEPLOY=false instead."
+      exit 1
+    fi
+    echo "Triggering staging deploy of tagged commit ${SHA}"
+    http_code=$(curl -sS -o /tmp/deploy-response.json -w '%{http_code}' \
+      -X POST "${RENDER_STAGE_DEPLOY_HOOK_URL}&ref=${SHA}")
+    echo "Deploy hook returned HTTP ${http_code}"
+    cat /tmp/deploy-response.json 2>/dev/null || true
+    echo ""
+    if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+      echo "::error::Staging deploy hook failed (HTTP ${http_code}) for tagged commit ${SHA}."
+      exit 1
+    fi
+    echo "Staging deploy queued for ${SHA}."
+```
+
+**`render.yaml` gets a second service**, also `autoDeploy: false`, with its own name and its own env group. The dashboard/Blueprint distinction from part 1 applies to it identically.
+
+Four things that are easy to get wrong here:
+
+- **The production workflow is untouched.** It runs only on push to `main`, so an `-rc` tag can never reach it, and the production config has no `prerelease` key — so promoting `stage → main` cuts an ordinary `vX.Y.Z`. Do not add tag filters to the prod workflow to "keep rc out"; there is nothing to keep out.
+- **Two manifests means two version streams, and they drift.** Staging runs ahead of production by design. That is the expected state, not a bug to reconcile — the staging number is a rehearsal label, the production number is the one that means something.
+- **`develop-to-main-pr.yml` and `main-to-develop-backmerge.yml` are not scaffolded in a staging topology.** The promotion chain is two hops (`develop → stage → main`), so the single-hop pair doesn't fit — see `gh-actions-init/SKILL.md` §8.
+- **Protect `stage` like the other two** (`gitflow-init/references/branch-protection.md`), where the plan allows protection at all.
+
+### Staging variables and secrets
+
+Same two-signal split as production, with staging-specific names so the two environments can be enabled independently:
+
+| Situation | `RENDER_STAGE_DEPLOY` | `RENDER_STAGE_DEPLOY_HOOK_URL` | Behaviour |
+|---|---|---|---|
+| No `stage` branch | — | — | No staging workflow exists at all. Nothing to configure. |
+| `stage` branch, no staging service yet | `false` | absent | Step skips. Pre-releases still tag. No failure. |
+| Live staging service | unset / `true` | set | Deploys the tagged pre-release commit. |
+| Live staging, credential missing | unset / `true` | absent | **Fails the run** — same reasoning as production. |
 
 ---
 
@@ -564,4 +702,6 @@ A repo with **multiple independently deployed services** (`apps/web` + `apps/api
 | `RENDER_DEPLOY_HOOK_URL` | secret | **yes, once the repo deploys** | The service's deploy hook. The deploy step fails loudly if unset *while deploys are enabled*. Not needed while `RENDER_DEPLOY=false`. |
 | `RENDER_DEPLOY` | variable | no | Set to `false` when the repo has **no deploy target yet** — the deploy step skips cleanly and releases still tag. Scaffolded repos start here. Delete it at go-live. |
 | `RELEASE_AUTOMERGE` | variable | no | Set to `false` to pause auto-merge and review release PRs by hand. Unset = hands-off (the scaffolded default). |
+| `RENDER_STAGE_DEPLOY_HOOK_URL` | secret | **only in a repo with a `stage` branch**, once staging exists | The staging service's deploy hook. Not needed at all without a `stage` branch — see "Environments" above. |
+| `RENDER_STAGE_DEPLOY` | variable | no | Staging's equivalent of `RENDER_DEPLOY`. Set to `false` while the `stage` branch exists but the staging service doesn't. |
 | `<ALERT_WEBHOOK_SECRET>` | secret | no | Alert channel for the `verify-tag` failure path (`references/release-verification.md`). No-ops when unset. |

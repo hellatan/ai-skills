@@ -17,6 +17,9 @@ Show the user a verbatim summary plus a "next steps" block. Use this template:
   2. `gh secret set RENDER_DEPLOY_HOOK_URL --repo <owner>/<name>`
   3. `gh variable delete RENDER_DEPLOY --repo <owner>/<name>`
   4. The next release deploys the tagged commit automatically — no workflow edit needed. Deleting the variable before the secret exists leaves a window where a release would fail, so keep this order.
+- 🧪 Staging: state the outcome of Step 6 as a decision, never as a gap.
+  - **Staging declined (the default):** *"No `stage` branch, so no staging environment — that's the intended setup, nothing to add later unless you want the branch."* Do not list a staging service, a staging secret, or a "you could add staging" suggestion.
+  - **Staging opted in:** `release-please-stage.yml` cuts pre-release tags (`v0.2.0-rc.N`) off `stage`; the staging service deploys those tags and **not** pushes to `stage` — its `autoDeploy` is off exactly like production's. Staging deploys start gated off via `RENDER_STAGE_DEPLOY=false`; its go-live checklist is the production one with `RENDER_STAGE_DEPLOY_HOOK_URL` / `RENDER_STAGE_DEPLOY` substituted. Flag that this path is **unverified in production**.
 
 ## "Next steps" block (copy verbatim)
 
@@ -25,7 +28,8 @@ Next steps:
 1. (If flagged above) Add the RELEASE_PLEASE_TOKEN repo secret — release workflows fail without it
 2. Push a feature branch and open a PR to develop to confirm CI runs green
 3. Deploys are OFF until you have somewhere to deploy to (RENDER_DEPLOY=false) — nothing to
-   do now. When you go live, follow the go-live checklist above; releases tag fine meanwhile
+   do now. When you go live, follow the go-live checklist above; releases tag fine meanwhile.
+   Auto-deploy stays off on every service you create — CI is the only thing that ships anything
 4. Replace the smoke test stubs with real tests as you build features
 5. When ready to release, merge develop → main — that's the only manual step; the release
    PR auto-merges and the tag is cut (and, once deploys are on, the tagged commit ships)

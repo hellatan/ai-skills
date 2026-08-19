@@ -29,7 +29,11 @@ End the message with: *"Reply 'yes' / 'go' / 'looks good' to proceed, or tell me
 🌿 Branches:
    - `main` — release-only (release-please touches it)
    - `develop` — your day-to-day branch (default for PRs)
-   (skipping staging — you said no)              ← include only if user opted out
+   (no staging — you said no, so no `stage` branch and no staging environment)
+                                                 ← include only if user opted out; state it as a
+                                                   settled choice, not a missing piece
+   - `stage` — pre-production rehearsal, deploys from pre-release tags
+                                                 ← include instead when staging was opted IN
 🧹 Code quality (auto-runs on commit):
    - Pre-commit at repo root, single config
    - <linters/formatters per stack, e.g. "ESLint + Prettier for TS/TSX">
@@ -39,7 +43,13 @@ End the message with: *"Reply 'yes' / 'go' / 'looks good' to proceed, or tell me
 🔁 CI re-trigger:                               ← include only for gitflow repos (develop exists)
    - Comment `/rebuild` on a PR to re-run failed CI; `workflow_dispatch` for manual runs
 🚀 Deploy:
-   - Stub workflow created — you'll fill in deploy target later
+   - Tagged-only — CI deploys the tagged commit; platform auto-deploy is OFF on every service
+   - Production gated off until you have a service (RENDER_DEPLOY=false)
+   (no staging environment — follows from the `stage` branch answer above)
+                                                 ← include only if staging was declined
+   - Staging: release-please-stage.yml cuts pre-release tags (v0.2.0-rc.N) off `stage`;
+     staging deploy gated off until you have a service (RENDER_STAGE_DEPLOY=false)
+                                                 ← include instead when staging was opted IN
 📐 Docs:
    - docs/architecture.html — starter system map (fill-in SVG diagram + failure-modes table)
 🐙 GitHub:

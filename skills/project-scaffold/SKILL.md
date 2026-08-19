@@ -170,7 +170,9 @@ This decision depends on the backend language.
 
 (No alternative offered — workspaces literally can't help when one side is Python.)
 
-### 6. Staging branch
+### 6. Staging branch **and staging environment**
+
+This one answer decides two things, not one: whether the repo gets a `stage` branch, **and** whether it gets a staging deploy environment at all. There is no staging environment without a `stage` branch — see the "Environments" section of `gh-actions-init/references/tagged-deploy.md`, which is the canonical statement of that rule.
 
 Ask:
 
@@ -178,8 +180,19 @@ Ask:
 >
 > A staging branch is like a dress rehearsal — code goes there first, deploys to a separate copy of your site only you can see, and you click around to make sure nothing's broken before it goes live to real users. If you're solo or just starting out, you can skip this and add it later.
 >
-> - `yes` — set up a `stage` branch with its own protected workflow (lifecycle becomes feature → develop → stage → main)
-> - `no` — go straight from develop → production (default)
+> - `yes` — set up a `stage` branch (lifecycle becomes feature → develop → stage → main) **plus a staging deploy environment**: a second release-please instance on `stage` that cuts pre-release tags (`v0.2.0-rc.1`), and a staging service that deploys those tags
+> - `no` — go straight from develop → production, and **no staging environment** (default)
+
+**`no` is a complete answer, and it's the default.** Don't scaffold a staging service, a staging workflow, or a staging entry in the deploy config for a repo that answered `no`, and don't flag its absence as something to fix later in the report. In particular, **never** offer a staging service pointed at `develop` with the platform's own auto-deploy as a substitute — auto-deploy is off on every service in every repo this skill scaffolds, without exception, and `develop` carries nothing tagged.
+
+**If `yes`, what Steps 17–19 additionally do** (all of it detailed in `gh-actions-init/references/tagged-deploy.md`, §"If the repo *does* have a `stage` branch"):
+
+- `.github/workflows/release-please-stage.yml` — release-please targeting `stage`, with `config-file` / `manifest-file` pointing at **stage-specific paths** (`release-please-config.stage.json`, `.release-please-manifest.stage.json`) carrying `"prerelease": true` + `"prerelease-type": "rc"`. Distinct paths, not the production ones — reusing them ships `prerelease: true` onto `main` at the next promotion.
+- A staging deploy step in that workflow, gated on `RENDER_STAGE_DEPLOY` / `RENDER_STAGE_DEPLOY_HOOK_URL`, mirroring the production pair. Scaffolded repos start at `RENDER_STAGE_DEPLOY=false`, same as production.
+- A second service block in the deploy config, also `autoDeploy: false`.
+- `develop-to-main-pr.yml` + `main-to-develop-backmerge.yml` are **skipped** — they model a single-hop promotion and the chain is now two hops.
+
+This path is **not verified in production** (no repo in the fleet runs a `stage` branch yet). Say so in the report rather than presenting it as a tested default.
 
 ### 7. GitHub repo
 
