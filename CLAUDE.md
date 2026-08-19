@@ -14,7 +14,8 @@ Personal monorepo of Claude skills. Each skill lives under `skills/<skill-name>/
 ## Project map
 
 - `skills/<skill-name>/` — one folder per skill
-- `scripts/install.sh` — symlinks each skill into `~/.claude/skills/`
+- `scripts/install.sh` — symlinks each skill into `~/.claude/skills/`, prunes links to skills this repo no longer has, and installs the git hooks below
+- `.githooks/` — `post-merge` / `post-checkout` / `post-rewrite`, each re-running `install.sh --quiet` so a pulled-in skill is usable without a manual install step
 - `scripts/validate.sh` — sanity-checks every SKILL.md (frontmatter present, name matches folder, etc.)
 - `.github/workflows/` — CI for validation + release-please
 - `docs/architecture.html` — living system map (open in a browser). Update it when components, flows, or failure modes change.
