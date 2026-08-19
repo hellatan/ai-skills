@@ -484,7 +484,7 @@ a finding.
 
 ---
 
-## 9. Referenced secrets exist — medium (dead alerts) / **high** (failing run)
+## 10. Referenced secrets exist — medium (dead alerts) / **high** (failing run)
 
 **What.** Every `secrets.NAME` a workflow references should exist on the repo. Collect the
 names from `.github/workflows/*` and `.github/actions/*/action.yml`, then diff against the
@@ -546,7 +546,7 @@ silent-coverage-loss this skill exists to prevent.
 
 ---
 
-## 10. Prettier must not format YAML — medium
+## 11. Prettier must not format YAML — medium
 
 **What.** If a repo's `format:check` runs prettier over the whole tree, its
 `.prettierignore` must exclude `*.yml` / `*.yaml`.
@@ -589,6 +589,61 @@ the lines as noise:
 # files (reflowing inline comments) for zero benefit — skip all YAML.
 *.yml
 *.yaml
+```
+
+---
+
+## 12. Release-please-owned files are prettier-ignored — medium
+
+**What.** If a repo runs prettier over the whole tree **and** uses release-please, its
+`.prettierignore` must carry both `CHANGELOG.md` and
+`.github/.release-please-manifest.json`.
+
+**Why.** release-please rewrites both files on every release PR, and what it writes
+doesn't reliably satisfy prettier's `--check` (the generated changelog never does; the
+manifest keeps whatever JSON style it already had). Without the carve-out the release PR
+itself fails `format:check` — and since these repos auto-merge release PRs gated on green
+checks, the release **freezes** there. Nobody is watching the release PR precisely
+because auto-merge normally handles it. Observed live 2026-08-18: a fresh scaffold's
+first release PR sat blocked until the manifest line was added. Rationale and canonical
+lines: `project-scaffold/references/configs/node-ts.md` § `.prettierignore`;
+`gh-actions-init/references/release-please.md` § "Manifest — match current version".
+
+**Detection.**
+
+```bash
+# gate exactly like check 11: only repos that run prettier over the tree...
+fc=$(jq -r '.scripts["format:check"] // .scripts.format // ""' package.json)
+case "$fc" in
+  *prettier*)
+    # ...and that actually use release-please. Manifest-less (v3-style) setups
+    # still rewrite CHANGELOG.md, so gate the changelog line on the workflow too.
+    if [[ -f .github/workflows/release-please.yml || -f .github/.release-please-manifest.json ]]; then
+      grep -qE '^/?CHANGELOG\.md$' .prettierignore 2>/dev/null \
+        || echo "DRIFT: CHANGELOG.md not prettier-ignored"
+    fi
+    if [[ -f .github/.release-please-manifest.json ]]; then
+      grep -qE '^/?\.github/?$|^/?\.github/\.release-please-manifest\.json$' .prettierignore 2>/dev/null \
+        || echo "DRIFT: release-please manifest not prettier-ignored"
+    fi ;;
+esac
+```
+
+The same non-drift shapes as check 11 apply (no `format:check`, scoped script,
+non-prettier formatter) — plus two more. **No release-please at all means no finding**,
+whatever the ignore file says: nothing is rewriting these files. (The workflow filename
+gate is a shortcut — a repo that named it differently should be caught by the same
+behaviour-based search check 8 uses.) And **a broader covering pattern is a pass, not
+drift**: a `.prettierignore` carrying `.github/` covers the manifest just as check 11
+accepts it for workflow YAML — the regex above allows that shape; don't demand the
+canonical line when a wider one already does the job.
+
+**Fix.** Append to `.prettierignore` — keep the comment, same reasoning as check 11:
+
+```
+# release-please owns and rewrites both of these on every release PR — keep prettier off them.
+CHANGELOG.md
+.github/.release-please-manifest.json
 ```
 
 ---

@@ -11,20 +11,20 @@ A **fine-grained PAT**, read-only:
 | --- | --- |
 | Resource owner | the account that owns the audited repos |
 | Repository access | All repositories (discovery mode) or the selected set (list mode) |
-| Repository permissions | **Metadata: Read-only** + **Contents: Read-only** (+ **Secrets: Read-only** for check 9) |
+| Repository permissions | **Metadata: Read-only** + **Contents: Read-only** (+ **Secrets: Read-only** for check 10) |
 | Expiration | note the date — see "when it expires" below |
 
 **Contents: Read** is what fetches `.github/workflows/*`. **Metadata: Read** is mandatory
 on any fine-grained PAT.
 
-**Secrets: Read-only** is needed by **check 9** (referenced secrets exist) and nothing
+**Secrets: Read-only** is needed by **check 10** (referenced secrets exist) and nothing
 else. It grants the secret **names** only — values are never retrievable through the API at
 any permission level, so this does not put a credential within the audit's reach. It is
 still a read permission, so it doesn't break the no-write rule below.
 
-If you'd rather not grant it, that's a legitimate choice — but then check 9 must report
+If you'd rather not grant it, that's a legitimate choice — but then check 10 must report
 `skipped: token lacks Secrets:Read` on every repo. It must **never** report a pass it
-couldn't verify; see `checks.md` check 9.
+couldn't verify; see `checks.md` check 10.
 
 **No write permission, ever.** An audit must not be able to change what it audits. If a
 proposed change appears to need write access, the change is wrong — report the finding and
