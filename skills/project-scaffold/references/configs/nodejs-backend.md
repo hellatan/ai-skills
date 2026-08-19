@@ -141,11 +141,17 @@ coverage/
 *.lock
 package-lock.json
 
+# release-please owns and rewrites both of these on every release PR — keep prettier off them.
+CHANGELOG.md
+.github/.release-please-manifest.json
+
 # Prettier's YAML formatting mangles hand-maintained GitHub Actions workflow
 # files (reflowing inline comments) for zero benefit — skip all YAML.
 *.yml
 *.yaml
 ```
+
+The release-please carve-outs and the YAML rationale are the same as the shared config — see `node-ts.md`, "`.prettierignore`".
 
 ## Stub source file
 
