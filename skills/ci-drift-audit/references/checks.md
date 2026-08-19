@@ -616,20 +616,27 @@ lines: `project-scaffold/references/configs/node-ts.md` § `.prettierignore`;
 fc=$(jq -r '.scripts["format:check"] // .scripts.format // ""' package.json)
 case "$fc" in
   *prettier*)
-    # ...and that actually use release-please
-    if [[ -f .github/.release-please-manifest.json ]]; then
-      grep -qxF 'CHANGELOG.md' .prettierignore 2>/dev/null \
+    # ...and that actually use release-please. Manifest-less (v3-style) setups
+    # still rewrite CHANGELOG.md, so gate the changelog line on the workflow too.
+    if [[ -f .github/workflows/release-please.yml || -f .github/.release-please-manifest.json ]]; then
+      grep -qE '^/?CHANGELOG\.md$' .prettierignore 2>/dev/null \
         || echo "DRIFT: CHANGELOG.md not prettier-ignored"
-      grep -qxF '.github/.release-please-manifest.json' .prettierignore 2>/dev/null \
+    fi
+    if [[ -f .github/.release-please-manifest.json ]]; then
+      grep -qE '^/?\.github/?$|^/?\.github/\.release-please-manifest\.json$' .prettierignore 2>/dev/null \
         || echo "DRIFT: release-please manifest not prettier-ignored"
     fi ;;
 esac
 ```
 
 The same non-drift shapes as check 10 apply (no `format:check`, scoped script,
-non-prettier formatter) — plus one more: **no release-please manifest means no finding**,
-whatever the ignore file says. A repo without release-please has nothing rewriting these
-files.
+non-prettier formatter) — plus two more. **No release-please at all means no finding**,
+whatever the ignore file says: nothing is rewriting these files. (The workflow filename
+gate is a shortcut — a repo that named it differently should be caught by the same
+behaviour-based search check 8 uses.) And **a broader covering pattern is a pass, not
+drift**: a `.prettierignore` carrying `.github/` covers the manifest just as check 10
+accepts it for workflow YAML — the regex above allows that shape; don't demand the
+canonical line when a wider one already does the job.
 
 **Fix.** Append to `.prettierignore` — keep the comment, same reasoning as check 10:
 
