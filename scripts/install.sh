@@ -18,7 +18,7 @@ QUIET=0
 for arg in "$@"; do
   case "$arg" in
     --quiet) QUIET=1 ;;
-    -h|--help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) awk 'NR==1{next} /^#/{sub(/^# ?/,""); print; next} {exit}' "$0"; exit 0 ;;
     *) echo "unknown option: $arg (try --help)" >&2; exit 2 ;;
   esac
 done
@@ -43,8 +43,17 @@ fi
 # throwaway — `git worktree remove` would leave every skill dangling. The hooks
 # fire inside worktrees too (worktree add runs post-checkout), so this exits
 # silently under --quiet rather than nagging.
-GIT_COMMON="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
-GIT_LOCAL="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-dir 2>/dev/null || true)"
+# Resolved by hand rather than with `rev-parse --path-format=absolute`, which
+# needs git >= 2.31. Empty means "not a git clone" — every caller checks.
+git_dir_abs() {
+  local d
+  d="$(git -C "$REPO_ROOT" rev-parse "$1" 2>/dev/null || true)"
+  [[ -z "$d" ]] && return 0
+  [[ "$d" != /* ]] && d="$REPO_ROOT/$d"
+  (cd "$d" 2>/dev/null && pwd) || echo "$d"
+}
+GIT_COMMON="$(git_dir_abs --git-common-dir)"
+GIT_LOCAL="$(git_dir_abs --git-dir)"
 if [[ -n "$GIT_COMMON" && "$GIT_COMMON" != "$GIT_LOCAL" && "${SKILLS_INSTALL_ALLOW_WORKTREE:-0}" != "1" ]]; then
   [[ "$QUIET" -eq 1 ]] && exit 0
   primary="$(dirname "$GIT_COMMON")"
@@ -108,10 +117,19 @@ done
 # Symlinked into whatever hooks dir this clone actually uses, so an existing
 # core.hooksPath keeps working instead of being overwritten.
 hooks_dir="$(git -C "$REPO_ROOT" config --get core.hooksPath || true)"
-[[ -z "$hooks_dir" ]] && hooks_dir="$GIT_COMMON/hooks"
-[[ "$hooks_dir" != /* ]] && hooks_dir="$REPO_ROOT/$hooks_dir"
+if [[ -z "$hooks_dir" && -n "$GIT_COMMON" ]]; then
+  hooks_dir="$GIT_COMMON/hooks"
+fi
+# A relative core.hooksPath resolves against the working-tree root.
+[[ -n "$hooks_dir" && "$hooks_dir" != /* ]] && hooks_dir="$REPO_ROOT/$hooks_dir"
 
-if [[ -d "$HOOKS_SRC" ]]; then
+if [[ -d "$HOOKS_SRC" && -z "$hooks_dir" ]]; then
+  # Source tarball rather than a clone, or no git on PATH. The skills above are
+  # installed and usable; only the auto-sync is unavailable.
+  note "⚠️  git hooks not installed: $REPO_ROOT is not a git clone."
+  note "    Skills are linked, but they won't re-sync on their own. Re-run this"
+  note "    script by hand after updating, or clone the repo instead."
+elif [[ -d "$HOOKS_SRC" ]]; then
   mkdir -p "$hooks_dir"
   for hook_src in "$HOOKS_SRC"/*; do
     hook_name="$(basename "$hook_src")"
