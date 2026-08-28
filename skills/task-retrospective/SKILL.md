@@ -127,10 +127,10 @@ useful over many retros if it is recorded every time.
 Write the file to the retro directory, resolved in this order:
 
 1. `$CLAUDE_RETRO_DIR` if the environment variable is set (this is the user's
-   notes vault / handoffs dir).
+   chosen notes / handoffs directory).
 2. Otherwise fall back to `~/Documents/retros/` and create it if missing. Tell the
    user you used the fallback and that they can set `CLAUDE_RETRO_DIR` to point at
-   their vault.
+   their preferred directory.
 
 ```bash
 RETRO_DIR="${CLAUDE_RETRO_DIR:-$HOME/Documents/retros}"
@@ -147,11 +147,12 @@ whole retro. Pick the lightest touch that fits:
 
 - Add the gotcha to the repo's `CLAUDE.md` "living doc" section, if it has one.
 - Append a one-line pointer under a `docs/retros/` index, linking back to the
-  vault retro.
-- File an issue/chip for an action item that belongs to the repo, not the vault.
+  canonical retro.
+- File an issue/chip for an action item that belongs to the repo, not the retro
+  directory.
 
-Keep the canonical retro in the vault; the repo gets a pointer or the distilled
-lesson, not a copy. Confirm with the user before writing into a repo.
+Keep the canonical retro in `$CLAUDE_RETRO_DIR`; the repo gets a pointer or the
+distilled lesson, not a copy. Confirm with the user before writing into a repo.
 
 ## Auto-invocation (not wired)
 

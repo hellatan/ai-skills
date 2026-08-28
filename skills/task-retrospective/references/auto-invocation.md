@@ -35,8 +35,8 @@ triggers a retro unconditionally.
 - **Dilution.** A retro's value is that it's reserved for tasks with real failure
   signal. Auto-firing on trivial turns produces thin, template-filled retros that
   bury the ones that matter.
-- **Directory churn.** The vault fills with low-value `-retro.md` files that have
-  to be pruned.
+- **Directory churn.** The retro directory fills with low-value `-retro.md` files
+  that have to be pruned.
 
 ## Recommendation
 
