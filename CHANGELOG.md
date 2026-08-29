@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.4.0](https://github.com/hellatan/claude-skills/compare/v2.3.0...v2.4.0) (2026-08-29)
+
+
+### Features
+
+* **task-retrospective:** add retro-generation skill ([#159](https://github.com/hellatan/claude-skills/issues/159)) ([42a37ab](https://github.com/hellatan/claude-skills/commit/42a37ab02a670a5853ceb6f2830fefb3a4042d07))
+
+
+### Chores
+
+* **release:** develop → main ([84ddc8d](https://github.com/hellatan/claude-skills/commit/84ddc8d4a90b4dd595773c7a94aa5c31ef5cb148))
+
 ## [2.3.0](https://github.com/hellatan/claude-skills/compare/v2.2.3...v2.3.0) (2026-08-19)
 
 
