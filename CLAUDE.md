@@ -1,4 +1,4 @@
-# claude-skills
+# ai-skills
 
 Personal monorepo of Claude skills. Each skill lives under `skills/<skill-name>/` and follows the Anthropic skills convention (SKILL.md + optional `references/`, `scripts/`, `assets/`).
 

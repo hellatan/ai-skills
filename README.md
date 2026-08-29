@@ -1,4 +1,4 @@
-# claude-skills
+# ai-skills
 
 Personal monorepo of Claude Code skills, published as the `ht-skills` plugin.
 
@@ -21,8 +21,8 @@ Personal monorepo of Claude Code skills, published as the `ht-skills` plugin.
 For working on the skills themselves — edits land instantly via the directory-watch mechanism in Claude Code.
 
 ```bash
-git clone git@github.com:hellatan/claude-skills.git ~/projects/claude-skills
-cd ~/projects/claude-skills
+git clone git@github.com:hellatan/ai-skills.git ~/projects/ai-skills
+cd ~/projects/ai-skills
 ./scripts/install.sh
 ```
 
@@ -39,7 +39,7 @@ A hook run prints only what changed, and never fails the git operation. Re-runni
 
 Two things it deliberately won't do: replace a real directory sitting where a symlink belongs, or remove a dangling link that points at some other repo. Both are reported with the `rm` command to run yourself.
 
-Note that a **linked worktree can't install** — `~/.claude/skills` has to point at the primary checkout, or `git worktree remove` would break every skill. Run it from `~/projects/claude-skills` instead.
+Note that a **linked worktree can't install** — `~/.claude/skills` has to point at the primary checkout, or `git worktree remove` would break every skill. Run it from `~/projects/ai-skills` instead.
 
 ### Plugin (for marketplace users)
 
@@ -48,7 +48,7 @@ Once published to the marketplace, users will install this as the `ht-skills` pl
 To test the plugin loader locally without publishing:
 
 ```bash
-claude --plugin-dir ~/projects/claude-skills
+claude --plugin-dir ~/projects/ai-skills
 ```
 
 Note: the plugin loader caches `SKILL.md` content at session start. Use `/reload-plugins` after edits, or stick to the symlinked install above for active development.
