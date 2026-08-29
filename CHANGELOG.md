@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.4.1](https://github.com/hellatan/ai-skills/compare/v2.4.0...v2.4.1) (2026-08-29)
+
+
+### Chores
+
+* **release:** develop → main ([82b7a36](https://github.com/hellatan/ai-skills/commit/82b7a36a90fc8380487eb9b15dda058f6790d006))
+* rename repo references claude-skills → ai-skills ([#162](https://github.com/hellatan/ai-skills/issues/162)) ([7b267a4](https://github.com/hellatan/ai-skills/commit/7b267a4e849237eeb2fc762d51b3553483856fa4))
+
 ## [2.4.0](https://github.com/hellatan/claude-skills/compare/v2.3.0...v2.4.0) (2026-08-29)
 
 
