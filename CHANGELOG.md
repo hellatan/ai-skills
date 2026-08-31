@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.4.2](https://github.com/hellatan/ai-skills/compare/v2.4.1...v2.4.2) (2026-08-31)
+
+
+### Bug Fixes
+
+* **task-retrospective:** rename CLAUDE_RETRO_DIR to AGENT_RETRO_DIR ([#165](https://github.com/hellatan/ai-skills/issues/165)) ([7ddf908](https://github.com/hellatan/ai-skills/commit/7ddf9082022cf427bd125a634710c7ae406fdda5))
+
+
+### Chores
+
+* **release:** develop → main ([d961718](https://github.com/hellatan/ai-skills/commit/d9617183b8643de30ab089823be028d59d6157e1))
+
 ## [2.4.1](https://github.com/hellatan/ai-skills/compare/v2.4.0...v2.4.1) (2026-08-29)
 
 
