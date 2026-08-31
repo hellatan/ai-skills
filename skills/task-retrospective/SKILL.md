@@ -126,14 +126,22 @@ useful over many retros if it is recorded every time.
 
 Write the file to the retro directory, resolved in this order:
 
-1. `$CLAUDE_RETRO_DIR` if the environment variable is set (this is the user's
-   chosen notes / handoffs directory).
-2. Otherwise fall back to `~/Documents/retros/` and create it if missing. Tell the
-   user you used the fallback and that they can set `CLAUDE_RETRO_DIR` to point at
+1. `$AGENT_RETRO_DIR` if the environment variable is set and non-empty (this is
+   the user's chosen notes / retros directory).
+2. `$CLAUDE_RETRO_DIR` if set and non-empty — the former name, still honored so
+   existing setups keep working. Use it, then mention once that `AGENT_RETRO_DIR`
+   is the current name; a silent compat branch is one nobody ever migrates off.
+3. Otherwise fall back to `~/Documents/retros/` and create it if missing. Tell the
+   user you used the fallback and that they can set `AGENT_RETRO_DIR` to point at
    their preferred directory.
 
+Prefer `AGENT_RETRO_DIR` whenever you tell a user what to set: the retros are
+theirs and outlive whichever agent wrote them. Treat an empty value as unset at
+both levels — an exported empty string means "not configured", not "write to the
+empty path".
+
 ```bash
-RETRO_DIR="${CLAUDE_RETRO_DIR:-$HOME/Documents/retros}"
+RETRO_DIR="${AGENT_RETRO_DIR:-${CLAUDE_RETRO_DIR:-$HOME/Documents/retros}}"
 mkdir -p "$RETRO_DIR"
 # write to "$RETRO_DIR/$(date +%F)-<slug>-retro.md"
 ```
@@ -151,7 +159,7 @@ whole retro. Pick the lightest touch that fits:
 - File an issue/chip for an action item that belongs to the repo, not the retro
   directory.
 
-Keep the canonical retro in `$CLAUDE_RETRO_DIR`; the repo gets a pointer or the
+Keep the canonical retro in the retro directory; the repo gets a pointer or the
 distilled lesson, not a copy. Confirm with the user before writing into a repo.
 
 ## Auto-invocation (not wired)
