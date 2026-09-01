@@ -46,20 +46,33 @@ Report the real git state — never from memory:
   changes out of band, so query it (e.g. `gh pr view`) rather than trusting an
   earlier claim in this conversation.
 - Leftover worktrees and stale local branches whose work is already integrated.
-  This phase only *surfaces* them; the cleanup action itself is deferred (see the
-  integration decision below).
 
-Offer to close each gap — **but follow the project's and the user's own
-git-workflow conventions**, don't invent your own. Those rules live in the
-project's `CLAUDE.md` and, if the agent has one, the user's global memory: how
-branches are pushed, which pushes are allowed, whether remote-branch deletion is
-automatic or handed to the user, when cleanup includes pruning branches. Read
-those first and defer to them. When any convention is unstated, ask rather than
-assume.
+**Offer to close each gap by running the fix yourself — do not just hand over a
+command for the user to run.** The user invoked this to get to a clean state, not
+to collect a to-do list. When there is a leftover worktree or a local branch whose
+work is already merged, offer to remove the worktree and delete the merged local
+branch for them, then do it on their go. A command block they must copy into their
+own terminal is the fallback for when you genuinely cannot run it (wrong cwd, a
+tool refuses), not the default.
+
+Two hard limits on what you run:
+
+- **Follow the project's and the user's own git-workflow conventions** — don't
+  invent your own. Those rules live in the project's `CLAUDE.md` and, if the agent
+  has one, the user's global memory: how branches are pushed, which pushes are
+  allowed, how local vs. remote branches are cleaned up, when cleanup includes
+  pruning. Read those first and defer to them; when a convention is unstated, ask.
+- **Remote-branch deletion is the exception** — never delete a remote branch
+  automatically. Verify it is safe to delete, then hand the user the exact
+  `git push origin --delete <branch>` command to run themselves, unless their own
+  conventions say otherwise. Local worktree removal and local branch deletion you
+  may run on their go; a remote branch you only ever hand off.
 
 For the **integration decision itself** — merge now, open a PR, or keep the branch
 going — defer to `superpowers:finishing-a-development-branch`; invoke it rather
-than duplicating that judgment here.
+than duplicating that judgment here. The mechanical cleanup above (remove worktree,
+delete an already-merged local branch) is what this skill offers to run once that
+decision is settled.
 
 ### 3. Retro warranted?
 
@@ -102,18 +115,36 @@ not a store.
 
 ## The verdict
 
-Close with a definitive line, scoped **only to the work in this conversation**:
+Close with a definitive line, scoped **only to the work in this conversation**.
+There are three possible states:
 
-- `✅ Safe to archive` — the outlined work is verified done (Phase 1) and the git
-  state is clean or its gaps were resolved (Phase 2).
-- `⛔ Not yet` — followed by the single blocker (or the short list of them).
+- `⛔ Not yet` — a Phase 1 or Phase 2 blocker: work claimed done but unverified, or
+  a dirty/unpushed git state. Name the blocker(s).
+- `⏸ One call left` (or more than one) — Phases 1–2 are clean, but a warranted
+  retro or a durable learning genuinely worth keeping past the archive is **unsaved
+  and undecided**. Name each pending item and the two ways to resolve it: save it,
+  or consciously let it go. Not a hard block — but not a clean green either.
+- `✅ Safe to archive` — Phases 1–2 are clean AND every warranted retro / identified
+  learning has been either **saved** or **consciously released** by the user.
 
-**Only Phases 1 and 2 can produce `⛔ Not yet`** — unverified work and a
-dirty/unpushed git state are the real blockers to a clean close. Phases 3 and 4 are
-advisory and never block the verdict: a warranted-but-declined retro, or a learning
-the user chose not to save, is worth noting in one line alongside the verdict, but a
-`✅` still stands if the outlined work is done and git is clean. A retro is not an
-outlined task; do not hold the archive hostage to it.
+**The distinction that makes this work: "declined" is not "undecided."**
+
+- A retro or learning the user *explicitly chose not to save* is resolved. It does
+  not block; note it in one line and let `✅` stand. A retro is not an outlined
+  task — never hold the archive hostage to one the user has waved off. But
+  "released" means the user accepts the item is lost — **leaving the notes sitting
+  in chat is not a release** (see Phase 3): chat does not survive the archive, so
+  "I'll just keep it in the thread" is an unsaved-and-undecided item (`⏸`), not a
+  conscious drop.
+- A retro or learning that is warranted/identified but that the user *has not yet
+  ruled on* is **unresolved**. Do not print `✅` over it — that greenlights an
+  archive which destroys the exact durable content this skill exists to protect
+  (see "Chat is not durable" above). Surface it as `⏸ One call left` and make the
+  user own the save-or-drop decision before the clean close.
+
+So Phases 3 and 4 never produce `⛔`, but an *undecided* one holds the verdict at
+`⏸` until the user decides. Only Phases 1–2 are hard blockers; Phases 3–4 gate the
+final green on a conscious decision, not on the work being written.
 
 The verdict is a yes or a no about *this session's outlined work*, and it stops
 there. Do **not** append adjacent improvements, newly noticed drift, or other
