@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.5.1](https://github.com/hellatan/ai-skills/compare/v2.5.0...v2.5.1) (2026-09-01)
+
+
+### Bug Fixes
+
+* **session-cleanup:** add ⏸ verdict state for undecided retro/learnings ([#171](https://github.com/hellatan/ai-skills/issues/171)) ([ae2c24e](https://github.com/hellatan/ai-skills/commit/ae2c24ea1085126eecb60f5349e6198089887b65))
+
+
+### Chores
+
+* **release:** develop → main ([30f4bef](https://github.com/hellatan/ai-skills/commit/30f4befc99c4368888fafc9ce0c6115d28700ba3))
+
 ## [2.5.0](https://github.com/hellatan/ai-skills/compare/v2.4.2...v2.5.0) (2026-09-01)
 
 
