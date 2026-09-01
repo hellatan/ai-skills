@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.5.0](https://github.com/hellatan/ai-skills/compare/v2.4.2...v2.5.0) (2026-09-01)
+
+
+### Features
+
+* **session-cleanup:** add pre-archive checklist skill ([#168](https://github.com/hellatan/ai-skills/issues/168)) ([3ac7561](https://github.com/hellatan/ai-skills/commit/3ac75617037b47ab23fcdc76cdb5d79d1b396791))
+
+
+### Chores
+
+* **release:** develop → main ([373b500](https://github.com/hellatan/ai-skills/commit/373b5001d78b35ae51a654264d4789e5642eff86))
+
 ## [2.4.2](https://github.com/hellatan/ai-skills/compare/v2.4.1...v2.4.2) (2026-08-31)
 
 
