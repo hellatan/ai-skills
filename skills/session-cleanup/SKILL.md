@@ -46,20 +46,33 @@ Report the real git state — never from memory:
   changes out of band, so query it (e.g. `gh pr view`) rather than trusting an
   earlier claim in this conversation.
 - Leftover worktrees and stale local branches whose work is already integrated.
-  This phase only *surfaces* them; the cleanup action itself is deferred (see the
-  integration decision below).
 
-Offer to close each gap — **but follow the project's and the user's own
-git-workflow conventions**, don't invent your own. Those rules live in the
-project's `CLAUDE.md` and, if the agent has one, the user's global memory: how
-branches are pushed, which pushes are allowed, whether remote-branch deletion is
-automatic or handed to the user, when cleanup includes pruning branches. Read
-those first and defer to them. When any convention is unstated, ask rather than
-assume.
+**Offer to close each gap by running the fix yourself — do not just hand over a
+command for the user to run.** The user invoked this to get to a clean state, not
+to collect a to-do list. When there is a leftover worktree or a local branch whose
+work is already merged, offer to remove the worktree and delete the merged local
+branch for them, then do it on their go. A command block they must copy into their
+own terminal is the fallback for when you genuinely cannot run it (wrong cwd, a
+tool refuses), not the default.
+
+Two hard limits on what you run:
+
+- **Follow the project's and the user's own git-workflow conventions** — don't
+  invent your own. Those rules live in the project's `CLAUDE.md` and, if the agent
+  has one, the user's global memory: how branches are pushed, which pushes are
+  allowed, how local vs. remote branches are cleaned up, when cleanup includes
+  pruning. Read those first and defer to them; when a convention is unstated, ask.
+- **Remote-branch deletion is the exception** — never delete a remote branch
+  automatically. Verify it is safe to delete, then hand the user the exact
+  `git push origin --delete <branch>` command to run themselves, unless their own
+  conventions say otherwise. Local worktree removal and local branch deletion you
+  may run on their go; a remote branch you only ever hand off.
 
 For the **integration decision itself** — merge now, open a PR, or keep the branch
 going — defer to `superpowers:finishing-a-development-branch`; invoke it rather
-than duplicating that judgment here.
+than duplicating that judgment here. The mechanical cleanup above (remove worktree,
+delete an already-merged local branch) is what this skill offers to run once that
+decision is settled.
 
 ### 3. Retro warranted?
 
