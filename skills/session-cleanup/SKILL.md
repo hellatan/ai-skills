@@ -55,8 +55,18 @@ branch for them, then do it on their go. A command block they must copy into the
 own terminal is the fallback for when you genuinely cannot run it (wrong cwd, a
 tool refuses), not the default.
 
-Two hard limits on what you run:
+Three hard limits on what you run:
 
+- **Never remove the worktree the current session is running in.** A worktree is a
+  real directory backing this conversation, not just a branch label — removing your
+  own working directory saws off the branch you are sitting on (git refuses to
+  delete the current working tree, and if forced the session's cwd vanishes
+  mid-run). Check first: is the leftover worktree the one this session is in? If it
+  is a *different* one, remove it directly. If it is *this* session's own worktree,
+  do not remove it inline — instead exit it through the session's own worktree-exit
+  mechanism if one exists, or make the removal the very last step run from the main
+  checkout (warning that the session's directory will disappear), or hand it off.
+  When unsure which case you are in, hand off rather than guess.
 - **Follow the project's and the user's own git-workflow conventions** — don't
   invent your own. Those rules live in the project's `CLAUDE.md` and, if the agent
   has one, the user's global memory: how branches are pushed, which pushes are
