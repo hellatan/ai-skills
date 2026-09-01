@@ -102,18 +102,36 @@ not a store.
 
 ## The verdict
 
-Close with a definitive line, scoped **only to the work in this conversation**:
+Close with a definitive line, scoped **only to the work in this conversation**.
+There are three possible states:
 
-- `✅ Safe to archive` — the outlined work is verified done (Phase 1) and the git
-  state is clean or its gaps were resolved (Phase 2).
-- `⛔ Not yet` — followed by the single blocker (or the short list of them).
+- `⛔ Not yet` — a Phase 1 or Phase 2 blocker: work claimed done but unverified, or
+  a dirty/unpushed git state. Name the blocker(s).
+- `⏸ One call left` (or more than one) — Phases 1–2 are clean, but a warranted
+  retro or a durable learning genuinely worth keeping past the archive is **unsaved
+  and undecided**. Name each pending item and the two ways to resolve it: save it,
+  or consciously let it go. Not a hard block — but not a clean green either.
+- `✅ Safe to archive` — Phases 1–2 are clean AND every warranted retro / identified
+  learning has been either **saved** or **consciously released** by the user.
 
-**Only Phases 1 and 2 can produce `⛔ Not yet`** — unverified work and a
-dirty/unpushed git state are the real blockers to a clean close. Phases 3 and 4 are
-advisory and never block the verdict: a warranted-but-declined retro, or a learning
-the user chose not to save, is worth noting in one line alongside the verdict, but a
-`✅` still stands if the outlined work is done and git is clean. A retro is not an
-outlined task; do not hold the archive hostage to it.
+**The distinction that makes this work: "declined" is not "undecided."**
+
+- A retro or learning the user *explicitly chose not to save* is resolved. It does
+  not block; note it in one line and let `✅` stand. A retro is not an outlined
+  task — never hold the archive hostage to one the user has waved off. But
+  "released" means the user accepts the item is lost — **leaving the notes sitting
+  in chat is not a release** (see Phase 3): chat does not survive the archive, so
+  "I'll just keep it in the thread" is an unsaved-and-undecided item (`⏸`), not a
+  conscious drop.
+- A retro or learning that is warranted/identified but that the user *has not yet
+  ruled on* is **unresolved**. Do not print `✅` over it — that greenlights an
+  archive which destroys the exact durable content this skill exists to protect
+  (see "Chat is not durable" above). Surface it as `⏸ One call left` and make the
+  user own the save-or-drop decision before the clean close.
+
+So Phases 3 and 4 never produce `⛔`, but an *undecided* one holds the verdict at
+`⏸` until the user decides. Only Phases 1–2 are hard blockers; Phases 3–4 gate the
+final green on a conscious decision, not on the work being written.
 
 The verdict is a yes or a no about *this session's outlined work*, and it stops
 there. Do **not** append adjacent improvements, newly noticed drift, or other
