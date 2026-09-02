@@ -71,9 +71,14 @@ Three hard limits on what you run:
   exists to prevent (it deletes the live session's own directory). The "offer to run
   the fix yourself" stance above applies **only to a *different*, non-current
   worktree**; for this session's own worktree the command is hand-off-only. Fill in
-  the real paths and branch names:
+  the real paths and branch names.
 
-  ```bash
+  **Emit this command in a plain, untagged code fence (```), never a ```bash one:**
+  in Claude Code a bash-tagged fence renders with a Run button, and offering that
+  run affordance is exactly what the copy-only rule forbids — clicking Run would
+  execute it in this live session's shell, deleting the worktree out from under it.
+
+  ```
   cd <main-checkout> && git worktree remove --force <worktree-path> && git branch -D <current-branch> <any-other-merged-stale-branches>
   ```
 
