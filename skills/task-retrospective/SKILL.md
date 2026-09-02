@@ -131,14 +131,34 @@ reopens it — so an action item that exists *only* as a checkbox in this doc is
 already lost. The retro is where you **find** the follow-ups; it is not where they
 **live**.
 
+### First, make sure a tracker exists
+
+Filing has no meaning without a place to file *to*. Before you file anything,
+resolve the user's durable todo store, in this order:
+
+1. `$AGENT_TODO_STORE` if set and non-empty. This is a **free-text pointer**, not a
+   path — it names wherever the user tracks follow-ups: a file (`~/todos.md`), a
+   repo for issues (`gh:owner/repo`), a chip/task mechanism (`chips`), anything
+   durable. It is store-agnostic on purpose; do not force it into a path shape.
+2. A tracker the user has already established through their own memory/config
+   conventions, if you can see one.
+3. Otherwise it is **unset — and this is a first-run setup step, not a thing to
+   guess past.** Prompt the user once: where do their follow-ups go? Do not invent a
+   store, and do not let the retro's chat output stand in for one. Once they answer,
+   offer to persist the choice so this is asked only once — either by exporting
+   `AGENT_TODO_STORE=<their store>`, or, if they can't set env, by recording it
+   wherever they keep agent config/memory. Treat an empty value as unset.
+
+A user who consciously says "I don't track todos, drop them" is allowed — that is
+the **dropped** state below, made once and explicitly, not a silent default.
+
+### Then resolve every open item
+
 So for every open action item, before the retro is done, drive it to one of:
 
-- **Filed** in a durable store the user actually revisits — whatever they use to
-  track work that survives this conversation (a background-task chip, a GitHub
-  issue on the owning repo, a line in their todo file). Record the link/reference
-  in the checkbox. Follow the user's own conventions for which store; when it is
-  unclear, ask rather than picking silently. Don't just assert "filed" — the write
-  has to actually happen, and the reference has to point at it.
+- **Filed** in the durable store resolved above. Record the link/reference in the
+  checkbox. Don't just assert "filed" — the write has to actually happen, and the
+  reference has to point at it.
 - **In flight** — genuinely already being worked, now, in this session or an open
   PR. Note where.
 - **Dropped** — the user consciously decided not to pursue it. Record why in one

@@ -144,10 +144,11 @@ each is in one of the three resolved states `task-retrospective` requires
 `skills/task-retrospective/SKILL.md`, "Filing action items".
 
 An open action item in none of those states is an **unfiled item**, and it is a
-hard blocker (see the verdict). Offer to file each unfiled item now — into whichever
-durable store the user uses — rather than carrying it into the archive as a
-checkbox nobody will see again. This phase enforces that the filing happened; a
-"filed" that was only asserted, never written, does not count.
+hard blocker (see the verdict). Offer to file each unfiled item now — into the
+user's durable tracker, establishing one first if none exists yet
+(`task-retrospective` owns that first-run setup step) — rather than carrying it into
+the archive as a checkbox nobody will see again. This phase enforces that the filing
+happened; a "filed" that was only asserted, never written, does not count.
 
 ### 4. Durable learnings
 
