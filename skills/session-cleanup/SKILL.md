@@ -63,10 +63,34 @@ Three hard limits on what you run:
   delete the current working tree, and if forced the session's cwd vanishes
   mid-run). Check first: is the leftover worktree the one this session is in? If it
   is a *different* one, remove it directly. If it is *this* session's own worktree,
-  do not remove it inline — instead exit it through the session's own worktree-exit
-  mechanism if one exists, or make the removal the very last step run from the main
-  checkout (warning that the session's directory will disappear), or hand it off.
-  When unsure which case you are in, hand off rather than guess.
+  do not remove it inline. Instead, **always emit the exact, copy-pasteable command
+  for the user to run from the main checkout after they archive this session** —
+  deferring without the command means the cleanup never happens and the user has to
+  come back and ask for it. Fill in the real paths and branch names:
+
+  ```bash
+  cd <main-checkout> && git worktree remove --force <worktree-path> && git branch -D <current-branch> <any-other-merged-stale-branches>
+  ```
+
+  Notes on the command:
+  - `--force` covers a worktree with uncommitted or untracked changes (git refuses a
+    plain `remove` then) — keep it, it is safe. It does **not** by itself remove a
+    *locked* worktree: git requires `-f -f` (force twice) or a prior
+    `git worktree unlock <worktree-path>`. Worktrees are not normally locked, so the
+    single `--force` shown is right; only reach for `-f -f`/`unlock` if a `remove`
+    actually reports the tree is locked.
+  - Include in the `git branch -D` list only branches whose work is already
+    integrated (see the merged-branch check above) — the current branch plus any
+    other stale merged locals. Leave genuinely-unmerged branches out.
+  - Add a one-line warning: run it **after** archiving, from **outside** this
+    worktree (the main checkout), and it must **not** touch any other live session's
+    worktree.
+  - Remote-branch deletion stays a **separate** hand-off — never fold a
+    `git push origin --delete` into this command (see the remote-branch limit below).
+
+  Place this command in (or right beside) the verdict close so it is the last thing
+  the user sees. Prefer the session's own worktree-exit mechanism if one exists, but
+  emit the command regardless — do not leave the removal as a vague "hand it off."
 - **Follow the project's and the user's own git-workflow conventions** — don't
   invent your own. Those rules live in the project's `CLAUDE.md` and, if the agent
   has one, the user's global memory: how branches are pushed, which pushes are
@@ -155,6 +179,15 @@ There are three possible states:
 So Phases 3 and 4 never produce `⛔`, but an *undecided* one holds the verdict at
 `⏸` until the user decides. Only Phases 1–2 are hard blockers; Phases 3–4 gate the
 final green on a conscious decision, not on the work being written.
+
+**One thing does belong right at the close:** if Phase 2 found that this session's
+own worktree is the leftover to remove, the copy-pasteable
+`cd <main-checkout> && git worktree remove --force <worktree-path> && git branch -D <current-branch> …`
+command goes here — the last thing the user sees — with its one-line warning (run
+it after archiving, from outside the worktree, never touching another live
+session's worktree). That is the cleanup they cannot run inline, so it must ship
+with the verdict, not get deferred into a vague hand-off. This is the only command
+the verdict carries; it is not license to append other to-dos.
 
 The verdict is a yes or a no about *this session's outlined work*, and it stops
 there. Do **not** append adjacent improvements, newly noticed drift, or other
