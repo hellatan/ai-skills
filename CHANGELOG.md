@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.6.0](https://github.com/hellatan/ai-skills/compare/v2.5.1...v2.6.0) (2026-09-02)
+
+
+### Features
+
+* **retro:** require retro action items to be filed, not parked ([#177](https://github.com/hellatan/ai-skills/issues/177)) ([6c8324b](https://github.com/hellatan/ai-skills/commit/6c8324bdde15dbb13f3252b9c50a42c7292ee327))
+* **session-cleanup:** always emit removal command for current-session worktree ([#176](https://github.com/hellatan/ai-skills/issues/176)) ([11c30a6](https://github.com/hellatan/ai-skills/commit/11c30a6b637d7c04b16f1f9d04d925f311b30a98))
+
+
+### Bug Fixes
+
+* **session-cleanup:** never remove the worktree the session runs in ([#174](https://github.com/hellatan/ai-skills/issues/174)) ([fc5d3cb](https://github.com/hellatan/ai-skills/commit/fc5d3cbd19790e7bf8f88116fd3b2f0a1565d61f))
+
+
+### Chores
+
+* **release:** develop → main ([882c17e](https://github.com/hellatan/ai-skills/commit/882c17e375f6d74412309b935b0e48deeb26cb38))
+
 ## [2.5.1](https://github.com/hellatan/ai-skills/compare/v2.5.0...v2.5.1) (2026-09-01)
 
 
