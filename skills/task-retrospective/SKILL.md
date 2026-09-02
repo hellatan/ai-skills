@@ -72,10 +72,12 @@ bit, write "None surfaced" — but check honestly first.>
 
 ## Action items
 
-<Checkbox list. Each item is a discrete follow-up. Mark ones already in flight.
-Link to filed issues/chips where they exist.>
+<Checkbox list. Each item is a discrete follow-up. Every open item must resolve to
+one of three states — filed in a durable tracker (with the link), already in
+flight, or consciously dropped. A checkbox with no home is not an action item, it
+is a note that will be lost (see "Filing action items" below).>
 
-- [ ] <action> <(status / link if any)>
+- [ ] <action> — <filed: link | in flight | dropped: why>
 
 ## Time calibration
 
@@ -121,6 +123,51 @@ useful over many retros if it is recorded every time.
 - Name the **drivers** concretely — "novice-guided provisioning + a stacked-PR
   detour", not "it was harder than expected".
 - Close with one **lesson** that would tighten the next estimate.
+
+## Filing action items
+
+The retro file is not a tracker. It lives in the retro directory and nobody
+reopens it — so an action item that exists *only* as a checkbox in this doc is
+already lost. The retro is where you **find** the follow-ups; it is not where they
+**live**.
+
+### First, make sure a tracker exists
+
+Filing has no meaning without a place to file *to*. Before you file anything,
+resolve the user's durable todo store, in this order:
+
+1. `$AGENT_TODO_STORE` if set and non-empty. This is a **free-text pointer**, not a
+   path — it names wherever the user tracks follow-ups: a file (`~/todos.md`), a
+   repo for issues (`gh:owner/repo`), a chip/task mechanism (`chips`), anything
+   durable. It is store-agnostic on purpose; do not force it into a path shape.
+2. A tracker the user has already established through their own memory/config
+   conventions, if you can see one.
+3. Otherwise it is **unset — and this is a first-run setup step, not a thing to
+   guess past.** Prompt the user once: where do their follow-ups go? Do not invent a
+   store, and do not let the retro's chat output stand in for one. Once they answer,
+   offer to persist the choice so this is asked only once — either by exporting
+   `AGENT_TODO_STORE=<their store>`, or, if they can't set env, by recording it
+   wherever they keep agent config/memory. Treat an empty value as unset.
+
+A user who consciously says "I don't track todos, drop them" is allowed — that is
+the **dropped** state below, made once and explicitly, not a silent default.
+
+### Then resolve every open item
+
+So for every open action item, before the retro is done, drive it to one of:
+
+- **Filed** in the durable store resolved above. Record the link/reference in the
+  checkbox. Don't just assert "filed" — the write has to actually happen, and the
+  reference has to point at it.
+- **In flight** — genuinely already being worked, now, in this session or an open
+  PR. Note where.
+- **Dropped** — the user consciously decided not to pursue it. Record why in one
+  line so the decision is legible later.
+
+"Mentioned in chat" and "written in the retro" are neither filed nor dropped —
+they are the default-loss state this section exists to prevent. Confirm the store
+before writing into a repo or the user's tracker, but do not let an open item
+leave the retro in limbo.
 
 ## Output
 

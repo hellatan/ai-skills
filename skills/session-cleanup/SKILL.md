@@ -55,8 +55,42 @@ branch for them, then do it on their go. A command block they must copy into the
 own terminal is the fallback for when you genuinely cannot run it (wrong cwd, a
 tool refuses), not the default.
 
-Two hard limits on what you run:
+Three hard limits on what you run:
 
+- **Never remove the worktree the current session is running in.** A worktree is a
+  real directory backing this conversation, not just a branch label — removing your
+  own working directory saws off the branch you are sitting on (git refuses to
+  delete the current working tree, and if forced the session's cwd vanishes
+  mid-run). Check first: is the leftover worktree the one this session is in? If it
+  is a *different* one, remove it directly. If it is *this* session's own worktree,
+  do not remove it inline. Instead, **always emit the exact, copy-pasteable command
+  for the user to run from the main checkout after they archive this session** —
+  deferring without the command means the cleanup never happens and the user has to
+  come back and ask for it. Fill in the real paths and branch names:
+
+  ```bash
+  cd <main-checkout> && git worktree remove --force <worktree-path> && git branch -D <current-branch> <any-other-merged-stale-branches>
+  ```
+
+  Notes on the command:
+  - `--force` covers a worktree with uncommitted or untracked changes (git refuses a
+    plain `remove` then) — keep it, it is safe. It does **not** by itself remove a
+    *locked* worktree: git requires `-f -f` (force twice) or a prior
+    `git worktree unlock <worktree-path>`. Worktrees are not normally locked, so the
+    single `--force` shown is right; only reach for `-f -f`/`unlock` if a `remove`
+    actually reports the tree is locked.
+  - Include in the `git branch -D` list only branches whose work is already
+    integrated (see the merged-branch check above) — the current branch plus any
+    other stale merged locals. Leave genuinely-unmerged branches out.
+  - Add a one-line warning: run it **after** archiving, from **outside** this
+    worktree (the main checkout), and it must **not** touch any other live session's
+    worktree.
+  - Remote-branch deletion stays a **separate** hand-off — never fold a
+    `git push origin --delete` into this command (see the remote-branch limit below).
+
+  Place this command in (or right beside) the verdict close so it is the last thing
+  the user sees. Prefer the session's own worktree-exit mechanism if one exists, but
+  emit the command regardless — do not leave the removal as a vague "hand it off."
 - **Follow the project's and the user's own git-workflow conventions** — don't
   invent your own. Those rules live in the project's `CLAUDE.md` and, if the agent
   has one, the user's global memory: how branches are pushed, which pushes are
@@ -93,6 +127,29 @@ this skill guards against. A retro counts as done only when it is written to a f
 declines to save it, that is their call — but do not let "I put the notes in chat"
 stand in for a saved retro.
 
+**A written retro is not enough — its action items must be filed.** A retro
+produces follow-up action items, and the retro file itself is not a tracker: it
+sits in the retro directory unread, so an action item that exists only as a
+checkbox in that doc (or as a line in this chat) is already lost. This is the exact
+"parked, not this session's work" wave-off that loses tracked work — naming an open
+item and moving on **is** the loss mechanism, not a resolution of it.
+
+This check only applies once a retro has actually been written this session — an
+unsaved or undecided retro is the `⏸` case above, and its action items ride with
+that decision, not as a separate `⛔`. But when a retro exists, enumerate its open
+action items explicitly — list them, don't summarize the count — and check that
+each is in one of the three resolved states `task-retrospective` requires
+(**filed** in a durable tracker with a reference, **in flight**, or consciously
+**dropped**); it owns that discipline in
+`skills/task-retrospective/SKILL.md`, "Filing action items".
+
+An open action item in none of those states is an **unfiled item**, and it is a
+hard blocker (see the verdict). Offer to file each unfiled item now — into the
+user's durable tracker, establishing one first if none exists yet
+(`task-retrospective` owns that first-run setup step) — rather than carrying it into
+the archive as a checkbox nobody will see again. This phase enforces that the filing
+happened; a "filed" that was only asserted, never written, does not count.
+
 ### 4. Durable learnings
 
 Surface anything learned this session that is non-obvious and worth keeping past
@@ -118,13 +175,16 @@ not a store.
 Close with a definitive line, scoped **only to the work in this conversation**.
 There are three possible states:
 
-- `⛔ Not yet` — a Phase 1 or Phase 2 blocker: work claimed done but unverified, or
-  a dirty/unpushed git state. Name the blocker(s).
+- `⛔ Not yet` — a hard blocker: work claimed done but unverified, a dirty/unpushed
+  git state (Phases 1–2), **or an open retro action item that is not filed anywhere
+  durable** (Phase 3). Name the blocker(s). The action-item block lifts the moment
+  every open item is filed or consciously dropped (rationale below).
 - `⏸ One call left` (or more than one) — Phases 1–2 are clean, but a warranted
   retro or a durable learning genuinely worth keeping past the archive is **unsaved
   and undecided**. Name each pending item and the two ways to resolve it: save it,
   or consciously let it go. Not a hard block — but not a clean green either.
-- `✅ Safe to archive` — Phases 1–2 are clean AND every warranted retro / identified
+- `✅ Safe to archive` — Phases 1–2 are clean, **every open retro action item has
+  been filed or consciously dropped**, AND every warranted retro / identified
   learning has been either **saved** or **consciously released** by the user.
 
 **The distinction that makes this work: "declined" is not "undecided."**
@@ -142,9 +202,25 @@ There are three possible states:
   (see "Chat is not durable" above). Surface it as `⏸ One call left` and make the
   user own the save-or-drop decision before the clean close.
 
-So Phases 3 and 4 never produce `⛔`, but an *undecided* one holds the verdict at
-`⏸` until the user decides. Only Phases 1–2 are hard blockers; Phases 3–4 gate the
-final green on a conscious decision, not on the work being written.
+Phase 3 has one `⛔` case and one `⏸` case, and the line between them is
+*concreteness*. An **open retro action item that is unfiled** is a `⛔` blocker: the
+follow-up is already identified, filing it is cheap, and leaving it unfiled loses
+tracked work — so it blocks like unverified work until filed or consciously
+dropped. A **warranted-but-unsaved retro, or an identified learning, that the user
+has not yet ruled on** is softer: it holds the verdict at `⏸` until they decide,
+because they may reasonably decline it. So Phase 4 (and an undecided Phase 3 retro
+or learning) never produces `⛔`; only an unfiled, already-existing action item does
+— alongside the Phase 1–2 blockers. In every case the gate lifts on a conscious
+decision (file it or drop it), not on the follow-up work being completed.
+
+**One thing does belong right at the close:** if Phase 2 found that this session's
+own worktree is the leftover to remove, the copy-pasteable
+`cd <main-checkout> && git worktree remove --force <worktree-path> && git branch -D <current-branch> …`
+command goes here — the last thing the user sees — with its one-line warning (run
+it after archiving, from outside the worktree, never touching another live
+session's worktree). That is the cleanup they cannot run inline, so it must ship
+with the verdict, not get deferred into a vague hand-off. This is the only command
+the verdict carries; it is not license to append other to-dos.
 
 The verdict is a yes or a no about *this session's outlined work*, and it stops
 there. Do **not** append adjacent improvements, newly noticed drift, or other
