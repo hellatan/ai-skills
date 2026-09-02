@@ -71,9 +71,14 @@ Three hard limits on what you run:
   exists to prevent (it deletes the live session's own directory). The "offer to run
   the fix yourself" stance above applies **only to a *different*, non-current
   worktree**; for this session's own worktree the command is hand-off-only. Fill in
-  the real paths and branch names:
+  the real paths and branch names.
 
-  ```bash
+  **Emit this command in a plain, untagged code fence (```), never a ```bash one:**
+  in Claude Code a bash-tagged fence renders with a Run button, and offering that
+  run affordance is exactly what the copy-only rule forbids — clicking Run would
+  execute it in this live session's shell, deleting the worktree out from under it.
+
+  ```
   cd <main-checkout> && git worktree remove --force <worktree-path> && git branch -D <current-branch> <any-other-merged-stale-branches>
   ```
 
@@ -184,7 +189,7 @@ There are three possible states:
   git state (Phases 1–2), **or an open retro action item that is not filed anywhere
   durable** (Phase 3). Name the blocker(s). The action-item block lifts the moment
   every open item is filed or consciously dropped (rationale below).
-- `⏸ One call left` (or more than one) — Phases 1–2 are clean, but a warranted
+- `⏸ Your call to make` — Phases 1–2 are clean, but a warranted
   retro or a durable learning genuinely worth keeping past the archive is **unsaved
   and undecided**. Name each pending item and the two ways to resolve it: save it,
   or consciously let it go. Not a hard block — but not a clean green either.
@@ -204,7 +209,7 @@ There are three possible states:
 - A retro or learning that is warranted/identified but that the user *has not yet
   ruled on* is **unresolved**. Do not print `✅` over it — that greenlights an
   archive which destroys the exact durable content this skill exists to protect
-  (see "Chat is not durable" above). Surface it as `⏸ One call left` and make the
+  (see "Chat is not durable" above). Surface it as `⏸ Your call to make` and make the
   user own the save-or-drop decision before the clean close.
 
 Phase 3 has one `⛔` case and one `⏸` case, and the line between them is
