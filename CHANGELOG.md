@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.6.1](https://github.com/hellatan/ai-skills/compare/v2.6.0...v2.6.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* **session-cleanup:** current-session worktree command is copy-only, never run ([#179](https://github.com/hellatan/ai-skills/issues/179)) ([df71a59](https://github.com/hellatan/ai-skills/commit/df71a593d9bdf843f3a801297ce94acec1c7f322))
+
+
+### Chores
+
+* **release:** develop → main ([b24c997](https://github.com/hellatan/ai-skills/commit/b24c9977ddcc46f99ceeb702ad061954ee651748))
+
 ## [2.6.0](https://github.com/hellatan/ai-skills/compare/v2.5.1...v2.6.0) (2026-09-02)
 
 
