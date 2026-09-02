@@ -73,13 +73,22 @@ Three hard limits on what you run:
   worktree**; for this session's own worktree the command is hand-off-only. Fill in
   the real paths and branch names.
 
-  **Emit this command in a plain, untagged code fence (```), never a ```bash one:**
-  in Claude Code a bash-tagged fence renders with a Run button, and offering that
-  run affordance is exactly what the copy-only rule forbids — clicking Run would
-  execute it in this live session's shell, deleting the worktree out from under it.
+  **Emit this as a bash-tagged, MULTI-LINE `git -C` block — one command per line, no
+  `cd`.** In Claude Code a ```bash fence colorizes the command and gives it a copy
+  button, but a *single* `&&`-chained command *also* gets a **Run** button, and
+  offering that run affordance is exactly what the copy-only rule forbids — clicking
+  Run would execute it in this live session's shell, deleting the worktree out from
+  under it. Splitting into multiple independent `git -C <main-checkout>` lines keeps
+  the color and copy button but drops the Run button (the client's Run affordance
+  only targets a single runnable command), and it's safer than `cd … && …` (no
+  dependence on the `cd` succeeding first). Do **not** collapse it to one
+  `cd … && …` line (gets a Run button) and do **not** use a plain/untagged fence
+  (loses color). The Run button is client-added, so this behavior is
+  client-dependent.
 
-  ```
-  cd <main-checkout> && git worktree remove --force <worktree-path> && git branch -D <current-branch> <any-other-merged-stale-branches>
+  ```bash
+  git -C <main-checkout> worktree remove --force <worktree-path>
+  git -C <main-checkout> branch -D <current-branch> <any-other-merged-stale-branches>
   ```
 
   Notes on the command:
