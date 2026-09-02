@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.6.2](https://github.com/hellatan/ai-skills/compare/v2.6.1...v2.6.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* **session-cleanup:** emit self-worktree removal in a plain fence ([#185](https://github.com/hellatan/ai-skills/issues/185)) ([148e11d](https://github.com/hellatan/ai-skills/commit/148e11d91a751461a06bf8378de7c54d00818491))
+* **session-cleanup:** reword ⏸ label to "Your call to make" ([#184](https://github.com/hellatan/ai-skills/issues/184)) ([4724069](https://github.com/hellatan/ai-skills/commit/4724069a8f2748b43ada66f7b8427e1ecfed9e0b))
+* **session-cleanup:** reword ⏸ verdict label to be count-neutral ([#182](https://github.com/hellatan/ai-skills/issues/182)) ([cf3e311](https://github.com/hellatan/ai-skills/commit/cf3e311a82909202f0cf6600f88928508b104d5e))
+
+
+### Chores
+
+* **release:** develop → main ([ea06d4b](https://github.com/hellatan/ai-skills/commit/ea06d4b3361048cf0dd19028528d1ade9f73d72c))
+
 ## [2.6.1](https://github.com/hellatan/ai-skills/compare/v2.6.0...v2.6.1) (2026-09-02)
 
 
