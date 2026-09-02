@@ -184,7 +184,7 @@ There are three possible states:
   git state (Phases 1–2), **or an open retro action item that is not filed anywhere
   durable** (Phase 3). Name the blocker(s). The action-item block lifts the moment
   every open item is filed or consciously dropped (rationale below).
-- `⏸ Call to make` — Phases 1–2 are clean, but a warranted
+- `⏸ Your call to make` — Phases 1–2 are clean, but a warranted
   retro or a durable learning genuinely worth keeping past the archive is **unsaved
   and undecided**. Name each pending item and the two ways to resolve it: save it,
   or consciously let it go. Not a hard block — but not a clean green either.
@@ -204,7 +204,7 @@ There are three possible states:
 - A retro or learning that is warranted/identified but that the user *has not yet
   ruled on* is **unresolved**. Do not print `✅` over it — that greenlights an
   archive which destroys the exact durable content this skill exists to protect
-  (see "Chat is not durable" above). Surface it as `⏸ Call to make` and make the
+  (see "Chat is not durable" above). Surface it as `⏸ Your call to make` and make the
   user own the save-or-drop decision before the clean close.
 
 Phase 3 has one `⛔` case and one `⏸` case, and the line between them is
