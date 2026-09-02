@@ -66,7 +66,12 @@ Three hard limits on what you run:
   do not remove it inline. Instead, **always emit the exact, copy-pasteable command
   for the user to run from the main checkout after they archive this session** —
   deferring without the command means the cleanup never happens and the user has to
-  come back and ask for it. Fill in the real paths and branch names:
+  come back and ask for it. **Offer only to *copy* this command — never offer to run
+  it in this session, and never run it.** Running it is the exact trap this limit
+  exists to prevent (it deletes the live session's own directory). The "offer to run
+  the fix yourself" stance above applies **only to a *different*, non-current
+  worktree**; for this session's own worktree the command is hand-off-only. Fill in
+  the real paths and branch names:
 
   ```bash
   cd <main-checkout> && git worktree remove --force <worktree-path> && git branch -D <current-branch> <any-other-merged-stale-branches>
