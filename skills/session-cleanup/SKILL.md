@@ -127,6 +127,29 @@ this skill guards against. A retro counts as done only when it is written to a f
 declines to save it, that is their call — but do not let "I put the notes in chat"
 stand in for a saved retro.
 
+**A written retro is not enough — its action items must be filed.** A retro
+produces follow-up action items, and the retro file itself is not a tracker: it
+sits in the retro directory unread, so an action item that exists only as a
+checkbox in that doc (or as a line in this chat) is already lost. This is the exact
+"parked, not this session's work" wave-off that loses tracked work — naming an open
+item and moving on **is** the loss mechanism, not a resolution of it.
+
+This check only applies once a retro has actually been written this session — an
+unsaved or undecided retro is the `⏸` case above, and its action items ride with
+that decision, not as a separate `⛔`. But when a retro exists, enumerate its open
+action items explicitly — list them, don't summarize the count — and check that
+each is in one of the three resolved states `task-retrospective` requires
+(**filed** in a durable tracker with a reference, **in flight**, or consciously
+**dropped**); it owns that discipline in
+`skills/task-retrospective/SKILL.md`, "Filing action items".
+
+An open action item in none of those states is an **unfiled item**, and it is a
+hard blocker (see the verdict). Offer to file each unfiled item now — into the
+user's durable tracker, establishing one first if none exists yet
+(`task-retrospective` owns that first-run setup step) — rather than carrying it into
+the archive as a checkbox nobody will see again. This phase enforces that the filing
+happened; a "filed" that was only asserted, never written, does not count.
+
 ### 4. Durable learnings
 
 Surface anything learned this session that is non-obvious and worth keeping past
@@ -152,13 +175,16 @@ not a store.
 Close with a definitive line, scoped **only to the work in this conversation**.
 There are three possible states:
 
-- `⛔ Not yet` — a Phase 1 or Phase 2 blocker: work claimed done but unverified, or
-  a dirty/unpushed git state. Name the blocker(s).
+- `⛔ Not yet` — a hard blocker: work claimed done but unverified, a dirty/unpushed
+  git state (Phases 1–2), **or an open retro action item that is not filed anywhere
+  durable** (Phase 3). Name the blocker(s). The action-item block lifts the moment
+  every open item is filed or consciously dropped (rationale below).
 - `⏸ One call left` (or more than one) — Phases 1–2 are clean, but a warranted
   retro or a durable learning genuinely worth keeping past the archive is **unsaved
   and undecided**. Name each pending item and the two ways to resolve it: save it,
   or consciously let it go. Not a hard block — but not a clean green either.
-- `✅ Safe to archive` — Phases 1–2 are clean AND every warranted retro / identified
+- `✅ Safe to archive` — Phases 1–2 are clean, **every open retro action item has
+  been filed or consciously dropped**, AND every warranted retro / identified
   learning has been either **saved** or **consciously released** by the user.
 
 **The distinction that makes this work: "declined" is not "undecided."**
@@ -176,9 +202,16 @@ There are three possible states:
   (see "Chat is not durable" above). Surface it as `⏸ One call left` and make the
   user own the save-or-drop decision before the clean close.
 
-So Phases 3 and 4 never produce `⛔`, but an *undecided* one holds the verdict at
-`⏸` until the user decides. Only Phases 1–2 are hard blockers; Phases 3–4 gate the
-final green on a conscious decision, not on the work being written.
+Phase 3 has one `⛔` case and one `⏸` case, and the line between them is
+*concreteness*. An **open retro action item that is unfiled** is a `⛔` blocker: the
+follow-up is already identified, filing it is cheap, and leaving it unfiled loses
+tracked work — so it blocks like unverified work until filed or consciously
+dropped. A **warranted-but-unsaved retro, or an identified learning, that the user
+has not yet ruled on** is softer: it holds the verdict at `⏸` until they decide,
+because they may reasonably decline it. So Phase 4 (and an undecided Phase 3 retro
+or learning) never produces `⛔`; only an unfiled, already-existing action item does
+— alongside the Phase 1–2 blockers. In every case the gate lifts on a conscious
+decision (file it or drop it), not on the follow-up work being completed.
 
 **One thing does belong right at the close:** if Phase 2 found that this session's
 own worktree is the leftover to remove, the copy-pasteable
