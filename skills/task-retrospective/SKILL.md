@@ -72,10 +72,12 @@ bit, write "None surfaced" — but check honestly first.>
 
 ## Action items
 
-<Checkbox list. Each item is a discrete follow-up. Mark ones already in flight.
-Link to filed issues/chips where they exist.>
+<Checkbox list. Each item is a discrete follow-up. Every open item must resolve to
+one of three states — filed in a durable tracker (with the link), already in
+flight, or consciously dropped. A checkbox with no home is not an action item, it
+is a note that will be lost (see "Filing action items" below).>
 
-- [ ] <action> <(status / link if any)>
+- [ ] <action> — <filed: link | in flight | dropped: why>
 
 ## Time calibration
 
@@ -121,6 +123,31 @@ useful over many retros if it is recorded every time.
 - Name the **drivers** concretely — "novice-guided provisioning + a stacked-PR
   detour", not "it was harder than expected".
 - Close with one **lesson** that would tighten the next estimate.
+
+## Filing action items
+
+The retro file is not a tracker. It lives in the retro directory and nobody
+reopens it — so an action item that exists *only* as a checkbox in this doc is
+already lost. The retro is where you **find** the follow-ups; it is not where they
+**live**.
+
+So for every open action item, before the retro is done, drive it to one of:
+
+- **Filed** in a durable store the user actually revisits — whatever they use to
+  track work that survives this conversation (a background-task chip, a GitHub
+  issue on the owning repo, a line in their todo file). Record the link/reference
+  in the checkbox. Follow the user's own conventions for which store; when it is
+  unclear, ask rather than picking silently. Don't just assert "filed" — the write
+  has to actually happen, and the reference has to point at it.
+- **In flight** — genuinely already being worked, now, in this session or an open
+  PR. Note where.
+- **Dropped** — the user consciously decided not to pursue it. Record why in one
+  line so the decision is legible later.
+
+"Mentioned in chat" and "written in the retro" are neither filed nor dropped —
+they are the default-loss state this section exists to prevent. Confirm the store
+before writing into a repo or the user's tracker, but do not let an open item
+leave the retro in limbo.
 
 ## Output
 
