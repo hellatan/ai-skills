@@ -1,11 +1,11 @@
 ---
-name: ci-drift-audit
-description: Audit one or more repos for drift away from this project's CI baseline — duplicate `push` triggers on develop, missing Playwright browser cache, missing workflow_dispatch or /rebuild, unexpected job names. Use when the user wants to "audit CI", "check for CI drift", "make sure the repos still match the baseline", "why did Actions minutes go back up", or is setting up a recurring/scheduled check across repos. Read-only by default — reports findings, never edits a repo unless explicitly asked to fix.
+name: ci-baseline-audit
+description: Audit one or more repos for deviation from this project's CI baseline — duplicate `push` triggers on develop, missing Playwright browser cache, missing workflow_dispatch or /rebuild, unexpected job names. Use when the user wants to "audit CI", "check the CI baseline" (also "check for CI drift" — this skill's former name), "make sure the repos still match the baseline", "why did Actions minutes go back up", or is setting up a recurring/scheduled check across repos. Read-only by default — reports findings, never edits a repo unless explicitly asked to fix.
 ---
 
-# ci-drift-audit
+# ci-baseline-audit
 
-Checks repos against the CI baseline that `gh-actions-init` and `testing-init` scaffold, and reports where they've drifted. Settings applied by hand across many repos rot silently — a repo gets a new workflow, someone re-adds a `push` trigger, a scaffold predates a change — and the first symptom is a surprise Actions bill.
+Checks repos against the CI baseline that `gh-actions-init` and `testing-init` scaffold, and reports where they've deviated from it. Settings applied by hand across many repos rot silently — a repo gets a new workflow, someone re-adds a `push` trigger, a scaffold predates a change — and the first symptom is a surprise Actions bill.
 
 Read-only by design. It reports; it does not fix unless the user explicitly asks.
 
@@ -13,7 +13,7 @@ Read-only by design. It reports; it does not fix unless the user explicitly asks
 
 User says any of:
 
-- "audit CI" / "check CI drift" / "are my repos still following the baseline?"
+- "audit CI" / "check the CI baseline" / "check CI drift" / "are my repos still following the baseline?"
 - "why are my Actions minutes creeping back up?"
 - "set up a recurring CI audit"
 - "check that all repos have `/rebuild`" (or any single baseline item)
@@ -157,11 +157,11 @@ gh repo list <owner> --limit 200 --no-archived --source \
 ```
 
 **Explicit list.** A checked-in file at the conventional path
-`.github/ci-drift-audit/repos.txt` in the private host repo (one `owner/repo` per line,
+`.github/ci-baseline-audit/repos.txt` in the private host repo (one `owner/repo` per line,
 `#` comments). Use when the set is deliberately narrow, spans owners, or the token can't
 enumerate.
 
-Both modes subtract `.github/ci-drift-audit/ignore.txt` if present.
+Both modes subtract `.github/ci-baseline-audit/ignore.txt` if present.
 
 **Always report the resolved count and mode** — `audited 12 repos (discovery, 2 ignored)`.
 A hand-maintained list has a silent failure mode: a repo created after setup is never

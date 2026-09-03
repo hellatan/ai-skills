@@ -51,7 +51,7 @@ gh api repos/<owner>/<repo>/actions/runs/<RUN_ID>/timing --jq '.billable.UBUNTU.
 After the change, confirm **no** CI run fires on the `push` to `develop` (only the
 promotion PR runs), and that the promotion PR still runs the full suite.
 
-To keep it from regressing across repos over time, `ci-drift-audit` checks this (and the
+To keep it from regressing across repos over time, `ci-baseline-audit` checks this (and the
 rest of the baseline) on a schedule — see that skill.
 
 ## Also non-breaking: cache the e2e browser download
@@ -124,7 +124,7 @@ one `checks` job per `gh-actions-init/references/ci-structure.md`, folding the u
 step in per `testing-init/references/ci-test-job.md`. Point `build.needs` at `checks`.
 `integration` and `e2e` stay their own jobs.
 
-`ci-drift-audit` reports each repo's shape (separate jobs vs consolidated) but never
+`ci-baseline-audit` reports each repo's shape (separate jobs vs consolidated) but never
 *fails* on it — see that skill — because this migration is a deliberate per-repo step, not
 drift.
 
