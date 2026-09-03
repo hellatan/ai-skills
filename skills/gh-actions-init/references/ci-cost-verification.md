@@ -188,5 +188,5 @@ guess was off by nearly 2×.
 
 Verifying once proves the change worked. It doesn't keep it working — a later PR can
 re-add a `push` trigger or a new workflow can reintroduce the duplicate. The
-`ci-drift-audit` skill checks the baseline on a schedule; wire it up once the numbers look
+`ci-baseline-audit` skill checks the baseline on a schedule; wire it up once the numbers look
 right.

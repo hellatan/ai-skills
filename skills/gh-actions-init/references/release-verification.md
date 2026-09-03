@@ -384,7 +384,7 @@ The corollary for the alert copy: the annotation should point at the summary rat
 **But "optional" is exactly why it gets forgotten, and the failure mode is silence.** A repo with the workflows and no webhook looks identical to a healthy one: green runs, no alerts, and no alert is also what "nothing is wrong" looks like. Measured on one fleet, **only 1 of 13 repos** had the errors webhook set — every other repo had been no-opping its alerts since the day it was scaffolded, and nothing surfaced it. So:
 
 - Put it in the **post-scaffold action list**, not just a summary line. Optional-but-forgotten is still broken.
-- `ci-drift-audit` check 10 catches this repo-wide after the fact — a workflow that references a secret the repo doesn't have. Scaffold-time is the cheap fix; the audit is the backstop.
+- `ci-baseline-audit` check 10 catches this repo-wide after the fact — a workflow that references a secret the repo doesn't have. Scaffold-time is the cheap fix; the audit is the backstop.
 
 ### Prove it, don't assume it
 
