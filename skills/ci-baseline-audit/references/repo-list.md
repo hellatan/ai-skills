@@ -31,7 +31,7 @@ stay untouched, which is what keeps this read-only.
 In the private host repo:
 
 ```
-.github/ci-drift-audit/
+.github/ci-baseline-audit/
   repos.txt     # explicit list mode (optional if using discovery)
   ignore.txt    # exclusions, applied in BOTH modes (optional)
   audit.sh      # the runner

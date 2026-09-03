@@ -33,9 +33,9 @@ Next steps:
 4. Replace the smoke test stubs with real tests as you build features
 5. When ready to release, merge develop → main — that's the only manual step; the release
    PR auto-merges and the tag is cut (and, once deploys are on, the tagged commit ships)
-6. (Only if you run a CI drift audit) Discovery mode picks this repo up automatically on
+6. (Only if you run a CI baseline audit) Discovery mode picks this repo up automatically on
    the next run. Explicit-list mode: add it to the audit host's
-   `.github/ci-drift-audit/repos.txt` AND to the audit token's repository access
+   `.github/ci-baseline-audit/repos.txt` AND to the audit token's repository access
 
 Useful commands (run from repo root):
 - `npm run check:all` — run everything CI would run
