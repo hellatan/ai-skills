@@ -13,6 +13,10 @@ Personal monorepo of Claude Code skills, published as the `ht-skills` plugin.
 | [gitflow-init](skills/gitflow-init) | Set up `main` + `develop` (+ optional `stage`), branch protection, and `develop` as the default branch on an existing repo. |
 | [precommit-init](skills/precommit-init) | Add pre-commit hooks at the repo root, polyglot (Python / Node / fullstack). |
 | [claude-md-init](skills/claude-md-init) | Write a per-stack CLAUDE.md to an existing project. |
+| [architecture-doc-init](skills/architecture-doc-init) | Add a `docs/architecture.html` living system map to an existing repo — inline-SVG data-flow diagram, failure-modes table, key-files list, filled in with the repo's real components. |
+| [ci-baseline-audit](skills/ci-baseline-audit) | Audit one or more repos for deviation from the CI baseline — duplicate `push` triggers, missing Playwright browser cache, missing `workflow_dispatch` or `/rebuild`, unexpected job names. Read-only by default. |
+| [session-cleanup](skills/session-cleanup) | End-of-session pre-archive checklist — is the stated work verified done, is the git state clean, is a retrospective warranted, are there durable learnings worth saving. Reports a verdict; never acts without an explicit go. |
+| [task-retrospective](skills/task-retrospective) | Generate a retrospective after a substantial task — failure signal and root causes, not just wins, plus action items and time calibration. |
 
 ## Install
 
