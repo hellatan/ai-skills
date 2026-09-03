@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.6.3](https://github.com/hellatan/ai-skills/compare/v2.6.2...v2.6.3) (2026-09-03)
+
+
+### Bug Fixes
+
+* **session-cleanup:** make self-worktree removal copy-only, keep color ([#187](https://github.com/hellatan/ai-skills/issues/187)) ([7939fa8](https://github.com/hellatan/ai-skills/commit/7939fa8e65a9aac85db98d03f08b7359623add2c))
+
+
+### Code Refactoring
+
+* **ci-baseline-audit:** rename from ci-drift-audit ([#188](https://github.com/hellatan/ai-skills/issues/188)) ([8f47336](https://github.com/hellatan/ai-skills/commit/8f47336bd67e3129a8703e2b7570097e36423b45))
+
+
+### Documentation
+
+* **readme:** list all 11 skills in the skill table ([#190](https://github.com/hellatan/ai-skills/issues/190)) ([c3c9082](https://github.com/hellatan/ai-skills/commit/c3c9082ece5a77c581749185c924029e6e764ba7))
+
+
+### Chores
+
+* **release:** develop → main ([1040232](https://github.com/hellatan/ai-skills/commit/104023274db191edc039adb5559844bbece4a88b))
+
 ## [2.6.2](https://github.com/hellatan/ai-skills/compare/v2.6.1...v2.6.2) (2026-09-02)
 
 
