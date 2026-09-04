@@ -42,6 +42,8 @@ End the message with: *"Reply 'yes' / 'go' / 'looks good' to proceed, or tell me
    - Releases handled automatically by release-please
 🔁 CI re-trigger:                               ← include only for gitflow repos (develop exists)
    - Comment `/rebuild` on a PR to re-run failed CI; `workflow_dispatch` for manual runs
+🤖 PR review:
+   - claude-code-review posts inline findings — on ready-for-review, not on drafts
 🚀 Deploy:
    - Tagged-only — CI deploys the tagged commit; platform auto-deploy is OFF on every service
    - Production gated off until you have a service (RENDER_DEPLOY=false)

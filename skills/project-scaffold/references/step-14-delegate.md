@@ -15,6 +15,7 @@
    - The `checks` job's lint + format:check + typecheck steps — merged into the `checks` job `testing-init` just seeded (unit stays last) — plus the `build` job.
    - `release-please.yml` + `release-please-config.json` + `.release-please-manifest.json`.
    - The tagged-only deploy: the deploy + release-PR auto-merge steps folded into `release-please.yml`, and `autoDeploy: false` (or the platform equivalent) in the deploy config. A standalone `deploy.yml` with the deploy-target picker only when one is actually needed — see `gh-actions-init/references/tagged-deploy.md`.
+   - `claude-code-review.yml` — automated PR review, gated on `draft == false` so a draft isn't reviewed on open and then again on `ready_for_review`. Needs the `CLAUDE_CODE_OAUTH_TOKEN` repo secret (Step 17).
    - **The staging environment, but only if Step 6 asked for one — and you must tell it so** (next section).
 
 ## ⚠️ Staging: pass the Step 6 answer in, don't let it probe

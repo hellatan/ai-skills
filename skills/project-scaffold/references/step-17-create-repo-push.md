@@ -68,6 +68,14 @@ This is a **blocking chat callout right after the repo is created** — surface 
 
 Don't block the push on it (the workflows only matter once commits land), but re-surface it in the Step 21 report if the user hasn't confirmed it. Verify with `gh secret list --repo <owner>/<name>`.
 
+### The `CLAUDE_CODE_OAUTH_TOKEN` secret (user action — every new repo needs this)
+
+`claude-code-review.yml` (scaffolded in Step 14 via `gh-actions-init`) authenticates the Claude action with this repo secret. It is **per repo** — there is no org-level fallback, and a token minted before this repo exists still covers it (unlike the fine-grained PAT above). Without it the review job still triggers and then fails on its action step: a red X on every PR that reads like a CI failure rather than a missing review.
+
+Not blocking — nothing else depends on this workflow — but list it beside `RELEASE_PLEASE_TOKEN` in the same callout so both are one trip:
+
+> 🔑 **Also: `CLAUDE_CODE_OAUTH_TOKEN`.** Mint one with `claude setup-token` (requires a Claude subscription), then `gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo <owner>/<name>`. Until then, `claude-code-review` shows a failing check on every PR.
+
 ### Release/deploy repo variables (set these — no user action needed)
 
 The scaffolded `release-please.yml` reads two repo **variables** (not secrets, so Claude can set them directly). A brand-new repo has to start in the right state:
