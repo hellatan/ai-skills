@@ -5,7 +5,7 @@
 ## The required sister skills
 
 - **`/testing-init`** (Step 14) — owns test runner setup (Vitest / Playwright / pytest), test stubs, test scripts, and the test steps/jobs in `ci.yml` (the unit-test step folds into the `checks` job; `integration`/`e2e` are their own jobs).
-- **`/gh-actions-init`** (Step 14) — owns the `checks` job structure (lint + format:check + typecheck) + the `build` job, release-please config + workflow, and the deploy stub.
+- **`/gh-actions-init`** (Step 14) — owns the `checks` job structure (lint + format:check + typecheck) + the `build` job, release-please config + workflow, the deploy stub, and `claude-code-review.yml`.
 - **`/gitflow-init`** (Steps 18 + 19) — owns branch-protection setup and default-branch configuration.
 - **`/precommit-init`** (Step 13) — owns pre-commit installation, polyglot config generation, and hook activation.
 - **`/claude-md-init`** (Step 10) — owns per-stack CLAUDE.md template selection and writing.
