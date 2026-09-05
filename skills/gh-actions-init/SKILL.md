@@ -50,6 +50,8 @@ Read these without asking:
 - Deploy target + its credential — needed for the tagged-only deploy step folded into `release-please.yml`. **First establish whether the repo is deployed at all.** If it isn't — no service exists yet, the normal state for a fresh scaffold, an internal tool, or a library — the answer is the `RENDER_DEPLOY=false` repo variable (`gh variable list`), **not** a missing-secret callout: the deploy step skips cleanly and releases still tag. If it *is* deployed, check the credential (`gh secret list` — `RENDER_DEPLOY_HOOK_URL` for Render) and flag a missing one as **blocking** alongside `RELEASE_PLEASE_TOKEN`, because deploys-enabled-with-no-credential fails the run by design. If the target isn't Render, scaffold the deploy step commented out. See `references/tagged-deploy.md`.
 - Alert webhook secret(s) — `gh secret list` (if scaffolding release verification). The secret name is the project's **choice of Discord channel** (default `DISCORD_GH_ERRORS_WEBHOOK`); if a differently-named `DISCORD_*` secret already exists, offer it as the default instead. **Check for a second one too** when the back-merge workflow is in scope: it alerts a *different* channel (default `DISCORD_PR_ALERTS_WEBHOOK`) because a conflict PR is a thing waiting on a human, not an outage. Optional; note both in the summary. When absent, the alerting composite no-ops with a warning, so no blocking callout is needed — **but list them as post-scaffold actions anyway.** "Optional" is why these get skipped, and a repo with no webhook is indistinguishable from a healthy one: green runs, no alerts, and silence is also what "nothing is wrong" looks like. Measured on one fleet, only 1 of 13 repos had the errors webhook set, every one of them silently. See `references/release-verification.md`.
 
+- `CLAUDE_CODE_OAUTH_TOKEN` secret — `gh secret list` (for `claude-code-review.yml`). Per-repo; no org-level fallback. Missing means the review job fails on its action step — a red X that reads like a CI failure rather than a missing review. See `references/claude-code-review.md`.
+
 Surface findings in one line: *"Detected: Next.js 16 + TS, default branch `develop`, package.json version 0.3.1, no existing workflows."*
 
 #### Then lead with the credential manifest — before the plan, not after
@@ -70,6 +72,9 @@ Mark each with what happens if it's absent, because the severities are genuinely
    <ALERT_WEBHOOK_SECRET>        🔕 silent   — release alerts no-op with a warning; runs still go red
                                    Discord → Server Settings → Integrations → Webhooks
    <PR_ALERT_WEBHOOK_SECRET>     🔕 silent   — back-merge conflict alerts no-op (only if back-merge is in scope)
+   CLAUDE_CODE_OAUTH_TOKEN       🔴 loud     — the PR-review job fails on its action step: a red X on every PR
+                                   that reads like a CI failure. Nothing downstream breaks.
+                                   claude setup-token
 
    Optional variables: RENDER_DEPLOY (false = deploy dormant) · RELEASE_AUTOMERGE (false = pause
    release auto-merge) · RELEASE_CHECKS_TIMEOUT_SECONDS (raise the 30 min gate ceiling)
@@ -79,13 +84,15 @@ Mark each with what happens if it's absent, because the severities are genuinely
 
 Show every row, including ones already set — mark those `✅ already set` rather than omitting them, so the list doubles as a checklist the user can re-read later. Skip only rows for workflows that aren't being scaffolded at all.
 
+`🔴 loud` is the middle severity: the failure announces itself on every PR, but nothing downstream depends on it, so the repo's releases and deploys are unaffected. It gets fixed because it is annoying, not because it is urgent.
+
 **`🔕 silent` is the row that needs the emphasis**, counterintuitive as that is. A blocking secret announces itself the first time a release runs. A silent one never does: the repo shows green runs and no alerts, which is indistinguishable from healthy. Measured on one fleet, that state persisted on 12 of 13 repos for months.
 
 See `references/detection.md` for the detection cheat-sheet.
 
 ### 2. Pick what to add
 
-Five independent decisions:
+Six independent decisions:
 
 **a. CI structure** — a consolidated `checks` job (lint + format:check + typecheck) + a `build` job.
 
@@ -123,6 +130,10 @@ Only relevant when `develop` exists AND there's no `stage` branch (gitflow witho
 
 Default-on for gitflow repos (where `develop` exists). Lets a maintainer re-run failed CI from a PR by commenting `/rebuild` — the manual fallback for flaky runs and for repos where `RELEASE_PLEASE_TOKEN` isn't set up yet (without the PAT, bot-authored PRs never trigger CI and park behind manual approval). Skip for `main`-only repos and if the file already exists (rename legacy `ci-rebuild-on-comment.yml` copies). See `references/rebuild.md`.
 
+**f. claude-code-review** — `claude-code-review.yml`.
+
+Default-on for any repo that takes PRs. Runs `anthropics/claude-code-action` over the PR diff and posts inline findings. **The job must be gated on `github.event.pull_request.draft == false`** — `opened` fires for a PR opened as a draft, so an ungated job reviews the draft on open, again on every draft push, and once more on `ready_for_review` against byte-identical code. The gate makes `ready_for_review` the first review instead of a repeat. Also skip promotion and release-please head refs, same reasoning as the other workflows. Skip if the file already exists — but **check an existing one for the draft gate** and offer to add it. See `references/claude-code-review.md`.
+
 ### 3. Show summary, halt for confirmation
 
 Render the plan as a fenced code block with emoji headers (same convention as `project-scaffold` Step 8):
@@ -139,6 +150,7 @@ Render the plan as a fenced code block with emoji headers (same convention as `p
 🔁 develop→main PR: <scaffolding | skipped (main-only / staging / already present)>
 🔙 main→develop back-merge: <scaffolding | skipped (main-only / staging / already present)>
 🔁 /rebuild trigger: <scaffolding | skipped (main-only / already present)>
+🤖 PR review:       <scaffolding claude-code-review.yml (drafts skipped) | skipped (already present) | existing file MISSING the draft gate — offer to add>
 🔑 RELEASE_PLEASE_TOKEN: <secret present | ⚠️ MISSING — setup required before first release>
 🔑 Deploy credential (<e.g. RENDER_DEPLOY_HOOK_URL>): <secret present | not needed yet (deploys gated off) | ⚠️ MISSING while deploys are enabled — tagged releases will fail>
 🔔 Alerts → <CHOSEN_SECRET_NAME>: <secret present | not set — alerts no-op until added (optional)>
@@ -224,7 +236,15 @@ See `references/rebuild.md`.
 
 One file: `.github/workflows/rebuild.yml` (workflow `name: rebuild`, matching the `/rebuild` command). Scaffold it only when `develop` exists (gitflow) — it lets a maintainer re-run failed CI from a PR by commenting `/rebuild`, the manual fallback now that `RELEASE_PLEASE_TOKEN` handles bot-PR CI automatically. Adapt the dispatch-fallback target to the repo's CI workflow filename (`ci.yml`, or `validate.yml` for a docs/skills repo). Skip for `main`-only repos and if the file already exists.
 
-### 10. Smoke-validate
+### 10. claude-code-review
+
+See `references/claude-code-review.md`.
+
+One file: `.github/workflows/claude-code-review.yml`. Substitute the repo's actual linters into the prompt's "don't comment on style" clause, and add the `stage` head-ref exclusion only when the repo has a `stage` branch. Leave the repo-specific-checks block out of a fresh scaffold — there are no invariants to state yet, and inventing them teaches the reviewer wrong rules.
+
+The `draft == false` gate is not optional polish; it is the difference between one review per PR and one per draft push. State the trade in the report: **no automated review runs while a PR is a draft.** In a workflow where PRs open as drafts by default, the review lands when the PR is marked ready.
+
+### 11. Smoke-validate
 
 Don't run actual workflows from the skill (would require pushing). Instead:
 
@@ -233,7 +253,7 @@ Don't run actual workflows from the skill (would require pushing). Instead:
 
 Don't fail the skill if these tools aren't available — they're nice-to-haves.
 
-### 11. Report back
+### 12. Report back
 
 Print:
 - ✅ What was added (file paths)
@@ -268,13 +288,14 @@ Next steps:
 
 ## Token split across workflows
 
-Three scaffolded workflows, two tokens. The split is deliberate:
+Four scaffolded workflows, three tokens. The split is deliberate:
 
 | Workflow | Token | Why |
 |---|---|---|
 | `release-please.yml` | `RELEASE_PLEASE_TOKEN` | the release PR must be user-authored so CI runs (and isn't parked behind `action_required`) — **and** the auto-merge step must use it, since a `GITHUB_TOKEN`-authored merge wouldn't re-trigger the workflow that cuts the tag |
 | `develop-to-main-pr.yml` | `RELEASE_PLEASE_TOKEN` | the `develop → main` PR needs CI for the same reason |
 | `rebuild.yml` | `GITHUB_TOKEN` | uses `gh run rerun` + `gh workflow run` (`workflow_dispatch`), both exempt from the recursion guard — a PAT adds nothing |
+| `claude-code-review.yml` | `CLAUDE_CODE_OAUTH_TOKEN` | authenticates the Claude action itself, not GitHub — unrelated to the PR-authoring split above; the job's `GITHUB_TOKEN` permissions post the comments |
 
 One PAT secret (`RELEASE_PLEASE_TOKEN`) covers both PR-authoring workflows; `/rebuild` stays on the built-in token. See `references/release-please.md` and `references/rebuild.md`.
 
@@ -289,6 +310,7 @@ One PAT secret (`RELEASE_PLEASE_TOKEN`) covers both PR-authoring workflows; `/re
 - `references/develop-to-main-pr.md` — `develop-to-main-pr.yml`: auto-opens/refreshes the draft `develop → main` release PR (gitflow without staging)
 - `references/main-to-develop-backmerge.md` — `main-to-develop-backmerge.yml`: fast-forwards `develop` to `main` after every promotion/release so it never drifts; conflict opens a PR and notifies the PR channel (`<PR_ALERT_WEBHOOK_SECRET>`, default `DISCORD_PR_ALERTS_WEBHOOK`, optional)
 - `references/rebuild.md` — `rebuild.yml`: `/rebuild` PR-comment re-runs failed CI (gitflow); pairs with the PAT setup
+- `references/claude-code-review.md` — `claude-code-review.yml`: automated PR review, the `draft == false` gate that stops it re-reviewing on `ready_for_review`, prompt substitutions, and the `CLAUDE_CODE_OAUTH_TOKEN` secret
 - `references/tagged-deploy.md` — **the deploy model**: `autoDeploy: false` + tag-gated deploy step + release-PR auto-merge + the two release-please config settings that make every promotion release; the `RENDER_DEPLOY` gate for repos with no deploy target yet + the go-live checklist; the `GITHUB_TOKEN` tag-trigger gotcha; the revert-forward runbook; unverified non-Render platform blocks; multi-deploy-monorepo guidance
 - `references/deploy-stub.md` — the fallback standalone `deploy.yml` with the deploy-target picker, secret-setup guidance, and platform examples (Render, Vercel, Fly, Railway, GHCR, SSH/rsync); also the `render.yaml` Blueprint
 
@@ -299,4 +321,5 @@ One PAT secret (`RELEASE_PLEASE_TOKEN`) covers both PR-authoring workflows; `/re
 - **release-please over manual versioning** — drives off conventional commits, opens PRs you review, no manual tag/changelog work.
 - **No build job for Python** — Python apps generally deploy source via container or buildpack; a separate `build` step adds CI time without value. Library projects can opt in by extending the workflow.
 - **Idempotent on re-run** — skips files that exist, extends `ci.yml` jobs without duplicating, surfaces what was skipped.
+- **PR review skips drafts.** Automated review is worth paying for once, on finished work. Gating it on `draft == false` turns "reviewed on open, on every draft push, and again on ready-for-review" into a single review at the moment the author says the PR is ready — and makes drafting a private workspace rather than a stream of half-finished diffs the bot comments on.
 - **Composes cleanly with `testing-init`** — neither skill stomps on the other's CI jobs. Run order doesn't matter.
