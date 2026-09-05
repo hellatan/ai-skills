@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.8.0](https://github.com/hellatan/ai-skills/compare/v2.7.0...v2.8.0) (2026-09-05)
+
+
+### Features
+
+* **ci-baseline-audit:** add check 13 for claude-code-review.yml ([#195](https://github.com/hellatan/ai-skills/issues/195)) ([31a2ee5](https://github.com/hellatan/ai-skills/commit/31a2ee54211864a221df796d3cef693270ad14e4))
+
+
+### Chores
+
+* **release:** develop → main ([528ae8e](https://github.com/hellatan/ai-skills/commit/528ae8e53f3a4520bc77109973fdfda7341063b1))
+
 ## [2.7.0](https://github.com/hellatan/ai-skills/compare/v2.6.3...v2.7.0) (2026-09-05)
 
 
