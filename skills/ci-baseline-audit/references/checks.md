@@ -26,7 +26,10 @@ qualify, prefer ones named like CI (`validate*`, `test*`, `check*`, `verify*`, `
 also triggers on `pull_request`, so on a repo whose real gate is named unusually it can
 win the behaviour match and become "the CI workflow" — which would run checks 1–4 against
 a review bot and report nonsense. A workflow whose only step is
-`anthropics/claude-code-action` is not a CI gate; skip it here.
+`anthropics/claude-code-action` is not a CI gate; skip it here. Judge it on the
+*substantive* step — the canonical template's `review` job is `actions/checkout` **then**
+the action, so a literal "only step" test would never fire on the very file it exists to
+exclude.
 
 Only after identifying it that way, judge the name. Anything other than
 `.github/workflows/ci.yml` is **present-but-drifted** — report it as a rename, the way
@@ -522,8 +525,12 @@ Report names in the first set and not the second.
 - `GITHUB_TOKEN` — always injected, never a repo secret.
 - Anything matched inside a `${{ secrets.X != '' }}` style guard *only*, where the workflow
   already handles absence explicitly.
-- `CLAUDE_CODE_OAUTH_TOKEN` — owned by check 13, which reports it with the right severity
-  and the right fix. Reporting it here too double-counts one finding.
+- `CLAUDE_CODE_OAUTH_TOKEN` — **only on a repo where check 13 actually evaluated it**
+  (i.e. a `pull_request`-triggered review workflow exists). There, check 13 reports it with
+  the right severity and fix, and reporting it here too double-counts one finding. On a
+  repo whose only reference is the mention-triggered `claude.yml`, check 13 has no opinion
+  by design — so this check must still report it, or an unset token makes every `@claude`
+  mention fail with nothing anywhere saying why. Do not make this exclusion unconditional.
 - Organization- or environment-scoped secrets. `gh secret list` on a repo shows repo-level
   secrets only, so an org secret reads as missing. If the owner uses org secrets, either
   add `--app actions --org` lookups or add the name to an allowlist; **say which** in the
@@ -664,11 +671,13 @@ CHANGELOG.md
 2. its `review` job's `if:` includes `github.event.pull_request.draft == false`,
 3. the `CLAUDE_CODE_OAUTH_TOKEN` repo secret is set.
 
-**Why this one drifted in the first place.** `claude-code-review.yml` was never
-scaffolded by any skill — it was hand-added per repo, so no two copies are the same.
-`gh-actions-init/references/claude-code-review.md` became the canonical template on
-2026-09-04; every repo predating that is unverified by construction, which is exactly the
-population an audit exists to enumerate.
+**Why this one drifted in the first place.** Until 2026-09-04 no skill scaffolded
+`claude-code-review.yml` — it was hand-added per repo, so no two copies were the same.
+`gh-actions-init` owns and scaffolds it now
+(`gh-actions-init/references/claude-code-review.md` is the canonical template), so fresh
+repos are correct by construction and **every repo predating that date is unverified by
+construction**. That older population is exactly what this check enumerates; it does not
+shrink on its own, because nothing retrofits an existing repo.
 
 **Detect — by behaviour, not filename.** Scan `.github/workflows/*` for a file that both
 references `anthropics/claude-code-action` **and** triggers on `pull_request`.
@@ -681,45 +690,55 @@ references `anthropics/claude-code-action` **and** triggers on `pull_request`.
 > present is a false pass. The `pull_request` trigger is what separates them.
 
 ```bash
-# 1. presence — behaviour-based
+shopt -s nullglob          # no workflows dir → the glob must expand to nothing, not to
+                           # the literal pattern (which would read as an ungated workflow)
+found=""
+
+# Parts 1 and 2 share one loop on purpose. `$f` outside the loop holds whatever the
+# glob ended on — `release-please.yml` on most baseline repos — so a split version
+# reports the wrong file as ungated on every run.
 for f in .github/workflows/*.y*ml; do
   grep -q 'anthropics/claude-code-action' "$f" || continue
-  yq -e '.on | has("pull_request")' "$f" >/dev/null 2>&1 && echo "review workflow: $f"
+  # 1. presence: the `pull_request` trigger is what separates this from `claude.yml`
+  yq -e '.on | has("pull_request")' "$f" >/dev/null 2>&1 || continue
+  found="$f"
+
+  # 2. draft gate. Resolve the job by what it RUNS, not by the key `review` — the
+  #    job name is a convention, not a guarantee.
+  job=$(yq -r '.jobs | keys | .[]' "$f" | while read -r j; do
+          yq -r ".jobs.\"$j\".steps[].uses // \"\"" "$f" 2>/dev/null \
+            | grep -q 'anthropics/claude-code-action' && { echo "$j"; break; }
+        done)
+  [ -n "$job" ] || { echo "DRIFT: $f — no job uses the action"; continue; }
+
+  #    Read the `if:` through yq, never grep the file: the canonical template writes
+  #    it as a folded `>-` block spanning lines, so a line-oriented grep sees fragments.
+  yq -r ".jobs.\"$job\".if // \"\"" "$f" | grep -q 'pull_request\.draft == false' \
+    || echo "DRIFT: $f job \`$job\` not draft-gated"
 done
 
-# 2. draft gate — read the job's `if:`, don't grep the file
-#    (`if: >-` folded scalars mean the expression spans lines; yq joins them)
-yq -r '.jobs.review.if // ""' "$f" | grep -q 'pull_request\.draft == false' \
-  || echo "DRIFT: review job not draft-gated"
+# Only a repo that HAS workflows can be missing this one. A repo with no
+# `.github/workflows/` is check 0's "no CI gate" finding — don't double-count it.
+if [ -d .github/workflows ] && [ -z "$found" ]; then
+  echo "DRIFT: no PR-review workflow"
+fi
 
-# 3. secret — names only, values are never retrievable
+# 3. secret — names only, values are never retrievable. Run only when $found is set.
 gh secret list --repo "$REPO" --json name -q '.[].name' | grep -qx 'CLAUDE_CODE_OAUTH_TOKEN' \
   || echo "DRIFT: CLAUDE_CODE_OAUTH_TOKEN not set"
 ```
 
-Read the `if:` through `yq`, not `grep`, for the same reason check 1 parses `on.push`: the
-canonical template writes the condition as a folded `>-` block, so a line-oriented grep
-sees fragments and a `&&`-joined one-liner variant sees something else again. The job may
-also be named something other than `review` — resolve it as the job whose steps use
-`anthropics/claude-code-action` rather than by key.
+**Why the draft gate matters.** Without it a PR opened as a draft is reviewed up to
+three times for one diff — the same duplicate-work shape as check 1, paid for repeatedly.
+It is the most common deviation among hand-added copies precisely because the file works
+fine without it. Full rationale, and the trade it makes (no review while a PR is a draft),
+is owned by `gh-actions-init/references/claude-code-review.md`
+§ *The `draft == false` gate is the point* — **report that trade alongside the finding**
+rather than restating it here, so a baseline change lands in one place.
 
-**Why the draft gate matters.** `opened` fires for a PR opened *as* a draft. Without
-`draft == false` that PR is reviewed on open, again on every push while it is still a
-draft, and once more on `ready_for_review` — that last run against byte-identical code
-when no push happened in between. It is the same duplicate-work shape as check 1: not
-wrong, just paid for repeatedly, with the last payment buying nothing. This is the single
-most common deviation among hand-added copies, because the file works fine without it.
-
-Report the trade alongside the finding, because it is a real one: **with the gate, no
-automated review happens while a PR is a draft.** In a workflow where PRs are opened as
-drafts by default, the bot's review arrives at "ready", not before. That is the intended
-behaviour, not a side effect — drafting is the author's own review window.
-
-**Why the secret matters.** With `CLAUDE_CODE_OAUTH_TOKEN` unset the workflow still
-triggers and the job fails on the action step — **a red X on every PR**. Unlike check 10's
-webhook secrets this one is loud, but it announces itself as a broken check, which reads
-like a CI failure and trains people to ignore a red mark. Nothing downstream depends on it,
-so it is noise rather than breakage — but it is noise on every single PR.
+**Why the secret matters.** With `CLAUDE_CODE_OAUTH_TOKEN` unset the job fails on the
+action step, so every PR carries a red X until someone sets it. That is check 10's
+"absence fails the run" case, not its silent-webhook case.
 
 **Severity.**
 
@@ -727,8 +746,10 @@ so it is noise rather than breakage — but it is noise on every single PR.
   automated review. A rollout gap, not a defect.
 - **medium** — workflow present, draft gate missing. Duplicate paid runs on every draft
   PR, invisible because the reviews look normal.
-- **high** — workflow present, secret missing. A failing required-looking check on every
-  PR until someone sets it.
+- **high** — workflow present, secret missing. The job fails on every PR. Nothing
+  downstream breaks, but a permanent red X reads as a CI failure and teaches people to
+  ignore red marks, which is what makes it worth waking someone over rather than a
+  low-priority line.
 
 Two shapes are **not** findings:
 

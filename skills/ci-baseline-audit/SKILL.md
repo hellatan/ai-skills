@@ -125,9 +125,10 @@ gap (low); a repo that has it but reads `steps.release.outputs.release_created` 
 there, so it cries "NO TAG created" on every healthy release while its real
 tag-missing branch can never fire.
 
-Check 9 needs **`Secrets: Read`** on the audit token, which the base setup does not
+Checks 10 and 13 need **`Secrets: Read`** on the audit token, which the base setup does not
 grant — see `references/audit-token.md`. Without it, report the check as
-`skipped: token lacks Secrets:Read`, **never as a pass**. A missing-secret check that
+`skipped: token lacks Secrets:Read`, **never as a pass** (for check 13, that verdict
+scopes to its secret part; its workflow-file parts still run). A missing-secret check that
 silently reports "all good" because it couldn't look is the exact failure it exists to
 catch. Secret *names* are all this reads; values are never retrievable through the API.
 
@@ -142,10 +143,11 @@ the inverse — a release that ships when it *shouldn't*: an auto-merge step tha
 the release PR without waiting for that PR's checks tags and deploys unverified code, and
 `gh pr merge --auto` doesn't fix it on a repo with no required status checks.
 
-Check 13 covers the one workflow no skill ever scaffolded. `claude-code-review.yml` was
-hand-added per repo until `gh-actions-init/references/claude-code-review.md` became the
-canonical template on 2026-09-04, so every copy predating that is unverified by
-construction. Its three parts fail differently: a missing workflow is a rollout gap
+Check 13 covers the workflow that spent the longest unscaffolded.
+`claude-code-review.yml` was hand-added per repo until 2026-09-04, when `gh-actions-init`
+took ownership of it (`references/claude-code-review.md`). Fresh repos are correct by
+construction from that date; every repo predating it is unverified by construction, and
+nothing retrofits them. Its three parts fail differently: a missing workflow is a rollout gap
 (low), a missing `github.event.pull_request.draft == false` gate silently pays for
 reviewing the same draft two and three times (medium), and a missing
 `CLAUDE_CODE_OAUTH_TOKEN` puts a red X on every PR (high). The secret lookup shares
