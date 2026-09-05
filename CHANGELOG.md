@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.7.0](https://github.com/hellatan/ai-skills/compare/v2.6.3...v2.7.0) (2026-09-05)
+
+
+### Features
+
+* **gh-actions-init:** scaffold claude-code-review.yml, drafts skipped ([#192](https://github.com/hellatan/ai-skills/issues/192)) ([b40ccbe](https://github.com/hellatan/ai-skills/commit/b40ccbea4277f0106208e6304f2746262e93550f))
+
+
+### Chores
+
+* **release:** develop → main ([34f329e](https://github.com/hellatan/ai-skills/commit/34f329e6a4c7b0ccf28f8bd5de1223835ebc0f58))
+
 ## [2.6.3](https://github.com/hellatan/ai-skills/compare/v2.6.2...v2.6.3) (2026-09-03)
 
 
