@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.8.1](https://github.com/hellatan/ai-skills/compare/v2.8.0...v2.8.1) (2026-09-05)
+
+
+### Documentation
+
+* **claude-md:** require running the bash snippets in reference files ([#198](https://github.com/hellatan/ai-skills/issues/198)) ([7424f98](https://github.com/hellatan/ai-skills/commit/7424f98f362ea6b22de2911c568041ae772f7435))
+
+
+### Chores
+
+* **release:** develop → main ([45c8b6a](https://github.com/hellatan/ai-skills/commit/45c8b6a76d37dadb0a2492e3c4695e9922d4c514))
+
 ## [2.8.0](https://github.com/hellatan/ai-skills/compare/v2.7.0...v2.8.0) (2026-09-05)
 
 
