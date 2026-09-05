@@ -1,6 +1,6 @@
 ---
 name: ci-baseline-audit
-description: Audit one or more repos for deviation from this project's CI baseline — duplicate `push` triggers on develop, missing Playwright browser cache, missing workflow_dispatch or /rebuild, unexpected job names. Use when the user wants to "audit CI", "check the CI baseline" (also "check for CI drift" — this skill's former name), "make sure the repos still match the baseline", "why did Actions minutes go back up", or is setting up a recurring/scheduled check across repos. Read-only by default — reports findings, never edits a repo unless explicitly asked to fix.
+description: Audit one or more repos for deviation from this project's CI baseline — duplicate `push` triggers on develop, missing Playwright browser cache, missing workflow_dispatch or /rebuild, unexpected job names, a `claude-code-review.yml` that is absent, missing its draft gate, or missing its OAuth token secret. Use when the user wants to "audit CI", "check the CI baseline" (also "check for CI drift" — this skill's former name), "make sure the repos still match the baseline", "why did Actions minutes go back up", or is setting up a recurring/scheduled check across repos. Read-only by default — reports findings, never edits a repo unless explicitly asked to fix.
 ---
 
 # ci-baseline-audit
@@ -29,7 +29,7 @@ User says any of:
 
 - **The baseline itself.** The correct CI shape is defined by `gh-actions-init`
   (`references/ci-structure.md`, `ci-cost-migration.md`, `rebuild.md`,
-  `develop-to-main-pr.md`, `tagged-deploy.md`) and
+  `develop-to-main-pr.md`, `tagged-deploy.md`, `claude-code-review.md`) and
   `testing-init` (`references/ci-test-job.md`). This skill only *checks* against them —
   when the baseline changes, update it there and add a check here.
 - **Branch protection / required checks** — `gitflow-init` owns that.
@@ -114,6 +114,7 @@ Full detail, rationale, and detection notes: `references/checks.md`.
 | 10 | Every secret a workflow references actually exists on the repo | medium — silently dead alerts / **high** if the run fails on it |
 | 11 | A repo running `prettier` over the tree ignores `*.yml` / `*.yaml` | medium — CI red on any workflow edit |
 | 12 | Release-please repos also prettier-ignore `CHANGELOG.md` + the manifest | medium — release PR fails `format:check`, auto-merged release freezes |
+| 13 | `claude-code-review.yml` present, draft-gated, `CLAUDE_CODE_OAUTH_TOKEN` set | low missing / medium ungated / **high** missing secret |
 
 Check 7 is reported, never failed: consolidation renames status checks, which is a
 breaking change for any repo with required checks. See `ci-cost-migration.md`.
@@ -124,9 +125,10 @@ gap (low); a repo that has it but reads `steps.release.outputs.release_created` 
 there, so it cries "NO TAG created" on every healthy release while its real
 tag-missing branch can never fire.
 
-Check 9 needs **`Secrets: Read`** on the audit token, which the base setup does not
+Checks 10 and 13 need **`Secrets: Read`** on the audit token, which the base setup does not
 grant — see `references/audit-token.md`. Without it, report the check as
-`skipped: token lacks Secrets:Read`, **never as a pass**. A missing-secret check that
+`skipped: token lacks Secrets:Read`, **never as a pass** (for check 13, that verdict
+scopes to its secret part; its workflow-file parts still run). A missing-secret check that
 silently reports "all good" because it couldn't look is the exact failure it exists to
 catch. Secret *names* are all this reads; values are never retrievable through the API.
 
@@ -140,6 +142,17 @@ release-please config; the two differ in what they conclude from it. Its fourth 
 the inverse — a release that ships when it *shouldn't*: an auto-merge step that squash-merges
 the release PR without waiting for that PR's checks tags and deploys unverified code, and
 `gh pr merge --auto` doesn't fix it on a repo with no required status checks.
+
+Check 13 covers the workflow that spent the longest unscaffolded.
+`claude-code-review.yml` was hand-added per repo until 2026-09-04, when `gh-actions-init`
+took ownership of it (`references/claude-code-review.md`). Fresh repos are correct by
+construction from that date; every repo predating it is unverified by construction, and
+nothing retrofits them. Its three parts fail differently: a missing workflow is a rollout gap
+(low), a missing `github.event.pull_request.draft == false` gate silently pays for
+reviewing the same draft two and three times (medium), and a missing
+`CLAUDE_CODE_OAUTH_TOKEN` puts a red X on every PR (high). The secret lookup shares
+check 10's `Secrets: Read` requirement — 403 means `skipped` for that part alone, not a
+pass, and the workflow-file parts still run.
 
 ## Flow
 
@@ -226,5 +239,5 @@ The list will grow. Keep each check:
 - `references/checks.md` — each check: rationale, detection, fix, severity
 - `references/repo-list.md` — where the audited set comes from: discovery vs explicit list, conventional paths, token caveats
 - `references/audit-token.md` — the read-only PAT: required scopes, why 404 means "no access", and the confirmed cause of a token that authenticates but sees nothing
-- Baseline sources: `gh-actions-init/references/{ci-structure,ci-cost-migration,rebuild,develop-to-main-pr,tagged-deploy,release-please}.md`,
+- Baseline sources: `gh-actions-init/references/{ci-structure,ci-cost-migration,rebuild,develop-to-main-pr,tagged-deploy,release-please,claude-code-review}.md`,
   `testing-init/references/ci-test-job.md`
