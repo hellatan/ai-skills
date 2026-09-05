@@ -22,6 +22,12 @@ and `/rebuild` workflows without needing a list of their names. Where several wo
 qualify, prefer ones named like CI (`validate*`, `test*`, `check*`, `verify*`, `build*`,
 `lint*`) so the file you report is the one a human would point at.
 
+**Exclude the PR-review workflow from this search.** `claude-code-review.yml` (check 13)
+also triggers on `pull_request`, so on a repo whose real gate is named unusually it can
+win the behaviour match and become "the CI workflow" — which would run checks 1–4 against
+a review bot and report nonsense. A workflow whose only step is
+`anthropics/claude-code-action` is not a CI gate; skip it here.
+
 Only after identifying it that way, judge the name. Anything other than
 `.github/workflows/ci.yml` is **present-but-drifted** — report it as a rename, the way
 checks 5 and 6 handle theirs, and **still run checks 1–4 against it**.
@@ -516,6 +522,8 @@ Report names in the first set and not the second.
 - `GITHUB_TOKEN` — always injected, never a repo secret.
 - Anything matched inside a `${{ secrets.X != '' }}` style guard *only*, where the workflow
   already handles absence explicitly.
+- `CLAUDE_CODE_OAUTH_TOKEN` — owned by check 13, which reports it with the right severity
+  and the right fix. Reporting it here too double-counts one finding.
 - Organization- or environment-scoped secrets. `gh secret list` on a repo shows repo-level
   secrets only, so an org secret reads as missing. If the owner uses org secrets, either
   add `--app actions --org` lookups or add the name to an allowlist; **say which** in the
@@ -644,6 +652,101 @@ canonical line when a wider one already does the job.
 # release-please owns and rewrites both of these on every release PR — keep prettier off them.
 CHANGELOG.md
 .github/.release-please-manifest.json
+```
+
+---
+
+## 13. `claude-code-review.yml` present, draft-gated, and credentialed — low missing / medium ungated / **high** missing secret
+
+**What.** Three related things about the automated PR reviewer:
+
+1. a workflow running `anthropics/claude-code-action` on `pull_request` exists,
+2. its `review` job's `if:` includes `github.event.pull_request.draft == false`,
+3. the `CLAUDE_CODE_OAUTH_TOKEN` repo secret is set.
+
+**Why this one drifted in the first place.** `claude-code-review.yml` was never
+scaffolded by any skill — it was hand-added per repo, so no two copies are the same.
+`gh-actions-init/references/claude-code-review.md` became the canonical template on
+2026-09-04; every repo predating that is unverified by construction, which is exactly the
+population an audit exists to enumerate.
+
+**Detect — by behaviour, not filename.** Scan `.github/workflows/*` for a file that both
+references `anthropics/claude-code-action` **and** triggers on `pull_request`.
+
+> ⚠️ **Do not match on `anthropics/claude-code-action` alone.** The mention-triggered
+> `claude.yml` uses the same action but fires on `issue_comment` / `issues`, and it is a
+> deliberately separate decision (a different security surface — see
+> `gh-actions-init/references/claude-code-review.md` § *The `draft == false` gate is the
+> point*). A repo with only `claude.yml` has **no** PR-review workflow; reporting it as
+> present is a false pass. The `pull_request` trigger is what separates them.
+
+```bash
+# 1. presence — behaviour-based
+for f in .github/workflows/*.y*ml; do
+  grep -q 'anthropics/claude-code-action' "$f" || continue
+  yq -e '.on | has("pull_request")' "$f" >/dev/null 2>&1 && echo "review workflow: $f"
+done
+
+# 2. draft gate — read the job's `if:`, don't grep the file
+#    (`if: >-` folded scalars mean the expression spans lines; yq joins them)
+yq -r '.jobs.review.if // ""' "$f" | grep -q 'pull_request\.draft == false' \
+  || echo "DRIFT: review job not draft-gated"
+
+# 3. secret — names only, values are never retrievable
+gh secret list --repo "$REPO" --json name -q '.[].name' | grep -qx 'CLAUDE_CODE_OAUTH_TOKEN' \
+  || echo "DRIFT: CLAUDE_CODE_OAUTH_TOKEN not set"
+```
+
+Read the `if:` through `yq`, not `grep`, for the same reason check 1 parses `on.push`: the
+canonical template writes the condition as a folded `>-` block, so a line-oriented grep
+sees fragments and a `&&`-joined one-liner variant sees something else again. The job may
+also be named something other than `review` — resolve it as the job whose steps use
+`anthropics/claude-code-action` rather than by key.
+
+**Why the draft gate matters.** `opened` fires for a PR opened *as* a draft. Without
+`draft == false` that PR is reviewed on open, again on every push while it is still a
+draft, and once more on `ready_for_review` — that last run against byte-identical code
+when no push happened in between. It is the same duplicate-work shape as check 1: not
+wrong, just paid for repeatedly, with the last payment buying nothing. This is the single
+most common deviation among hand-added copies, because the file works fine without it.
+
+Report the trade alongside the finding, because it is a real one: **with the gate, no
+automated review happens while a PR is a draft.** In a workflow where PRs are opened as
+drafts by default, the bot's review arrives at "ready", not before. That is the intended
+behaviour, not a side effect — drafting is the author's own review window.
+
+**Why the secret matters.** With `CLAUDE_CODE_OAUTH_TOKEN` unset the workflow still
+triggers and the job fails on the action step — **a red X on every PR**. Unlike check 10's
+webhook secrets this one is loud, but it announces itself as a broken check, which reads
+like a CI failure and trains people to ignore a red mark. Nothing downstream depends on it,
+so it is noise rather than breakage — but it is noise on every single PR.
+
+**Severity.**
+
+- **low** — no review workflow at all. Nothing depends on it; the repo just has no
+  automated review. A rollout gap, not a defect.
+- **medium** — workflow present, draft gate missing. Duplicate paid runs on every draft
+  PR, invisible because the reviews look normal.
+- **high** — workflow present, secret missing. A failing required-looking check on every
+  PR until someone sets it.
+
+Two shapes are **not** findings:
+
+- Secret set, no workflow → harmless. Don't report it.
+- No `.github/workflows/` at all → already reported by check 0 as "no CI gate". Don't
+  double-count; a repo with no workflows has no review workflow by definition.
+
+**Token requirement.** Part 3 needs `Secrets: Read` on the audit PAT, the same grant
+check 10 needs (`references/audit-token.md`). When the call 403s, report
+`skipped: token lacks Secrets:Read` for **part 3 only** — parts 1 and 2 read workflow
+files and still run. Never report the secret as present because the lookup failed.
+
+**Fix.** `gh-actions-init/references/claude-code-review.md` for the workflow and the
+`if:` chain (including where a `stage` term goes — it belongs between the `develop` and
+`main` terms, since the last term carries no trailing `&&`). For the credential:
+
+```bash
+gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo <owner>/<repo>
 ```
 
 ---
