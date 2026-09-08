@@ -23,9 +23,13 @@ believe work.>
 ## What went wrong (root causes)
 
 <MANDATORY. Numbered. One entry per failure/detour/friction. What happened →
-root cause → fix. If empty, you have not looked hard enough.>
+root cause → fix → the three tagging lines (see SKILL.md, "Naming the guard").
+If empty, you have not looked hard enough.>
 
 1. **<What happened.>** **Root cause:** <why.> **Fix:** <concrete prevention.>
+   **Guard:** `<file or rule that already covered this>` — <what it keys on, and why that did not fire> | `none`
+   **Hook-feasible:** `yes` <the tool call and the condition> | `narrow` <the slice> | `no` — <what makes it uncheckable>
+   **Class:** <short mechanism label>, <a second label if it genuinely belongs to two>
 
 ## Assumptions that bit
 

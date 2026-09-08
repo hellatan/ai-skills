@@ -60,10 +60,14 @@ short. This is the least important section; do not pad it.>
 <MANDATORY. Numbered list. One entry per failure, mistake, detour, or friction
 point. Each entry states what happened, then the **root cause** (the underlying
 reason, not the symptom), then the **Fix** (a concrete change that would prevent
-a recurrence). If you cannot find anything, you have not looked hard enough — see
-"Forcing the failure signal" below.>
+a recurrence), then the three tagging lines described in "Naming the guard"
+below. If you cannot find anything, you have not looked hard enough — see
+"Forcing the failure signal".>
 
 1. **<What happened.>** **Root cause:** <why.> **Fix:** <concrete prevention.>
+   **Guard:** `<file or rule that already covered this>` — <what it keys on, and why that did not fire> | `none`
+   **Hook-feasible:** `yes` <the tool call and the condition> | `narrow` <the slice> | `no` — <what makes it uncheckable>
+   **Class:** <short mechanism label>, <a second label if it genuinely belongs to two>
 
 ## Assumptions that bit
 
@@ -110,6 +114,108 @@ nothing:
 State each as *what happened → root cause → fix*. The fix must be specific enough
 that following it would actually prevent the recurrence — "be more careful" is not
 a fix; "grep across all branches before claiming a feature is missing" is.
+
+## Naming the guard
+
+Every root cause carries three tagging lines. They exist because the single most
+valuable thing a retro can report is not *what broke* but **whether something was
+already supposed to stop it** — and that fact is invisible from inside any one
+retro. Read across a corpus of them it is the whole signal.
+
+### `Guard:` — name the file, not the feeling
+
+Name the rule, memory file, hook, skill step, or `CLAUDE.md` line that already
+covered this mechanism, **by filename**, and say what it keys on. If nothing
+covered it, write `none` — that is a real, useful answer, and it is the one that
+justifies writing something new.
+
+The high-value case is a guard that existed and did not fire. When that happens,
+the interesting question is never "why didn't I remember?" — it is **what was the
+rule keyed to?** A rule triggered by an incidental cue (a ticket named in the
+prompt, a symptom looking identical, a particular phrasing) is structurally
+unreachable in the case where that cue is absent, which is usually the dangerous
+case. A rule keyed to the *action* fires whenever the action happens. So:
+
+> **Guard:** `<rule-file>` — keys on "a PR is named in the prompt"; none was named,
+> so the rule was unreachable rather than forgotten.
+
+That sentence is what turns a repeated failure into a fixable one. "I knew the
+rule and didn't apply it" is not a root cause; it is the thing to explain.
+
+Name at most one guard. This is a single checkable assertion — a filename that
+either exists or does not — deliberately not a taxonomy.
+
+### `Hook-feasible:` — can a machine catch this at the moment it happens?
+
+- **`yes`** only when the failing act is a literal, enumerable argument on a tool
+  call: a specific flag value, a command shape, a path prefix. Name the tool call
+  and the condition. These are the cases where an automated guard genuinely beats
+  a written rule.
+- **`narrow`** when a hook covers some slice but not the class. Say which slice.
+  A guard sold as covering a class it only partly reaches is worse than none,
+  because everyone stops looking.
+- **`no`** when the failure is authoring-time reasoning — a judgment about
+  evidence, scope, or someone else's system — with no observable tool call and no
+  end-of-turn condition that distinguishes the good case from the bad. Say what
+  makes it uncheckable.
+
+Be honest about `no`. A hook that cannot fire on the actual failure is not a
+guard, it is a new thing to maintain, and proposing one repeatedly for a class
+already ruled uncheckable is its own failure loop. Once a mechanism has been
+marked `no` with a reason, later retros should carry that verdict forward rather
+than re-proposing automation.
+
+### `Class:` — a hint, never a partition
+
+A short label for the *mechanism*, not the incident: "asserted from a read
+narrower than the claim", "check that could not go red", "stale snapshot reused
+as live", "someone's prose taken as evidence". Reuse a label you have used before
+whenever it fits — matching labels across retros is the entire point.
+
+Two or more labels are allowed and often correct: one incident can be both an
+unverified vendor assumption and an unverified claim written into a durable
+artifact, distinguished only by venue. Do not force a single bucket. These labels
+are hints for a later cross-retro read, not a database key, and the numbered
+position of an item is not a stable identifier — never cite a root cause as
+"retro X item 3" anywhere durable.
+
+### Why the tagging is worth the three extra lines
+
+A corpus read in one pass found that *every* recurring failure class had already
+been written down somewhere before its last occurrence, and that the written
+fixes were not changing behavior: one rule was corrected, indexed in
+always-loaded context, and produced no behavioral change roughly a day later.
+That is only discoverable if each retro says which guard it believes it violated.
+Without these lines each retro reads as a fresh incident, the same mechanism
+arrives wearing a new costume every time, and the response is always to write one
+more note.
+
+## Where the lesson lands
+
+Writing the retro is not the same as durably learning from it, and a new note is
+the *default*, not the answer. Before adding one, pick the lightest home that
+matches the `Hook-feasible` verdict you just recorded:
+
+1. **A guard that already exists is amended, not duplicated.** If `Guard:` names a
+   file, the fix usually belongs *in that file* — most often re-keying it from a
+   cue to an action. A second note describing the same mechanism from a new angle
+   makes the next occurrence harder to match, not easier.
+2. **`Hook-feasible: yes` → build the check**, and ship it with a passing fixture
+   for every legal outcome *and* every near-miss it must ignore. An untested guard
+   trades a known failure for a silent one: a contract check written from the
+   common path can reject correct behavior for days without anyone noticing,
+   because its output is indistinguishable from a legitimate correction.
+3. **`Hook-feasible: no` → strengthen the review, not the rulebook.** Failures of
+   evidence, scope, and third-party assumption are caught reliably by a
+   fresh-context reviewer and almost never by the author. Add the missing question
+   to the standing review brief, phrased as a property to check rather than a list
+   of mechanisms — an enumerated list quietly becomes the next blind spot.
+4. **Only then, a new note** — and if two or three existing notes already describe
+   the same mechanism filed under different tools, the right move is to merge them
+   into one rule stated at the level of the mechanism.
+
+Whatever you choose, actually write it. A lesson that exists only in the retro
+body is in the same state as one that exists only in chat.
 
 ## Time calibration discipline
 
@@ -196,8 +302,8 @@ mkdir -p "$RETRO_DIR"
 ### Optional repo pointer
 
 Some lessons are repo-specific (a gotcha about *this* codebase, a CI footgun, a
-convention). When a retro contains that kind of durable, repo-scoped lesson,
-offer to also surface it where the repo will see it — don't silently duplicate the
+convention). When "Where the lesson lands" points at a repo-scoped lesson, offer
+to also surface it where the repo will see it — don't silently duplicate the
 whole retro. Pick the lightest touch that fits:
 
 - Add the gotcha to the repo's `CLAUDE.md` "living doc" section, if it has one.
