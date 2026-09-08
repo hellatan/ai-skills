@@ -161,9 +161,16 @@ either exists or does not — deliberately not a taxonomy.
 
 Be honest about `no`. A hook that cannot fire on the actual failure is not a
 guard, it is a new thing to maintain, and proposing one repeatedly for a class
-already ruled uncheckable is its own failure loop. Once a mechanism has been
-marked `no` with a reason, later retros should carry that verdict forward rather
-than re-proposing automation.
+already ruled uncheckable is its own failure loop. Before writing this field,
+grep the retro directory (resolved in **Output** below) for the mechanism you are
+about to tag:
+
+```bash
+grep -rl "Hook-feasible: \`no\`" "$RETRO_DIR" | xargs grep -l "<your Class label>"
+```
+
+If a prior retro already ruled this mechanism uncheckable, say so and reuse that
+verdict instead of re-proposing automation.
 
 ### `Class:` — a hint, never a partition
 
@@ -181,41 +188,67 @@ position of an item is not a stable identifier — never cite a root cause as
 
 ### Why the tagging is worth the three extra lines
 
-A corpus read in one pass found that *every* recurring failure class had already
-been written down somewhere before its last occurrence, and that the written
-fixes were not changing behavior: one rule was corrected, indexed in
-always-loaded context, and produced no behavioral change roughly a day later.
-That is only discoverable if each retro says which guard it believes it violated.
-Without these lines each retro reads as a fresh incident, the same mechanism
-arrives wearing a new costume every time, and the response is always to write one
+One read across 38 retrospectives written over about eight days (September 2026,
+a single author's private corpus) sorted them into 13 recurring mechanisms. For
+each of those 13, a rule covering it already existed somewhere before its most
+recent occurrence — and in the sharpest case a rule was corrected, indexed in
+always-loaded context, and produced no behavioral change about a day later. Treat
+that as one observation, not a law; it is quoted here because it is the reason
+these fields are mandatory rather than optional.
+
+The mechanism argument stands without the statistic. Whether a guard already
+existed is invisible from inside a single retro — it only appears when many are
+read together, and only if each one says which guard it believes it violated.
+Without these lines every retro reads as a fresh incident, the same mechanism
+arrives wearing a new costume each time, and the response is always to write one
 more note.
 
 ## Where the lesson lands
 
 Writing the retro is not the same as durably learning from it, and a new note is
-the *default*, not the answer. Before adding one, pick the lightest home that
-matches the `Hook-feasible` verdict you just recorded:
+the *default*, not the answer. Work the list below **in order** and stop at the
+first item that applies — item 1 keys on `Guard:`, items 2–4 on `Hook-feasible:`.
 
 1. **A guard that already exists is amended, not duplicated.** If `Guard:` names a
    file, the fix usually belongs *in that file* — most often re-keying it from a
-   cue to an action. A second note describing the same mechanism from a new angle
-   makes the next occurrence harder to match, not easier.
-2. **`Hook-feasible: yes` → build the check**, and ship it with a passing fixture
-   for every legal outcome *and* every near-miss it must ignore. An untested guard
-   trades a known failure for a silent one: a contract check written from the
-   common path can reject correct behavior for days without anyone noticing,
-   because its output is indistinguishable from a legitimate correction.
-3. **`Hook-feasible: no` → strengthen the review, not the rulebook.** Failures of
-   evidence, scope, and third-party assumption are caught reliably by a
-   fresh-context reviewer and almost never by the author. Add the missing question
-   to the standing review brief, phrased as a property to check rather than a list
-   of mechanisms — an enumerated list quietly becomes the next blind spot.
-4. **Only then, a new note** — and if two or three existing notes already describe
+   cue to an action. This takes precedence even when `Hook-feasible: yes`: widen
+   the guard you have before adding a second one. A new note describing the same
+   mechanism from a new angle makes the next occurrence harder to match, not
+   easier.
+2. **`Hook-feasible: yes` → propose the check.** Describe the tool call, the
+   condition, and the fixtures it would need — a passing case for every legal
+   outcome *and* every near-miss it must ignore — then get the user's go-ahead
+   before building anything. An untested guard trades a known failure for a silent
+   one: a contract check written from the common path can reject correct behavior
+   for days without anyone noticing, because its output is indistinguishable from
+   a legitimate correction. Automated-guard config is owned elsewhere — see
+   "Auto-invocation" below, which routes hook and settings changes to the
+   `update-config` skill and requires explicit approval.
+3. **`Hook-feasible: narrow` → widen the existing check if its trigger can reach
+   the whole mechanism** (same approval path as item 2). If it cannot, name the
+   uncovered slice explicitly and treat that slice as `no`. Do not let a guard
+   that reaches part of a mechanism be recorded as covering it — that is how a
+   class stops being looked at while it is still live.
+4. **`Hook-feasible: no` → strengthen the review, not the rulebook.** Failures of
+   evidence, scope, and third-party assumption are ones a fresh-context reviewer
+   has caught in cases where the author's own review found nothing. Add the
+   missing question to whatever brief a reviewer actually receives — a repo's
+   automated review prompt (`skills/gh-actions-init/references/claude-code-review.md`,
+   "Repo-specific checks") or the standing instructions you hand a review
+   subagent. Phrase it as a property to check rather than a list of mechanisms;
+   an enumerated list quietly becomes the next blind spot.
+5. **Only then, a new note** — and if two or three existing notes already describe
    the same mechanism filed under different tools, the right move is to merge them
    into one rule stated at the level of the mechanism.
 
-Whatever you choose, actually write it. A lesson that exists only in the retro
-body is in the same state as one that exists only in chat.
+Whichever item you land on becomes an **action item**, resolved under "Filing
+action items" below to filed / in flight / dropped like any other. Getting the
+user's go-ahead is part of that, not a step around it: the same confirmation rules
+apply here as everywhere else in this skill — confirm before writing into a repo,
+into the user's tracker, or into agent config. `skills/session-cleanup/SKILL.md`
+("Durable learnings") covers the same decision at session close and owns the
+end-of-session version of it; this section is the retro-time entry point, not a
+second policy.
 
 ## Time calibration discipline
 
@@ -302,8 +335,8 @@ mkdir -p "$RETRO_DIR"
 ### Optional repo pointer
 
 Some lessons are repo-specific (a gotcha about *this* codebase, a CI footgun, a
-convention). When "Where the lesson lands" points at a repo-scoped lesson, offer
-to also surface it where the repo will see it — don't silently duplicate the
+convention). When a retro contains that kind of durable, repo-scoped lesson,
+offer to also surface it where the repo will see it — don't silently duplicate the
 whole retro. Pick the lightest touch that fits:
 
 - Add the gotcha to the repo's `CLAUDE.md` "living doc" section, if it has one.
