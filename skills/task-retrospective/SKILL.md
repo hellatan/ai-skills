@@ -166,7 +166,14 @@ RULES_DIR="${AGENT_RULES_DIR:-$HOME/.claude/memory}"
 # Alternation over INDIVIDUAL distinctive words, not a phrase. The duplicate you
 # are hunting is worded differently by construction — that is what makes it a
 # duplicate under a second name rather than an obvious copy.
-grep -rilE "word1|word2|word3" "$RULES_DIR"
+WORDS="word1|word2|word3"
+
+grep -rilE "$WORDS" "$RULES_DIR" --include='*.md'
+# `Guard:` names a `CLAUDE.md` line as a valid guard, so the search has to reach
+# one. Without this second grep an empty result is a false all-clear, and step 5
+# below reads empty as permission to write a new note — the same duplicate this
+# search exists to prevent, arriving through a different file.
+grep -rilE "$WORDS" . --include='CLAUDE.md'
 ```
 
 ⚠️ **Confirm the probe can return non-empty before trusting an empty result.** Grep
