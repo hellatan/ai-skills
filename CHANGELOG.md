@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.10.0](https://github.com/hellatan/ai-skills/compare/v2.9.3...v2.10.0) (2026-09-08)
+
+
+### Features
+
+* **task-retrospective:** tag each root cause with the guard it violated ([#217](https://github.com/hellatan/ai-skills/issues/217)) ([9092b7b](https://github.com/hellatan/ai-skills/commit/9092b7b18df38e35602f02fd5cffc5a0ceebb808))
+
+
+### Chores
+
+* **release:** develop → main ([ce1ca2a](https://github.com/hellatan/ai-skills/commit/ce1ca2a8e2da883facef178c8a37536414bbe3cf))
+
 ## [2.9.3](https://github.com/hellatan/ai-skills/compare/v2.9.2...v2.9.3) (2026-09-07)
 
 
