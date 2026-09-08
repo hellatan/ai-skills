@@ -126,8 +126,9 @@ retro. Read across a corpus of them it is the whole signal.
 
 Name the rule, memory file, hook, skill step, or `CLAUDE.md` line that already
 covered this mechanism, **by filename**, and say what it keys on. If nothing
-covered it, write `none` — that is a real, useful answer, and it is the one that
-justifies writing something new.
+covered it, write `none` — a real, useful answer, and the one that makes a new
+rule *worth considering*. It does not by itself justify writing one: see "Where
+the lesson lands", step 0.
 
 The high-value case is a guard that existed and did not fire. When that happens,
 the interesting question is never "why didn't I remember?" — it is **what was the
@@ -151,18 +152,32 @@ is the guard the failure *produced* — not one it escaped — so `none` is the 
 answer there. Check the dates rather than assuming; a guard file's creation date
 settles it.
 
-**Before writing `none`, search.** It is the answer that routes straight to
-"write a new note", so an unsearched `none` is how the same rule gets written
-twice under two names:
+**Before writing `none`, search.** It is the answer that routes toward "write a
+new note", so an unsearched `none` is how the same rule gets written twice under
+two names.
+
+Resolve your rules directory the same way **Output** below resolves the retro
+directory: `$AGENT_RULES_DIR` if set and non-empty, otherwise wherever this agent
+keeps durable rules (its memory/config directory, and the repo's `CLAUDE.md`).
+Treat an empty value as unset.
 
 ```bash
-grep -ril "<two or three words for the mechanism>" <your rules/memory dir>
+RULES_DIR="${AGENT_RULES_DIR:-$HOME/.claude/memory}"
+# Alternation over INDIVIDUAL distinctive words, not a phrase. The duplicate you
+# are hunting is worded differently by construction — that is what makes it a
+# duplicate under a second name rather than an obvious copy.
+grep -rilE "word1|word2|word3" "$RULES_DIR"
 ```
 
-If that returns something whose rule covers this mechanism, `none` is wrong — name
-it. If it returns something written *after* the failure, `none` is still right, but
-carry that filename into "Where the lesson lands" below, because the lesson belongs
-in that file even though it did not exist in time to prevent anything.
+⚠️ **Confirm the probe can return non-empty before trusting an empty result.** Grep
+a term you know is covered; if that also comes back empty, your search is broken,
+not your corpus. An empty result and a broken search are the same output — the
+failure this document warns about under `Hook-feasible:`, applied to itself.
+
+Then **read the candidates**, do not trust the filename list: a hit whose rule does
+not actually cover this mechanism is not a guard. If one does cover it, `none` is
+wrong — name it. If the covering file was written *after* the failure, `none` is
+still right; step 0 below will find it again when deciding where the lesson goes.
 
 ### `Hook-feasible:` — can a machine catch this at the moment it happens?
 
@@ -225,22 +240,24 @@ more note.
 ## Where the lesson lands
 
 Writing the retro is not the same as durably learning from it, and a new note is
-the *default*, not the answer. Work the list below **in order** and stop at the
-first item that applies — item 1 keys on `Guard:`, items 2–4 on `Hook-feasible:`.
+the *default*, not the answer. **Step 0 always runs**; then work items 1–5 in
+order and stop at the first that applies — item 1 keys on the step-0 search
+result, items 2–4 on `Hook-feasible:`.
 
 0. **First, re-run the search — this list asks a PRESENT-TENSE question.**
    `Guard:` recorded what existed when the failure happened; this asks where the
    lesson goes *now*, and those differ whenever a rule landed in between. Repeat
    the `grep` from "Naming the guard" against the current state before concluding
    nothing covers this. A correct `Guard: none` does **not** license a new note.
-   ⚠️ Real case: a retro correctly recorded `none` (its guard was written the day
-   *after* the failure began), then filed a fresh note — duplicating a rule that by
-   then existed *and had been widened 32 minutes earlier*, and reintroducing the
-   narrower wording that widening had just retired. Two files, one rule, and the
-   next occurrence matches neither cleanly.
+   ⚠️ One observed case (September 2026, the same private corpus cited above): a
+   retro correctly recorded `none` — its guard had been written the day *after* the
+   failure began — then filed a fresh note, duplicating a rule that by then existed
+   and had been widened earlier the same day, and reintroducing the narrower
+   wording that widening had just retired. Two files, one rule, and the next
+   occurrence matches neither cleanly.
 1. **A guard that already exists is amended, not duplicated.** If the search above
-   names a file — whether or not `Guard:` did — the fix usually belongs *in that
-   file*, most often re-keying it from a cue to an action. This takes precedence
+   names a file **whose rule actually covers this mechanism** — whether or not
+   `Guard:` did — the fix usually belongs *in that file*, most often re-keying it from a cue to an action. This takes precedence
    even when `Hook-feasible: yes`: widen the guard you have before adding a second
    one. A new note describing the same mechanism from a new angle makes the next
    occurrence harder to match, not easier.
