@@ -145,6 +145,25 @@ rule and didn't apply it" is not a root cause; it is the thing to explain.
 Name at most one guard. This is a single checkable assertion — a filename that
 either exists or does not — deliberately not a taxonomy.
 
+⚠️ **This is a question about the past: what covered this mechanism *when the
+failure happened*.** A rule written afterwards, in response to this very incident,
+is the guard the failure *produced* — not one it escaped — so `none` is the right
+answer there. Check the dates rather than assuming; a guard file's creation date
+settles it.
+
+**Before writing `none`, search.** It is the answer that routes straight to
+"write a new note", so an unsearched `none` is how the same rule gets written
+twice under two names:
+
+```bash
+grep -ril "<two or three words for the mechanism>" <your rules/memory dir>
+```
+
+If that returns something whose rule covers this mechanism, `none` is wrong — name
+it. If it returns something written *after* the failure, `none` is still right, but
+carry that filename into "Where the lesson lands" below, because the lesson belongs
+in that file even though it did not exist in time to prevent anything.
+
 ### `Hook-feasible:` — can a machine catch this at the moment it happens?
 
 - **`yes`** only when the failing act is a literal, enumerable argument on a tool
@@ -209,12 +228,22 @@ Writing the retro is not the same as durably learning from it, and a new note is
 the *default*, not the answer. Work the list below **in order** and stop at the
 first item that applies — item 1 keys on `Guard:`, items 2–4 on `Hook-feasible:`.
 
-1. **A guard that already exists is amended, not duplicated.** If `Guard:` names a
-   file, the fix usually belongs *in that file* — most often re-keying it from a
-   cue to an action. This takes precedence even when `Hook-feasible: yes`: widen
-   the guard you have before adding a second one. A new note describing the same
-   mechanism from a new angle makes the next occurrence harder to match, not
-   easier.
+0. **First, re-run the search — this list asks a PRESENT-TENSE question.**
+   `Guard:` recorded what existed when the failure happened; this asks where the
+   lesson goes *now*, and those differ whenever a rule landed in between. Repeat
+   the `grep` from "Naming the guard" against the current state before concluding
+   nothing covers this. A correct `Guard: none` does **not** license a new note.
+   ⚠️ Real case: a retro correctly recorded `none` (its guard was written the day
+   *after* the failure began), then filed a fresh note — duplicating a rule that by
+   then existed *and had been widened 32 minutes earlier*, and reintroducing the
+   narrower wording that widening had just retired. Two files, one rule, and the
+   next occurrence matches neither cleanly.
+1. **A guard that already exists is amended, not duplicated.** If the search above
+   names a file — whether or not `Guard:` did — the fix usually belongs *in that
+   file*, most often re-keying it from a cue to an action. This takes precedence
+   even when `Hook-feasible: yes`: widen the guard you have before adding a second
+   one. A new note describing the same mechanism from a new angle makes the next
+   occurrence harder to match, not easier.
 2. **`Hook-feasible: yes` → propose the check.** Describe the tool call, the
    condition, and the fixtures it would need — a passing case for every legal
    outcome *and* every near-miss it must ignore — then get the user's go-ahead
@@ -237,9 +266,10 @@ first item that applies — item 1 keys on `Guard:`, items 2–4 on `Hook-feasib
    "Repo-specific checks") or the standing instructions you hand a review
    subagent. Phrase it as a property to check rather than a list of mechanisms;
    an enumerated list quietly becomes the next blind spot.
-5. **Only then, a new note** — and if two or three existing notes already describe
-   the same mechanism filed under different tools, the right move is to merge them
-   into one rule stated at the level of the mechanism.
+5. **Only then, a new note** — and only if step 0's search came back empty. If two
+   or three existing notes already describe the same mechanism filed under
+   different tools, the right move is to merge them into one rule stated at the
+   level of the mechanism, not to add a fourth.
 
 Whichever item you land on becomes an **action item**, resolved under "Filing
 action items" below to filed / in flight / dropped like any other. Getting the
