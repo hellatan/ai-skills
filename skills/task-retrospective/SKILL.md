@@ -156,34 +156,31 @@ settles it.
 new note", so an unsearched `none` is how the same rule gets written twice under
 two names.
 
-Resolve your rules directory the same way **Output** below resolves the retro
-directory: `$AGENT_RULES_DIR` if set and non-empty, otherwise wherever this agent
-keeps durable rules (its memory/config directory, and the repo's `CLAUDE.md`).
-Treat an empty value as unset.
+This is stated as a **requirement, not a command**, on purpose. A copy-pasteable
+search has to assume a rules location, a working directory, and a filesystem — and
+each assumption is a way for the search to come back empty for the wrong reason.
+Two drafts of this section shipped as a runnable block and each had a different one
+of those bugs. Write the search your environment actually needs; it must satisfy
+all four conditions below.
 
-```bash
-RULES_DIR="${AGENT_RULES_DIR:-$HOME/.claude/memory}"
-# Alternation over INDIVIDUAL distinctive words, not a phrase. The duplicate you
-# are hunting is worded differently by construction — that is what makes it a
-# duplicate under a second name rather than an obvious copy.
-WORDS="word1|word2|word3"
+1. **Both homes are covered.** `Guard:` names a memory file, a hook, a skill step
+   **or a `CLAUDE.md` line** as valid guards, so the search reaches your rules
+   store (`$AGENT_RULES_DIR` if set and non-empty, else wherever this agent keeps
+   durable rules) **and** the repo's `CLAUDE.md` — resolved from the repo root, not
+   from wherever you happen to be standing.
+2. **Terms are individual distinctive words, alternated — never one phrase.** The
+   duplicate you are hunting is worded differently by construction; that is what
+   makes it a second name for one rule rather than an obvious copy. A phrase match
+   is the search least likely to find it.
+3. **The probe is proven able to return non-empty.** Run it once against a term you
+   know is covered. An empty result and a broken search are the same output, and
+   the next step treats empty as permission to write a new note — so an unproven
+   search silently authorizes the duplicate. This document says the same thing
+   under `Hook-feasible:`; it applies to this search too.
+4. **Candidates are read, not counted.** A filename that merely contains the words
+   is not a guard. Open it and check whether its rule covers this mechanism.
 
-grep -rilE "$WORDS" "$RULES_DIR" --include='*.md'
-# `Guard:` names a `CLAUDE.md` line as a valid guard, so the search has to reach
-# one. Without this second grep an empty result is a false all-clear, and step 5
-# below reads empty as permission to write a new note — the same duplicate this
-# search exists to prevent, arriving through a different file.
-grep -rilE "$WORDS" . --include='CLAUDE.md'
-```
-
-⚠️ **Confirm the probe can return non-empty before trusting an empty result.** Grep
-a term you know is covered; if that also comes back empty, your search is broken,
-not your corpus. An empty result and a broken search are the same output — the
-failure this document warns about under `Hook-feasible:`, applied to itself.
-
-Then **read the candidates**, do not trust the filename list: a hit whose rule does
-not actually cover this mechanism is not a guard. If one does cover it, `none` is
-wrong — name it. If the covering file was written *after* the failure, `none` is
+If a file covers it, `none` is wrong — name it. If the covering file was written *after* the failure, `none` is
 still right; step 0 below will find it again when deciding where the lesson goes.
 
 ### `Hook-feasible:` — can a machine catch this at the moment it happens?
@@ -254,7 +251,8 @@ result, items 2–4 on `Hook-feasible:`.
 0. **First, re-run the search — this list asks a PRESENT-TENSE question.**
    `Guard:` recorded what existed when the failure happened; this asks where the
    lesson goes *now*, and those differ whenever a rule landed in between. Repeat
-   the `grep` from "Naming the guard" against the current state before concluding
+   the search from "Naming the guard" — same four conditions — against the
+   current state before concluding
    nothing covers this. A correct `Guard: none` does **not** license a new note.
    ⚠️ One observed case (September 2026, the same private corpus cited above): a
    retro correctly recorded `none` — its guard had been written the day *after* the
