@@ -138,8 +138,8 @@
     <text x="786" y="294" class="lab" fill="#f85149">🚨 release stuck</text>
     <text x="786" y="312" class="sm">bot PR action_required (PAT), or</text>
     <text x="786" y="330" class="sm">merged PR untagged → sweep</text>
-    <text x="786" y="386" class="lab" fill="#3fb950">✅ release cut</text>
-    <text x="786" y="404" class="sm">tag vX.Y.Z on main · verified</text>
+    <text x="786" y="386" class="lab" fill="#3fb950">✅ release cut / recovered</text>
+    <text x="786" y="404" class="sm">tag vX.Y.Z verified · green-again notice</text>
 
     <!-- ===== DEPLOY / RUNTIME NOTE (full width) ===== -->
     <rect x="20" y="460" width="1000" height="120" rx="10" class="box"/>
@@ -197,6 +197,12 @@
         <td>A <b>merged</b> release PR reports success but produces no tag, and every later release then aborts with "untagged, merged release PRs outstanding"</td>
         <td>release-please can merge, report the run green, and still cut no tag (title-pattern / component mismatch); the merged PR stays <code>autorelease: pending</code>, which freezes all future releases</td>
         <td>verify-tag steps in <code>release-please.yml</code> ground-truth the tag ref on the remote (and fix the release-merge title-pattern to carry an optional <code>${component}</code> group); a daily <code>release-health.yml</code> sweep flags any merged+pending PR → Discord (#107)</td>
+        <td><span class="tag fixed">fixed</span></td>
+      </tr>
+      <tr>
+        <td>The alert channel only ever went red, so a resolved problem and a still-burning one looked identical — the reader had to remember which alerts were ever fixed</td>
+        <td>a run has no memory of the run before it, so nothing could say "that one cleared"; and a re-run overwrites its own conclusion, so the commonest fix (rotate a credential, hit Re-run) leaves no trace a later run could read</td>
+        <td>recovery-notice steps in <code>release-please.yml</code> read this workflow's own earlier <b>attempts</b> then earlier <b>runs</b> (needs <code>actions: read</code>) and post a green embed on the first clean finish after a red one; a lookup that can't answer posts red and fails the run rather than passing quietly</td>
         <td><span class="tag fixed">fixed</span></td>
       </tr>
       <tr>
