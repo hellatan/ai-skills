@@ -71,7 +71,8 @@ Mark each with what happens if it's absent, because the severities are genuinely
                                    not deploying yet? set the variable RENDER_DEPLOY=false instead
    <ALERT_WEBHOOK_SECRET>        🔕 silent   — release alerts no-op with a warning; runs still go red
                                    Discord → Server Settings → Integrations → Webhooks
-   <PR_ALERT_WEBHOOK_SECRET>     🔕 silent   — back-merge conflict alerts no-op (only if back-merge is in scope)
+   <PR_ALERT_WEBHOOK_SECRET>     🔕 silent   — back-merge conflict AND PR-review verdict alerts no-op. Wanted by
+                                   every repo that takes PRs, not just ones with back-merge.
    CLAUDE_CODE_OAUTH_TOKEN       🔴 loud     — the PR-review job fails on its action step: a red X on every PR
                                    that reads like a CI failure. Nothing downstream breaks.
                                    claude setup-token
@@ -240,7 +241,7 @@ One file: `.github/workflows/rebuild.yml` (workflow `name: rebuild`, matching th
 
 See `references/claude-code-review.md`.
 
-One file: `.github/workflows/claude-code-review.yml`, plus the two verdict-alert steps appended to its `review` job. Substitute the repo's actual linters into the prompt's "don't comment on style" clause, and add the `stage` head-ref exclusion only when the repo has a `stage` branch. Leave the repo-specific-checks block out of a fresh scaffold — there are no invariants to state yet, and inventing them teaches the reviewer wrong rules.
+One file: `.github/workflows/claude-code-review.yml`, plus the two verdict-alert steps appended to its `review` job — those need `id: claude` on the action step, the `<PR_ALERT_WEBHOOK_SECRET>` substitution (same secret as the back-merge notify, default `DISCORD_PR_ALERTS_WEBHOOK`), and the `.github/actions/discord-alert` composite to exist. Drop the two steps rather than reference a composite the repo doesn't have. Substitute the repo's actual linters into the prompt's "don't comment on style" clause, and add the `stage` head-ref exclusion only when the repo has a `stage` branch. Leave the repo-specific-checks block out of a fresh scaffold — there are no invariants to state yet, and inventing them teaches the reviewer wrong rules.
 
 The `draft == false` gate is not optional polish; it is the difference between one review per PR and one per draft push. State the trade in the report: **no automated review runs while a PR is a draft.** In a workflow where PRs open as drafts by default, the review lands when the PR is marked ready.
 
@@ -295,7 +296,7 @@ Four scaffolded workflows, three tokens. The split is deliberate:
 | `release-please.yml` | `RELEASE_PLEASE_TOKEN` | the release PR must be user-authored so CI runs (and isn't parked behind `action_required`) — **and** the auto-merge step must use it, since a `GITHUB_TOKEN`-authored merge wouldn't re-trigger the workflow that cuts the tag |
 | `develop-to-main-pr.yml` | `RELEASE_PLEASE_TOKEN` | the `develop → main` PR needs CI for the same reason |
 | `rebuild.yml` | `GITHUB_TOKEN` | uses `gh run rerun` + `gh workflow run` (`workflow_dispatch`), both exempt from the recursion guard — a PAT adds nothing |
-| `claude-code-review.yml` | `CLAUDE_CODE_OAUTH_TOKEN` | authenticates the Claude action itself, not GitHub — unrelated to the PR-authoring split above; the job's `GITHUB_TOKEN` permissions post the comments |
+| `claude-code-review.yml` | `CLAUDE_CODE_OAUTH_TOKEN`, `<PR_ALERT_WEBHOOK_SECRET>` | the OAuth token authenticates the Claude action itself, not GitHub — unrelated to the PR-authoring split above; the job's `GITHUB_TOKEN` permissions post the comments. The webhook is the verdict alert and is optional (no-ops with a warning) |
 
 One PAT secret (`RELEASE_PLEASE_TOKEN`) covers both PR-authoring workflows; `/rebuild` stays on the built-in token. See `references/release-please.md` and `references/rebuild.md`.
 

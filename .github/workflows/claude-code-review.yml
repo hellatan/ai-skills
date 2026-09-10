@@ -103,15 +103,23 @@ jobs:
       # a PR that has real findings, which is indistinguishable from a quiet
       # week. Quoting the comment's tail instead can only ever be unhelpful,
       # never wrong. One message per review is the price of never missing one.
+      #
+      # `!cancelled()`, NOT `always()`: this job runs under
+      # cancel-in-progress, and `synchronize` is in the trigger list, so a
+      # fixup pushed mid-review cancels the run in flight. `always()` alerts
+      # on those too — a red false alarm per fixup push, which is how a
+      # channel gets muted. `!cancelled()` still covers a failed or skipped
+      # review step, which are the states worth hearing about.
       # ---------------------------------------------------------------------
       - name: Collect the review verdict
         id: verdict
-        if: always()
+        if: ${{ !cancelled() }}
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
+          RUN_ID: ${{ github.run_id }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           REVIEW_OUTCOME: ${{ steps.claude.outcome }}
         shell: bash
@@ -120,24 +128,46 @@ jobs:
 
           err=$(mktemp)
 
-          # --paginate --slurp because the review comment is the NEWEST one: a
-          # single unpaginated page returns the OLDEST 30, so on a busy PR the
-          # alert would quote a stale review as if it were this one.
+          # --paginate --slurp because the comment we want is the NEWEST one: a
+          # single unpaginated page returns the OLDEST 30. --slurp emits an
+          # array PER PAGE, hence the `flatten` below.
           # rc is captured separately from emptiness on purpose — a failed
           # lookup and a PR with no comment both yield an empty string, and
           # conflating them reports "the review posted nothing" when the truth
-          # is "we could not ask".
+          # is "we could not ask". The same care is owed to jq: a parse error
+          # also yields empty, so its status is checked too.
           comments=$(gh api --paginate --slurp \
             "repos/${REPO}/issues/${PR}/comments?per_page=100" 2>"$err")
           rc=$?
+          why="gh api exited ${rc}"
+
+          if [ "$rc" -eq 0 ]; then
+            # Scoped to THIS run, not merely to the newest bot comment.
+            # track_progress posts a fresh comment per run, so a PR reviewed
+            # once already has one: an unscoped selector would find it, and a
+            # run that posted nothing (see the warn-and-skip note below) would
+            # report GREEN quoting a previous run's verdict about a previous
+            # diff. Every comment opens with a `[View job](…/actions/runs/ID)`
+            # link, which keys it to its own run.
+            # shellcheck disable=SC2016  # $rid is a jq variable, bound by --arg
+            sel='[.[] | select(.user.login == "claude[bot]")
+                      | select(.body | contains($rid))] | sort_by(.created_at) | last'
+            body=$(printf '%s' "$comments" \
+              | jq -r --arg rid "/actions/runs/${RUN_ID}" "flatten | (${sel}) // {} | .body // \"\"" 2>"$err")
+            jq_rc=$?
+            url=$(printf '%s' "$comments" \
+              | jq -r --arg rid "/actions/runs/${RUN_ID}" "flatten | (${sel}) // {} | .html_url // \"\"" 2>>"$err")
+            if [ "$jq_rc" -ne 0 ]; then
+              rc=$jq_rc; why="jq exited ${jq_rc}"
+            fi
+          fi
 
           if [ "$rc" -ne 0 ]; then
             state="lookup-failed"
+          elif [ -n "$body" ]; then
+            state="reviewed"
           else
-            sel='[.[] | select(.user.login == "claude[bot]")] | sort_by(.created_at) | last'
-            body=$(printf '%s' "$comments" | jq -r "flatten | (${sel}) // {} | .body // \"\"")
-            url=$(printf '%s' "$comments"  | jq -r "flatten | (${sel}) // {} | .html_url // \"\"")
-            if [ -n "$body" ]; then state="reviewed"; else state="no-comment"; fi
+            state="no-comment"
           fi
 
           case "$state" in
@@ -156,17 +186,25 @@ jobs:
               ;;
             no-comment)
               title="⚠️ Claude review posted nothing · ${REPO}#${PR}"
-              color=16098851
-              detail="**${PR_TITLE}**"$'\n\n'"The review job finished but posted no comment. Editing \`claude-code-review.yml\` itself makes the action warn-and-skip while still reporting success, so read the run log — do NOT read the green check as proof the review ran."$'\n\n'"[Run log](${RUN_URL})"
+              color=15105570
+              detail="**${PR_TITLE}**"$'\n\n'"This run posted no review comment. Editing \`claude-code-review.yml\` itself makes the action warn-and-skip while still reporting success, so read the run log — do NOT read the green check as proof the review ran."$'\n\n'"[Run log](${RUN_URL})"
               ;;
             lookup-failed)
               title="🚫 Claude review verdict unreadable · ${REPO}#${PR}"
               color=15158332
-              detail="**${PR_TITLE}**"$'\n\n'"Could not read this PR's comments (\`gh api\` exit ${rc}). The review may or may not have run."$'\n\n'"\`\`\`"$'\n'"$(head -c 400 "$err")"$'\n'"\`\`\`"$'\n\n'"[Run log](${RUN_URL})"
+              detail="**${PR_TITLE}**"$'\n\n'"Could not read this PR's comments (${why}). The review may or may not have run."$'\n\n'"\`\`\`"$'\n'"$(head -c 400 "$err" | tr -d '\`')"$'\n'"\`\`\`"$'\n\n'"[Run log](${RUN_URL})"
               ;;
           esac
 
-          if [ "$REVIEW_OUTCOME" != "success" ]; then
+          # An EMPTY outcome is not a failure, it is a missing `id: claude` on
+          # the action step — the expression resolves to "" and a plain
+          # `!= success` test would red-alarm every clean review with a blank
+          # verb. Name the actual cause instead.
+          if [ -z "$REVIEW_OUTCOME" ]; then
+            title="🚫 Claude review outcome unavailable · ${REPO}#${PR}"
+            color=15158332
+            detail="\`steps.claude.outcome\` resolved to empty — the \`anthropics/claude-code-action\` step is missing \`id: claude\`."$'\n\n'"${detail}"
+          elif [ "$REVIEW_OUTCOME" != "success" ]; then
             title="🚫 Claude review step ${REVIEW_OUTCOME} · ${REPO}#${PR}"
             color=15158332
             detail="⚠️ The review step itself reported \`${REVIEW_OUTCOME}\` — treat any verdict below as incomplete."$'\n\n'"${detail}"
@@ -184,7 +222,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Push the verdict to the PR channel
-        if: always()
+        if: ${{ !cancelled() }}
         uses: ./.github/actions/discord-alert
         with:
           webhook: ${{ secrets.DISCORD_PR_ALERTS_WEBHOOK }}
