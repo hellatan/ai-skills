@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.10.1](https://github.com/hellatan/ai-skills/compare/v2.10.0...v2.10.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **task-retrospective:** require a guard search before `Guard: none` routes to a new note ([#220](https://github.com/hellatan/ai-skills/issues/220)) ([357609b](https://github.com/hellatan/ai-skills/commit/357609bcb2aa562f67fc113c949ba1f6c40198d1))
+
+
+### Chores
+
+* **release:** develop → main ([84ad09a](https://github.com/hellatan/ai-skills/commit/84ad09a70317cfc821649b9a52938d8a5be68ac5))
+
 ## [2.10.0](https://github.com/hellatan/ai-skills/compare/v2.9.3...v2.10.0) (2026-09-08)
 
 
