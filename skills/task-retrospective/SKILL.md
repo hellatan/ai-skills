@@ -126,8 +126,9 @@ retro. Read across a corpus of them it is the whole signal.
 
 Name the rule, memory file, hook, skill step, or `CLAUDE.md` line that already
 covered this mechanism, **by filename**, and say what it keys on. If nothing
-covered it, write `none` — that is a real, useful answer, and it is the one that
-justifies writing something new.
+covered it, write `none` — a real, useful answer, and the one that makes a new
+rule *worth considering*. It does not by itself justify writing one: see "Where
+the lesson lands", step 0.
 
 The high-value case is a guard that existed and did not fire. When that happens,
 the interesting question is never "why didn't I remember?" — it is **what was the
@@ -144,6 +145,43 @@ rule and didn't apply it" is not a root cause; it is the thing to explain.
 
 Name at most one guard. This is a single checkable assertion — a filename that
 either exists or does not — deliberately not a taxonomy.
+
+⚠️ **This is a question about the past: what covered this mechanism *when the
+failure happened*.** A rule written afterwards, in response to this very incident,
+is the guard the failure *produced* — not one it escaped — so `none` is the right
+answer there. Check the dates rather than assuming; a guard file's creation date
+settles it.
+
+**Before writing `none`, search.** It is the answer that routes toward "write a
+new note", so an unsearched `none` is how the same rule gets written twice under
+two names.
+
+This is stated as a **requirement, not a command**, on purpose. A copy-pasteable
+search has to assume a rules location, a working directory, and a filesystem — and
+each assumption is a way for the search to come back empty for the wrong reason.
+Two drafts of this section shipped as a runnable block and each had a different one
+of those bugs. Write the search your environment actually needs; it must satisfy
+all four conditions below.
+
+1. **Both homes are covered.** `Guard:` names a memory file, a hook, a skill step
+   **or a `CLAUDE.md` line** as valid guards, so the search reaches your rules
+   store (`$AGENT_RULES_DIR` if set and non-empty, else wherever this agent keeps
+   durable rules) **and** the repo's `CLAUDE.md` — resolved from the repo root, not
+   from wherever you happen to be standing.
+2. **Terms are individual distinctive words, alternated — never one phrase.** The
+   duplicate you are hunting is worded differently by construction; that is what
+   makes it a second name for one rule rather than an obvious copy. A phrase match
+   is the search least likely to find it.
+3. **The probe is proven able to return non-empty.** Run it once against a term you
+   know is covered. An empty result and a broken search are the same output, and
+   the next step treats empty as permission to write a new note — so an unproven
+   search silently authorizes the duplicate. This document says the same thing
+   under `Hook-feasible:`; it applies to this search too.
+4. **Candidates are read, not counted.** A filename that merely contains the words
+   is not a guard. Open it and check whether its rule covers this mechanism.
+
+If a file covers it, `none` is wrong — name it. If the covering file was written *after* the failure, `none` is
+still right; step 0 below will find it again when deciding where the lesson goes.
 
 ### `Hook-feasible:` — can a machine catch this at the moment it happens?
 
@@ -206,15 +244,28 @@ more note.
 ## Where the lesson lands
 
 Writing the retro is not the same as durably learning from it, and a new note is
-the *default*, not the answer. Work the list below **in order** and stop at the
-first item that applies — item 1 keys on `Guard:`, items 2–4 on `Hook-feasible:`.
+the *default*, not the answer. **Step 0 always runs**; then work items 1–5 in
+order and stop at the first that applies — item 1 keys on the step-0 search
+result, items 2–4 on `Hook-feasible:`.
 
-1. **A guard that already exists is amended, not duplicated.** If `Guard:` names a
-   file, the fix usually belongs *in that file* — most often re-keying it from a
-   cue to an action. This takes precedence even when `Hook-feasible: yes`: widen
-   the guard you have before adding a second one. A new note describing the same
-   mechanism from a new angle makes the next occurrence harder to match, not
-   easier.
+0. **First, re-run the search — this list asks a PRESENT-TENSE question.**
+   `Guard:` recorded what existed when the failure happened; this asks where the
+   lesson goes *now*, and those differ whenever a rule landed in between. Repeat
+   the search from "Naming the guard" — same four conditions — against the
+   current state before concluding
+   nothing covers this. A correct `Guard: none` does **not** license a new note.
+   ⚠️ One observed case (September 2026, the same private corpus cited above): a
+   retro correctly recorded `none` — its guard had been written the day *after* the
+   failure began — then filed a fresh note, duplicating a rule that by then existed
+   and had been widened earlier the same day, and reintroducing the narrower
+   wording that widening had just retired. Two files, one rule, and the next
+   occurrence matches neither cleanly.
+1. **A guard that already exists is amended, not duplicated.** If the search above
+   names a file **whose rule actually covers this mechanism** — whether or not
+   `Guard:` did — the fix usually belongs *in that file*, most often re-keying it from a cue to an action. This takes precedence
+   even when `Hook-feasible: yes`: widen the guard you have before adding a second
+   one. A new note describing the same mechanism from a new angle makes the next
+   occurrence harder to match, not easier.
 2. **`Hook-feasible: yes` → propose the check.** Describe the tool call, the
    condition, and the fixtures it would need — a passing case for every legal
    outcome *and* every near-miss it must ignore — then get the user's go-ahead
@@ -237,9 +288,10 @@ first item that applies — item 1 keys on `Guard:`, items 2–4 on `Hook-feasib
    "Repo-specific checks") or the standing instructions you hand a review
    subagent. Phrase it as a property to check rather than a list of mechanisms;
    an enumerated list quietly becomes the next blind spot.
-5. **Only then, a new note** — and if two or three existing notes already describe
-   the same mechanism filed under different tools, the right move is to merge them
-   into one rule stated at the level of the mechanism.
+5. **Only then, a new note** — and only if step 0's search came back empty. If two
+   or three existing notes already describe the same mechanism filed under
+   different tools, the right move is to merge them into one rule stated at the
+   level of the mechanism, not to add a fourth.
 
 Whichever item you land on becomes an **action item**, resolved under "Filing
 action items" below to filed / in flight / dropped like any other. Getting the
