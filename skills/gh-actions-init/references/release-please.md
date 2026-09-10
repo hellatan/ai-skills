@@ -30,13 +30,18 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  # Read-only, and both are load-bearing for the release-PR check gate.
-  # Declaring a permissions block sets every unlisted scope to `none`, so
-  # without these the built-in GITHUB_TOKEN cannot see the release PR's checks
-  # at all. `checks` covers Actions/App check runs; `statuses` covers legacy
-  # commit statuses. See references/tagged-deploy.md.
+  # Read-only, and all three are load-bearing. Declaring a permissions block
+  # sets every unlisted scope to `none`, so each scope a step depends on has to
+  # be named here or that step silently 403s on every run.
+  #   checks/statuses — the release-PR check gate reads the PR's checks as the
+  #     built-in token. `checks` covers Actions/App check runs, `statuses`
+  #     covers legacy commit statuses. See references/tagged-deploy.md.
+  #   actions — the recovery notice reads this workflow's own earlier runs and
+  #     attempts to tell whether it is clearing an earlier failure. See
+  #     references/release-verification.md.
   checks: read
   statuses: read
+  actions: read
 
 concurrency:
   group: release-please
@@ -73,6 +78,12 @@ jobs:
       # output the deploy step below gates on. Full step bodies + the companion
       # release-health.yml + discord-alert composite are in
       # references/release-verification.md — scaffold them together.
+      #
+      # recovery notice: the other half of the same steps, in the same file. It
+      # reads this workflow's own run/attempt history and posts a green the
+      # first time the workflow finishes clean after a red one — so a red alert
+      # is not left as the channel's last word on a problem that is fixed.
+      # Needs `actions: read` above.
 
       # Deploy tagged release — runs only when `released == 'true'`, and deploys
       # github.sha (the commit just tagged). Platform auto-deploy is OFF, so this
