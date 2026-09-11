@@ -14,7 +14,7 @@ permissions:
   statuses: read
   # The recovery notice reads this workflow's OWN previous runs and attempts to
   # find out whether it is clearing an earlier failure. Same trap: unlisted means
-  # `none`, so without this both lookups 403 on every run and the notice never
+  # `none`, so without this the lookup 403s on every run and the notice never
   # fires.
   actions: read
 
@@ -443,7 +443,7 @@ jobs:
           # Reading a workflow's own runs and attempts needs `actions: read`.
           # This workflow declares a permissions block, which sets every
           # unlisted scope to `none`, so the scope is granted explicitly above —
-          # without it both lookups 403 on every run.
+          # without it the lookup 403s on every run.
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           SERVER_URL: ${{ github.server_url }}

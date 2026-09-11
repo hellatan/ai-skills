@@ -202,6 +202,11 @@ So the copy stays on the conclusion — "run #N concluded **failure**; this run 
 
 The obvious design is (2) alone, and it is **wrong in the single most common recovery path**. A re-run keeps its `run_number` and overwrites its own `conclusion`, so a workflow fixed by hitting **Re-run** — the first thing anyone does after rotating a credential — ends up looking, to a run-number-only lookup, exactly like a workflow that was never broken. The previous *run* was green; the previous *attempt* was the failure, and it has been overwritten in place.
 
+**Exactly one of the two runs per run**, so a missing scope 403s one lookup, never both: a
+first attempt skips the attempt walk entirely (`RUN_ATTEMPT - 1` is 0) and reads the run
+list; a re-run reads its attempts, and `fail_unknown` sets `unknown=true`, which is the
+guard lookup 2 is behind. Worth knowing before writing either one up in a report.
+
 That is not hypothetical. It is what the incident that prompted this feature actually did: a shared fine-grained PAT expired, the release run failed with `Bad credentials`, the token was rotated, and the **same run** was re-run to green — attempts 1 and 2 `failure`, attempt 3 `success`, `run_number` never moving. A run-number-only notice posts nothing at all there.
 
 #### The three-way classification is load-bearing in both directions
@@ -221,7 +226,7 @@ This is why lookup (2) walks the page rather than reading `sort_by(.run_number) 
 
 #### ⚠️ `actions: read` — and it is not implied
 
-Both lookups read the workflow's own run history, which needs the `actions` scope. `release-please.yml` **declares a `permissions:` block, and declaring one sets every unlisted scope to `none`** ([GitHub docs](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#permissions): "If you specify the access for any of these permissions, all of those that are not specified are set to `none`") — the same trap as `checks` / `statuses` for the auto-merge gate. Without it every lookup 403s, on every run, and the notice never fires. Add it in the same change as the steps:
+Both lookups read the workflow's own run history, which needs the `actions` scope. `release-please.yml` **declares a `permissions:` block, and declaring one sets every unlisted scope to `none`** ([GitHub docs](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#permissions): "If you specify the access for any of these permissions, all of those that are not specified are set to `none`") — the same trap as `checks` / `statuses` for the auto-merge gate. Without it that read 403s on every run, and the notice never fires. Add it in the same change as the steps:
 
 ```yaml
 permissions:
@@ -287,7 +292,7 @@ Failing the run on `unknown` marks an otherwise-successful release red, which is
     # Reading a workflow's own runs and attempts needs `actions: read`.
     # This workflow declares a permissions block, which sets every
     # unlisted scope to `none`, so the scope is granted explicitly above —
-    # without it both lookups 403 on every run.
+    # without it the lookup 403s on every run.
     GH_TOKEN: ${{ github.token }}
     REPO: ${{ github.repository }}
     SERVER_URL: ${{ github.server_url }}

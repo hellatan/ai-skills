@@ -388,6 +388,11 @@ a 404, means this repo deploys.
   with `github.token` and scope the PAT to the `gh pr merge` call alone — **not** to widen
   the PAT, which would have to be redone per repo and per token rotation.
 
+  A **third** scope, `actions: read`, is the same trap in the same block, but it belongs to
+  the recovery notice rather than to this gate — and it must be reported for repos that
+  don't deploy, which this check skips. It is **check 14**; read `.permissions` once and
+  answer both.
+
 - **release-please scoped to a subdirectory — high** (when the repo has code outside that
   path). release-please only counts commits touching files **under** a package's path, so
   a change confined to an internal workspace package or to root-level tooling cuts no
@@ -769,6 +774,64 @@ files and still run. Never report the secret as present because the lookup faile
 ```bash
 gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo <owner>/<repo>
 ```
+
+---
+
+## 14. `actions: read` present wherever a step reads the Actions API — **high**
+
+**Why.** The **recovery notice** — the green "workflow is green again" follow-up that stops
+a red alert from being an alert channel's last word — answers "did this run just clear an
+earlier failure?" by reading the workflow's *own* run history over the Actions API
+(`actions/runs/{id}/attempts/{n}`, and `actions/workflows/{file}/runs`). That read needs the
+`actions` scope. Declaring a `permissions:` block sets every unlisted scope to `none`, so a
+workflow that grew the steps without growing the block cannot make the call at all.
+
+**Scope.** Any workflow with a step whose `run:` body calls the Actions API — not just
+`release-please.yml`, and not gated on release-please or on deploying. A repo that never
+deploys still runs the release workflow, still alerts, and still needs its green.
+
+```bash
+# steps that read the Actions API (0 => this check has nothing to say here)
+yq '[.jobs.*.steps[] | select(.run // "" | test("actions/(runs|workflows)/"))] | length' <workflow>
+# ... and whether the declared block grants the scope they need
+yq '.permissions // "NO-BLOCK"' <workflow>
+```
+
+Drift = a non-zero count **and** a declared `permissions:` block that omits `actions: read`.
+Both halves are load-bearing:
+
+- **`NO-BLOCK` is not drift.** With no declared block the scopes come from the repo's
+  `default_workflow_permissions`, which is `write` on a default setup — the call succeeds.
+  Reporting it produces a fix nobody needs.
+- **The scope without the steps is not drift either**, just dead config. And a repo with
+  neither has simply not been fanned out yet; flagging those turns this check into noise
+  the moment it ships, which is the one thing an audit cannot afford.
+
+**Anchor on the `run:` body, never on the step id.** The obvious probe —
+`select(.id == "recovery")` — fails in both directions, and the false negative is the one
+that matters: rename the step and the audit silently passes a repo whose notice is dead
+(verified: id-anchor `0`, run-anchor `1`), while an unrelated step that happens to be called
+`recovery` reports drift that isn't there (id-anchor `1`, run-anchor `0`). The API call is
+the thing that actually needs the scope, so it is the thing to match — and matching it also
+covers any future step that reads the same API for another reason.
+
+**The symptom is loud, not silent — say so, because it changes the triage.** An
+unanswerable lookup is its own outcome in that block (`state=unknown`): it names this exact
+cause, surfaces it (a Discord embed where a webhook is wired, the run summary otherwise),
+and then **fails the run**. So the repo's release workflow goes red on every run that
+reaches the step, and the finding's value is naming the cause in one line rather than a
+chase. Two states hide it: a run that already alerted (the notice suppresses itself so a red
+and a green never post from one run), and a run where an earlier step already failed.
+
+**Only one lookup runs per run**, so "both 403" is the wrong description to put in a report:
+a first attempt reads the run list, a re-run reads its earlier attempts and stops there.
+
+**Fix.** `gh-actions-init/references/release-verification.md` — "The recovery notice — every
+red gets a green", whose `permissions:` snippet carries the scope with the comment that
+explains it. When moving those steps into some *other* job, that file's
+"⚠️ Moving this block to another workflow" section is the prerequisite read: the
+`CHECK_ALERT` / `AUTOMERGE_ALERT` env lines name the host job's alerting steps, and
+`actionlint` hard-fails on a `steps.<id>.outputs.*` reference whose step does not exist.
 
 ---
 
