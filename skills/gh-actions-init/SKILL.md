@@ -71,7 +71,8 @@ Mark each with what happens if it's absent, because the severities are genuinely
                                    not deploying yet? set the variable RENDER_DEPLOY=false instead
    <ALERT_WEBHOOK_SECRET>        🔕 silent   — release alerts no-op with a warning; runs still go red
                                    Discord → Server Settings → Integrations → Webhooks
-   <PR_ALERT_WEBHOOK_SECRET>     🔕 silent   — back-merge conflict alerts no-op (only if back-merge is in scope)
+   <PR_ALERT_WEBHOOK_SECRET>     🔕 silent   — back-merge conflict AND PR-review verdict alerts no-op. Wanted by
+                                   every repo that takes PRs, not just ones with back-merge.
    CLAUDE_CODE_OAUTH_TOKEN       🔴 loud     — the PR-review job fails on its action step: a red X on every PR
                                    that reads like a CI failure. Nothing downstream breaks.
                                    claude setup-token
@@ -110,7 +111,7 @@ Two config settings are **not optional** for any repo that deploys: scope the pa
 
 Scaffold the **tagged-only deploy** in the same step — a deploy step plus an auto-merge-the-release-PR step folded into `release-please.yml`, and platform auto-deploy turned off. This is what makes `main == production` true. See `references/tagged-deploy.md`.
 
-Scaffold **release verification** alongside release-please (same skip condition): the `verify-tag` steps folded into `release-please.yml`, plus `release-health.yml` and the `.github/actions/discord-alert` composite. It emits the `released` output the deploy step gates on, so it is a hard prerequisite for both the deploy and the auto-merge, not an optional extra. This fails the run + alerts when a merged release PR produces no tag — the prerequisite for ever auto-merging release PRs. **Ask which secret holds the alert webhook** and substitute it for the `<ALERT_WEBHOOK_SECRET>` placeholder in every scaffolded file — a webhook URL points at one channel, so the secret name is how this project picks where its alerts land. Default to `DISCORD_GH_ERRORS_WEBHOOK` when they have no preference. The secret itself is **optional** — alerts no-op with a warning when it's unset, so the release pipeline works regardless. See `references/release-verification.md`.
+Scaffold **release verification** alongside release-please (same skip condition): the `verify-tag` steps **and the recovery-notice steps** folded into `release-please.yml`, plus `release-health.yml` and the `.github/actions/discord-alert` composite. The recovery notice needs `actions: read` in the workflow's `permissions:` block — scaffold the two together, since the scope without the steps grants access nothing uses and the steps without the scope 403 silently on every run. It emits the `released` output the deploy step gates on, so it is a hard prerequisite for both the deploy and the auto-merge, not an optional extra. This fails the run + alerts when a merged release PR produces no tag — the prerequisite for ever auto-merging release PRs. **Ask which secret holds the alert webhook** and substitute it for the `<ALERT_WEBHOOK_SECRET>` placeholder in every scaffolded file — a webhook URL points at one channel, so the secret name is how this project picks where its alerts land. Default to `DISCORD_GH_ERRORS_WEBHOOK` when they have no preference. The secret itself is **optional** — alerts no-op with a warning when it's unset, so the release pipeline works regardless. See `references/release-verification.md`.
 
 **c. Deploy** — folded into `release-please.yml` by default; the standalone `deploy.yml` stub is the fallback.
 
@@ -132,7 +133,7 @@ Default-on for gitflow repos (where `develop` exists). Lets a maintainer re-run 
 
 **f. claude-code-review** — `claude-code-review.yml`.
 
-Default-on for any repo that takes PRs. Runs `anthropics/claude-code-action` over the PR diff and posts inline findings. **The job must be gated on `github.event.pull_request.draft == false`** — `opened` fires for a PR opened as a draft, so an ungated job reviews the draft on open, again on every draft push, and once more on `ready_for_review` against byte-identical code. The gate makes `ready_for_review` the first review instead of a repeat. Also skip promotion and release-please head refs, same reasoning as the other workflows. Skip if the file already exists — but **check an existing one for the draft gate** and offer to add it. See `references/claude-code-review.md`.
+Default-on for any repo that takes PRs. Runs `anthropics/claude-code-action` over the PR diff and posts inline findings. **The job must be gated on `github.event.pull_request.draft == false`** — `opened` fires for a PR opened as a draft, so an ungated job reviews the draft on open, again on every draft push, and once more on `ready_for_review` against byte-identical code. The gate makes `ready_for_review` the first review instead of a repeat. Also skip promotion and release-please head refs, same reasoning as the other workflows. Skip if the file already exists — but **check an existing one for the draft gate** and offer to add it. **Also append the verdict-alert steps**: a finished review posts a comment and stops, so nothing tells the author it landed and the green check only means the job succeeded, not that there is nothing to fix. They push the comment's tail to the PR channel and cover the case where the action warn-and-skips while still reporting success. See `references/claude-code-review.md`.
 
 ### 3. Show summary, halt for confirmation
 
@@ -200,7 +201,7 @@ Skill behavior:
 
 Config must root-scope the package (`"."`) and carry the full `changelog-sections` list — see `references/release-please.md` for why each is load-bearing rather than cosmetic. For a monorepo with one deployable app, add `extra-files` mirroring the root version into the app's `package.json`.
 
-Scaffold **release verification** in the same step (skip it whenever release-please is skipped). Two extra files — `.github/workflows/release-health.yml` and `.github/actions/discord-alert/action.yml` — plus the `verify-tag` steps + `concurrency` block folded into `release-please.yml`. All templates, the `<ALERT_WEBHOOK_SECRET>` substitution, and the (optional) secret guidance are in `references/release-verification.md`.
+Scaffold **release verification** in the same step (skip it whenever release-please is skipped). Two extra files — `.github/workflows/release-health.yml` and `.github/actions/discord-alert/action.yml` — plus the `verify-tag` steps, the recovery-notice steps, `actions: read`, and the `concurrency` block folded into `release-please.yml`. All templates, the `<ALERT_WEBHOOK_SECRET>` substitution, and the (optional) secret guidance are in `references/release-verification.md`.
 
 ### 7. Tagged-only deploy
 
@@ -240,7 +241,7 @@ One file: `.github/workflows/rebuild.yml` (workflow `name: rebuild`, matching th
 
 See `references/claude-code-review.md`.
 
-One file: `.github/workflows/claude-code-review.yml`. Substitute the repo's actual linters into the prompt's "don't comment on style" clause, and add the `stage` head-ref exclusion only when the repo has a `stage` branch. Leave the repo-specific-checks block out of a fresh scaffold — there are no invariants to state yet, and inventing them teaches the reviewer wrong rules.
+One file: `.github/workflows/claude-code-review.yml`, plus the two verdict-alert steps appended to its `review` job — those need `id: claude` on the action step, the `<PR_ALERT_WEBHOOK_SECRET>` substitution (same secret as the back-merge notify, default `DISCORD_PR_ALERTS_WEBHOOK`), and the `.github/actions/discord-alert` composite to exist. Drop the two steps rather than reference a composite the repo doesn't have. Substitute the repo's actual linters into the prompt's "don't comment on style" clause, and add the `stage` head-ref exclusion only when the repo has a `stage` branch. Leave the repo-specific-checks block out of a fresh scaffold — there are no invariants to state yet, and inventing them teaches the reviewer wrong rules.
 
 The `draft == false` gate is not optional polish; it is the difference between one review per PR and one per draft push. State the trade in the report: **no automated review runs while a PR is a draft.** In a workflow where PRs open as drafts by default, the review lands when the PR is marked ready.
 
@@ -295,7 +296,7 @@ Four scaffolded workflows, three tokens. The split is deliberate:
 | `release-please.yml` | `RELEASE_PLEASE_TOKEN` | the release PR must be user-authored so CI runs (and isn't parked behind `action_required`) — **and** the auto-merge step must use it, since a `GITHUB_TOKEN`-authored merge wouldn't re-trigger the workflow that cuts the tag |
 | `develop-to-main-pr.yml` | `RELEASE_PLEASE_TOKEN` | the `develop → main` PR needs CI for the same reason |
 | `rebuild.yml` | `GITHUB_TOKEN` | uses `gh run rerun` + `gh workflow run` (`workflow_dispatch`), both exempt from the recursion guard — a PAT adds nothing |
-| `claude-code-review.yml` | `CLAUDE_CODE_OAUTH_TOKEN` | authenticates the Claude action itself, not GitHub — unrelated to the PR-authoring split above; the job's `GITHUB_TOKEN` permissions post the comments |
+| `claude-code-review.yml` | `CLAUDE_CODE_OAUTH_TOKEN`, `<PR_ALERT_WEBHOOK_SECRET>` | the OAuth token authenticates the Claude action itself, not GitHub — unrelated to the PR-authoring split above; the job's `GITHUB_TOKEN` permissions post the comments. The webhook is the verdict alert and is optional (no-ops with a warning) |
 
 One PAT secret (`RELEASE_PLEASE_TOKEN`) covers both PR-authoring workflows; `/rebuild` stays on the built-in token. See `references/release-please.md` and `references/rebuild.md`.
 
@@ -306,11 +307,11 @@ One PAT secret (`RELEASE_PLEASE_TOKEN`) covers both PR-authoring workflows; `/re
 - `references/ci-cost-migration.md` — retrofit an existing repo to the deduplicated `push` triggers (non-breaking); notes on the separate, breaking job-consolidation change
 - `references/ci-cost-verification.md` — prove a cost change worked using GitHub's own billed minutes (`runs/{id}/timing`): before/after tables, pricing constants, and the gotchas (a `0` billable reading is not "free")
 - `references/release-please.md` — workflow, config, manifest; monorepo variant; tag-pattern gotchas
-- `references/release-verification.md` — `verify-tag` (folded into `release-please.yml`) + `release-health.yml` + `discord-alert` composite: fail-loud + Discord alert when a merged release PR produces no tag; the alert channel is a scaffold-time choice (`<ALERT_WEBHOOK_SECRET>`, default `DISCORD_GH_ERRORS_WEBHOOK`, optional)
+- `references/release-verification.md` — `verify-tag` + the recovery notice (both folded into `release-please.yml`, both needing `actions: read`) + `release-health.yml` + `discord-alert` composite: fail-loud + Discord alert when a merged release PR produces no tag, and a green notice on the first clean run after a red one; the alert channel is a scaffold-time choice (`<ALERT_WEBHOOK_SECRET>`, default `DISCORD_GH_ERRORS_WEBHOOK`, optional)
 - `references/develop-to-main-pr.md` — `develop-to-main-pr.yml`: auto-opens/refreshes the draft `develop → main` release PR (gitflow without staging)
 - `references/main-to-develop-backmerge.md` — `main-to-develop-backmerge.yml`: fast-forwards `develop` to `main` after every promotion/release so it never drifts; conflict opens a PR and notifies the PR channel (`<PR_ALERT_WEBHOOK_SECRET>`, default `DISCORD_PR_ALERTS_WEBHOOK`, optional)
 - `references/rebuild.md` — `rebuild.yml`: `/rebuild` PR-comment re-runs failed CI (gitflow); pairs with the PAT setup
-- `references/claude-code-review.md` — `claude-code-review.yml`: automated PR review, the `draft == false` gate that stops it re-reviewing on `ready_for_review`, prompt substitutions, and the `CLAUDE_CODE_OAUTH_TOKEN` secret
+- `references/claude-code-review.md` — `claude-code-review.yml`: automated PR review, the `draft == false` gate that stops it re-reviewing on `ready_for_review`, prompt substitutions, the `CLAUDE_CODE_OAUTH_TOKEN` secret, and the verdict-alert steps that push the review's outcome to the PR channel instead of leaving a finished review silent
 - `references/tagged-deploy.md` — **the deploy model**: `autoDeploy: false` + tag-gated deploy step + release-PR auto-merge + the two release-please config settings that make every promotion release; the `RENDER_DEPLOY` gate for repos with no deploy target yet + the go-live checklist; the `GITHUB_TOKEN` tag-trigger gotcha; the revert-forward runbook; unverified non-Render platform blocks; multi-deploy-monorepo guidance
 - `references/deploy-stub.md` — the fallback standalone `deploy.yml` with the deploy-target picker, secret-setup guidance, and platform examples (Render, Vercel, Fly, Railway, GHCR, SSH/rsync); also the `render.yaml` Blueprint
 

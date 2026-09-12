@@ -6,7 +6,7 @@ It is also the **gate the tagged-only deploy hangs off**: the `Evaluate release 
 
 Scaffold this **alongside release-please** (same condition — skip it when release-please is skipped). Three pieces:
 
-1. `verify-tag` — steps appended to the `release-please.yml` job (see `references/release-please.md`).
+1. `verify-tag` + the **recovery notice** — steps appended to the `release-please.yml` job (see `references/release-please.md`). Verification decides when the workflow goes red; the recovery notice is what says so when it goes green again.
 2. `.github/workflows/release-health.yml` — a daily sweep + an on-demand self-test.
 3. `.github/actions/discord-alert/action.yml` — a shared composite that posts the alert.
 
@@ -180,6 +180,344 @@ Hence the optional component group and the full `X.Y.Z` anchor:
 ```
 
 Requiring all three version parts is what keeps the optional group from swallowing ordinary commits — `chore: release notes cleanup` must not match. Verified against real release commits in both shapes, plus non-release subjects.
+
+### The recovery notice — every red gets a green
+
+An alert channel that only ever posts red has a gap the reader has to close in their own head: *was that one ever fixed?* Nothing in the channel answers it, so a problem resolved twenty minutes later looks identical to one still burning three days on, and the only way to find out is to go and check by hand — which is the work the alerting was supposed to remove.
+
+So the workflow says so when it comes back. These steps go on the **same** `release-please` job, after the alert steps.
+
+**A workflow run has no memory**, so this is not something a run knows about itself — it is read back out of GitHub's own run record. No gist, no repo variable, no external store, nothing to keep in sync.
+
+#### ⚠️ What the run record can and cannot prove
+
+It proves **the previous run was red**. It does *not* prove an alert was posted, and the notice must not claim otherwise. `alert ⇒ the run fails` holds here (every alert step is followed by a step that exits 1), but the converse does not: a `startup_failure` creates no jobs at all, a job timeout never reaches the alert steps, a failed `actions/checkout` skips them, and a webhook that is set but revoked fails the run *because* the push failed. All four go red with nothing in the channel.
+
+So the copy stays on the conclusion — "run #N concluded **failure**; this run finished clean, so the workflow is green again" — and never tells the reader they saw something they may not have. The residual is a green that follows a red nobody was shown; that is mildly odd but harmless, and it is strictly better than the alternative, since those are exactly the runs that alert nothing and would otherwise recover in total silence. **A green asserting "…and alerted here" would be a false claim about the reader's own history — don't write one** unless you add a marker the alerting path itself writes.
+
+#### Two lookups, and why the second one is not enough on its own
+
+1. **Earlier attempts of *this* run** — `actions/runs/{run_id}/attempts/{n}`, walked newest-first.
+2. **Earlier completed runs** of this workflow on this branch and event — `actions/workflows/{file}/runs?branch=…&event=…&status=completed`, walked newest-first from the highest `run_number` strictly below this one.
+
+The obvious design is (2) alone, and it is **wrong in the single most common recovery path**. A re-run keeps its `run_number` and overwrites its own `conclusion`, so a workflow fixed by hitting **Re-run** — the first thing anyone does after rotating a credential — ends up looking, to a run-number-only lookup, exactly like a workflow that was never broken. The previous *run* was green; the previous *attempt* was the failure, and it has been overwritten in place.
+
+**Exactly one of the two runs per run**, so a missing scope 403s one lookup, never both: a
+first attempt skips the attempt walk entirely (`RUN_ATTEMPT - 1` is 0) and reads the run
+list; a re-run reads its attempts, and `fail_unknown` sets `unknown=true`, which is the
+guard lookup 2 is behind. Worth knowing before writing either one up in a report.
+
+That is not hypothetical. It is what the incident that prompted this feature actually did: a shared fine-grained PAT expired, the release run failed with `Bad credentials`, the token was rotated, and the **same run** was re-run to green — attempts 1 and 2 `failure`, attempt 3 `success`, `run_number` never moving. A run-number-only notice posts nothing at all there.
+
+#### The three-way classification is load-bearing in both directions
+
+Each earlier conclusion is one of three things, and **both** of the non-obvious cases are a real bug if you collapse them:
+
+| Class | Conclusions | Effect on the scan |
+| --- | --- | --- |
+| red | `failure`, `timed_out`, `startup_failure` | stop — this run clears it |
+| clean | `success` | **stop** — anything older is already closed out |
+| transparent | `cancelled`, `skipped`, everything else | **keep looking** |
+
+- Treating `clean` as transparent means re-running an already-green run walks past the `success` to the failure underneath and re-posts a green for something closed hours ago.
+- Treating `transparent` as clean means one cancelled retry buries the failure under it **permanently** — every future run is now newer than the failure, so nothing ever resolves it. Cancellations are ordinary here: a queued push behind a 30-minute auto-merge poll, or a human cancelling a stuck run.
+
+This is why lookup (2) walks the page rather than reading `sort_by(.run_number) | last`. It is also what makes `per_page=30` mean something. The window is still finite: more than 30 consecutive transparent runs and the failure falls off the end, which fails *quiet*, not wrong.
+
+#### ⚠️ `actions: read` — and it is not implied
+
+Both lookups read the workflow's own run history, which needs the `actions` scope. `release-please.yml` **declares a `permissions:` block, and declaring one sets every unlisted scope to `none`** ([GitHub docs](https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#permissions): "If you specify the access for any of these permissions, all of those that are not specified are set to `none`") — the same trap as `checks` / `statuses` for the auto-merge gate. Without it that read 403s on every run, and the notice never fires. Add it in the same change as the steps:
+
+```yaml
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  statuses: read
+  actions: read # the recovery notice reads this workflow's own runs + attempts
+```
+
+#### Three states, and why "could not tell" is one of them
+
+| `state` | When | What posts |
+| --- | --- | --- |
+| `resolved` | this run did not alert **and** the most recent earlier state (attempt, else run) was red | green embed (`3066993`) |
+| `quiet` | this run alerted, or the most recent earlier state was clean, or there is none | nothing |
+| `unknown` | a lookup could not be answered — 403, network, or a body that is not a run list | red embed **and the run fails** |
+
+`unknown` exists because the alternative is the failure this whole file is about, one level up. A `2>/dev/null || true` on the lookup, or a jq expression that lets an API *error object* fall through as "no earlier runs", turns a broken recovery mechanism into a silent green — installed, never firing, indistinguishable from healthy. Hence the explicit shape assertion in the jq (`error(...)` when there is no `.workflow_runs` array) and the separate fail step.
+
+Failing the run on `unknown` marks an otherwise-successful release red, which is deliberate and self-limiting: it stops the moment the lookup works again, and the next clean run then posts the green that closes its own loop. It is also the only notification that needs no webhook at all — see the tier table below.
+
+#### What it must not key off
+
+**Not the branch tip.** A tip is a *state*, not an event: a tip-derived signal reports the same thing on every run and cannot distinguish "just recovered" from "was never broken". A previous port of alerting logic in this family keyed off `github.event.head_commit.message` and inverted for exactly this reason — in the healthy resting state the tip already carried the signature it was looking for, so it cried wolf on every dispatch.
+
+**Not `always()`.** The step is gated on `success()`, which is true only when no previous step in the job has failed. A failure in an *earlier* step — the checkout, or the Discord push itself — means this run is red, and a red run must never announce itself green. Skipped steps do not clear `success()`, so the alert steps above being *skipped* on a healthy run leaves the guard intact.
+
+#### The steps
+
+```yaml
+# ── recovery notice ───────────────────────────────────────────────────
+# A red alert with no green follow-up leaves the channel's last word on a
+# problem that may have been fixed hours ago, so whoever read it has to
+# carry "was that ever resolved?" around by hand. Every red is therefore
+# paired with a green on the next clean finish of this workflow.
+#
+# A run has no memory, so "green again" is not something this run can know
+# — it is read back out of GitHub's own record.
+#
+# Deliberately NOT derived from what main currently points at: a branch
+# tip is a state, not an event, so a tip-derived signal says the same
+# thing on every run and cannot tell "just recovered" from "was never
+# broken".
+#
+# TWO lookups, in this order, because a workflow can go green either way:
+#   1. an earlier ATTEMPT of THIS run (someone hit "Re-run"), and
+#   2. earlier completed RUNS of this workflow on this branch + event.
+# (1) is not an optimisation. A re-run keeps its run_number and overwrites
+# its own conclusion, so a repo fixed by re-running the failed run looks,
+# to a run-number-only lookup, exactly like a repo that was never broken —
+# and the credential-expiry incident this was built for was fixed exactly
+# that way (run #96 attempts 1 and 2 failed, attempt 3 succeeded).
+- name: Evaluate recovery
+  id: recovery
+  # No `always()`. A failure in an EARLIER step — the checkout, or the
+  # Discord push itself — means this run is red, and a red run must never
+  # announce itself green. `success()` is exactly that guard. The alert
+  # steps above are *skipped*, not failed, on a healthy run, so this still
+  # runs in the case it exists for.
+  if: ${{ success() }}
+  env:
+    # Reading a workflow's own runs and attempts needs `actions: read`.
+    # This workflow declares a permissions block, which sets every
+    # unlisted scope to `none`, so the scope is granted explicitly above —
+    # without it the lookup 403s on every run.
+    GH_TOKEN: ${{ github.token }}
+    REPO: ${{ github.repository }}
+    SERVER_URL: ${{ github.server_url }}
+    COMMIT_SHA: ${{ github.sha }}
+    # "<owner>/<repo>/.github/workflows/<file>@<ref>" — the file name is
+    # derived from it below so this block carries no hardcoded filename.
+    WORKFLOW_REF: ${{ github.workflow_ref }}
+    BRANCH: ${{ github.ref_name }}
+    EVENT: ${{ github.event_name }}
+    RUN_ID: ${{ github.run_id }}
+    RUN_NUMBER: ${{ github.run_number }}
+    RUN_ATTEMPT: ${{ github.run_attempt }}
+    # EVERY step in this job that can alert. Moving this block to another
+    # workflow means replacing these with that job's own alert-emitting
+    # step ids — see references/release-verification.md.
+    CHECK_ALERT: ${{ steps.check.outputs.alert }}
+    AUTOMERGE_ALERT: ${{ steps.automerge.outputs.alert }}
+  run: |
+    state=quiet
+    color=""
+    title=""
+    detail=""
+    emit() {
+      {
+        echo "state=$state"
+        echo "color=$color"
+        echo "title=$title"
+        echo "detail<<EOF"
+        echo "$detail"
+        echo "EOF"
+      } >> "$GITHUB_OUTPUT"
+    }
+
+    # A green posted alongside this run's own red alert is worse than no
+    # notice at all, so a run that alerted says nothing here.
+    if [ "$CHECK_ALERT" = "true" ] || [ "$AUTOMERGE_ALERT" = "true" ]; then
+      echo "This run alerted — no recovery notice."
+      emit
+      exit 0
+    fi
+
+    wf_file="${WORKFLOW_REF%@*}"
+    wf_file="${wf_file##*/}"
+
+    # stderr goes to a FILE, never into the value via 2>&1: a successful
+    # call that happens to warn on stderr would otherwise be spliced into
+    # the JSON and fail the parse for the wrong reason.
+    err=$(mktemp)
+    unknown=false
+
+    # "Could not determine" is its own outcome, never a quiet pass. A
+    # swallowed lookup failure is how a recovery mechanism ends up
+    # installed, silent, and indistinguishable from healthy.
+    fail_unknown() {
+      unknown=true
+      state=unknown
+      color="15158332"
+      title="🟧 ${REPO} — recovery-notice lookup failed"
+      detail=$(printf '%s\n' \
+        "Could not read the earlier runs of \`${wf_file}\`, so this run cannot tell whether it clears an earlier failure. **Recovery notices are dead until this is fixed** — a red alert in this channel may already have been resolved with nothing posted to say so." \
+        "" \
+        "Most likely cause: this workflow's \`permissions:\` block is missing \`actions: read\`." \
+        "" \
+        '```' \
+        "$(head -c 400 "$err" | iconv -f utf-8 -t utf-8 -c)" \
+        '```' \
+        "" \
+        "[View run](${SERVER_URL}/${REPO}/actions/runs/${RUN_ID})")
+      echo "::error::recovery-notice lookup failed — see this run's summary."
+    }
+
+    # What an earlier conclusion says about health. The three-way split is
+    # load-bearing in both directions:
+    #   red         — it went red; this run clears it.
+    #   clean       — it finished green, so anything older is already
+    #                 closed out. STOPS the scan, or a re-run of an
+    #                 already-green run re-posts a green for a failure
+    #                 that was closed hours ago.
+    #   transparent — it never reported either way (cancelled, skipped,
+    #                 …). Must NOT stop the scan, or one cancelled retry
+    #                 buries the failure underneath it permanently.
+    classify() {
+      case "$1" in
+        failure | timed_out | startup_failure) echo red ;;
+        success) echo clean ;;
+        *) echo transparent ;;
+      esac
+    }
+
+    verdict=""
+    red_label=""
+    red_url=""
+    red_conclusion=""
+
+    note_state() {
+      case "$(classify "$1")" in
+        red)
+          verdict=red
+          red_label="$2"
+          red_url="$3"
+          red_conclusion="$1"
+          ;;
+        clean) verdict=clean ;;
+      esac
+    }
+
+    # 1. Earlier attempts of THIS run, newest first.
+    attempt=$((RUN_ATTEMPT - 1))
+    while [ "$attempt" -ge 1 ] && [ -z "$verdict" ]; do
+      if ! conclusion=$(gh api "repos/${REPO}/actions/runs/${RUN_ID}/attempts/${attempt}" --jq '.conclusion // ""' 2>"$err"); then
+        fail_unknown
+        break
+      fi
+      echo "Run #${RUN_NUMBER} attempt ${attempt} concluded '${conclusion}'."
+      note_state "$conclusion" "run #${RUN_NUMBER} attempt ${attempt}" \
+        "${SERVER_URL}/${REPO}/actions/runs/${RUN_ID}/attempts/${attempt}"
+      attempt=$((attempt - 1))
+    done
+
+    # 2. Earlier completed RUNS — also the fall-through when this is a
+    # re-run whose earlier attempts were all transparent.
+    if [ "$unknown" = "false" ] && [ -z "$verdict" ]; then
+      if ! runs_json=$(gh api "repos/${REPO}/actions/workflows/${wf_file}/runs?branch=${BRANCH}&event=${EVENT}&status=completed&per_page=30&exclude_pull_requests=true" 2>"$err"); then
+        fail_unknown
+      else
+        # Newest first, strictly older than this run. run_number is
+        # monotonic per workflow and a re-run keeps its original number,
+        # so "strictly lower" is the ordering that survives re-runs;
+        # excluding this run's own id covers the window where the API
+        # lists it before its conclusion is written.
+        #
+        # The shape assertion is load-bearing. A body that parses as JSON
+        # but is not a run list — an API error object, say — would
+        # otherwise come back as "no earlier runs", i.e. a silent pass,
+        # which is the exact failure this mechanism exists to remove.
+        if ! prev_list=$(printf '%s' "$runs_json" | jq -r \
+          --argjson rid "$RUN_ID" --argjson rnum "$RUN_NUMBER" '
+            if type == "object" and (.workflow_runs | type) == "array" then
+              .workflow_runs
+              | map(select(.id != $rid and .run_number < $rnum))
+              | sort_by(.run_number)
+              | reverse
+              | .[]
+              | "\(.run_number)\t\(.id)\t\(.conclusion // "")"
+            else
+              error("response has no .workflow_runs array")
+            end' 2>"$err"); then
+          fail_unknown
+        else
+          # A here-doc, not a pipe: a `while read` on the right of a pipe
+          # runs in a subshell and every verdict it sets is discarded.
+          while IFS=$'\t' read -r prev_number prev_id prev_conclusion; do
+            [ -n "$prev_number" ] || continue
+            echo "Run #${prev_number} (${prev_id}) concluded '${prev_conclusion}'."
+            note_state "$prev_conclusion" "run #${prev_number}" \
+              "${SERVER_URL}/${REPO}/actions/runs/${prev_id}"
+            [ -z "$verdict" ] || break
+          done <<EOF
+    $prev_list
+    EOF
+        fi
+      fi
+    fi
+
+    if [ "$unknown" = "false" ] && [ "$verdict" = "red" ]; then
+      state=resolved
+      color="3066993" # Discord green
+      # Says only what the run record actually proves. A red RUN is not
+      # the same claim as "an alert was posted" — a startup_failure or a
+      # failed checkout runs no alert step at all — so the copy stays on
+      # the conclusion and never asserts the reader saw something.
+      title="✅ ${REPO} — ${wf_file} is green again"
+      detail=$(printf '%s\n' \
+        "[${red_label}](${red_url}) of \`${wf_file}\` concluded **${red_conclusion}**. This run finished clean, so the workflow is **green again** — nothing left to chase." \
+        "" \
+        "**Commit:** [\`${COMMIT_SHA}\`](${SERVER_URL}/${REPO}/commit/${COMMIT_SHA})" \
+        "**Repo:** ${SERVER_URL}/${REPO}" \
+        "[View run](${SERVER_URL}/${REPO}/actions/runs/${RUN_ID}) · [Red run](${red_url})")
+    elif [ "$unknown" = "false" ]; then
+      echo "Nothing to resolve (verdict='${verdict:-none found}')."
+    fi
+    emit
+
+# One step for both outcomes — the green "green again" notice and the red
+# "the lookup itself is broken" notice. Colour and copy come from the step
+# above, so there is exactly one Discord call here and no way for the two
+# to double-post.
+- name: Post the recovery notice
+  if: ${{ steps.recovery.outputs.state == 'resolved' || steps.recovery.outputs.state == 'unknown' }}
+  uses: ./.github/actions/discord-alert
+  with:
+    webhook: ${{ secrets.<ALERT_WEBHOOK_SECRET> }}
+    color: ${{ steps.recovery.outputs.color || '15158332' }}
+    title: ${{ steps.recovery.outputs.title }}
+    description: ${{ steps.recovery.outputs.detail }}
+
+
+# A lookup that cannot answer "was the last run red?" is the alerting system
+# failing to report on itself, and it must not hide behind a green checkmark.
+# The release itself already succeeded, so this is a deliberately loud,
+# self-limiting red: it stops the moment the lookup works again, and the next
+# clean run then posts the green that closes the loop.
+- name: Fail the run if the recovery lookup broke
+  if: ${{ always() && steps.recovery.outputs.state == 'unknown' }}
+  run: |
+    echo "::error::could not determine whether this run clears an earlier failure — recovery notices are not working until this is fixed."
+    exit 1
+```
+
+#### ⚠️ Moving this block to another workflow
+
+It is close to portable but **not** drop-in, and the two things that bind it to this job are both silent if you miss one.
+
+`github.workflow_ref` is `<owner>/<repo>/.github/workflows/<file>@<ref>`, so the workflow *file name* is derived rather than hardcoded and needs no edit. What does need editing:
+
+1. **`CHECK_ALERT` / `AUTOMERGE_ALERT` name this job's alerting steps.** They must be replaced with the ids of **every** step in the destination job that can post an alert. Get this wrong and the guard is inert: the job posts its own red *and* a green from the same run — the one arrangement this design exists to make impossible. If you cannot enumerate a job's alerting steps, do not move the block into it.
+2. **The step ids must exist.** `actionlint` hard-fails on `steps.automerge.outputs.alert` in a workflow with no `automerge` step (`property "automerge" is not defined in object type …`), so a repo that scaffolds `verify-tag` **without** the auto-merge step from `references/tagged-deploy.md` must edit these before the workflow will lint.
+
+The `event=` filter is a third thing to think about, in both directions. In a workflow with one trigger it is a no-op. In one with heterogeneous triggers it is what stops a `workflow_dispatch` self-test "resolving" a `schedule` failure it knows nothing about — but it also *partitions* the history, so adding a `workflow_dispatch:` to a `push`-only workflow later means dispatched runs can never resolve pushed failures. Keep the filter and know that trade, or drop it deliberately.
+
+#### Testing it
+
+The `run:` body is code, so run it before committing — not proofread, run. Parse the workflow, pull the step's script out of the parsed YAML *verbatim* (never retype it; a retyped snippet tests a different program than the one that ships), build its environment **from the step's own `env:` block** and hard-error on any variable the script reads that the block does not declare, stub `gh` so it routes on the URL and applies `--jq` like the real thing and *fails loudly* on a URL no fixture models, and cover every verdict the state table can produce — both re-run paths, both `unknown` sources, and a transparent state in front of a red one.
+
+Then mutate. Each mutant must redden **its own** case and leave the others green; one that reddens everything proves nothing. The mutants that matter most are the ones standing in for a design that was already tried and falsified: *skip the attempt scan*, *stop the run scan at the first entry*, and *treat a clean conclusion as transparent*. If any of those stays green, the harness is not modelling the failure it was built for.
 
 ## 2. `.github/workflows/release-health.yml`
 
@@ -378,6 +716,8 @@ Two rules that make tier 0 real, both of which were missing in the first version
 
 1. **Write `$GITHUB_STEP_SUMMARY` before the webhook call, unconditionally.** Not in the `else` branch. The summary is durable, renders as markdown on the run, needs no credential, and survives the webhook being wrong. Logging just the title on the no-webhook path (the original behaviour) throws away the part that says *what* is wrong.
 2. **Any job whose finding is actionable must `exit 1`.** `pending-sweep` originally alerted and exited 0, so a stuck `autorelease: pending` PR — which blocks every future release — was found daily and discarded behind a green checkmark. A red run is the only notification that needs no setup whatsoever.
+
+The recovery notice inherits both tiers unchanged — the composite writes `$GITHUB_STEP_SUMMARY` before it ever looks at the webhook, and an `unknown` lookup fails the run — so a repo with no webhook still gets the green notice on its run page and a red run when the mechanism breaks.
 
 The corollary for the alert copy: the annotation should point at the summary rather than trying to cram the body into a single `::warning::` line, since annotations don't render multi-line markdown.
 
