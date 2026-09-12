@@ -51,10 +51,10 @@ jobs:
     # `steps.claude.outcome` is `failure` and the verdict step still posts
     # the red embed. This job cap is only the backstop; it must clear the
     # step cap with room for every OTHER step (checkout, verdict lookup,
-    # alert) or it still wins the race and cancels — 20/15 leaves five
+    # alert) or it still wins the race and cancels — 15/10 leaves five
     # minutes for steps that take seconds. Before the verdict steps are
     # appended the split buys nothing, but costs nothing either.
-    timeout-minutes: 20
+    timeout-minutes: 15
     permissions:
       contents: read
       pull-requests: write
@@ -66,7 +66,7 @@ jobs:
           fetch-depth: 1
 
       - uses: anthropics/claude-code-action@v1
-        timeout-minutes: 15
+        timeout-minutes: 10
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           track_progress: true
@@ -147,7 +147,7 @@ action step (shown), the `actions/checkout` that is already step 1, and the
       # empty string, not to a failure.
       - uses: anthropics/claude-code-action@v1
         id: claude
-        timeout-minutes: 15
+        timeout-minutes: 10
         with:
           # …unchanged…
 
