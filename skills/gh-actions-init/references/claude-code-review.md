@@ -43,7 +43,18 @@ jobs:
       github.head_ref != 'main' &&
       !startsWith(github.head_ref, 'release-please')
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The review cap lives on the ACTION STEP below, not here. A job-level
+    # timeout CANCELS the job, `!cancelled()` then skips the verdict-alert
+    # steps appended later (§ "A finished review is silent"), and a hung
+    # review alerts nothing — the exact silence those steps exist to
+    # eliminate. A step-level timeout fails the STEP instead, so
+    # `steps.claude.outcome` is `failure` and the verdict step still posts
+    # the red embed. This job cap is only the backstop; it must clear the
+    # step cap with room for every OTHER step (checkout, verdict lookup,
+    # alert) or it still wins the race and cancels — 20/15 leaves five
+    # minutes for steps that take seconds. Before the verdict steps are
+    # appended the split buys nothing, but costs nothing either.
+    timeout-minutes: 20
     permissions:
       contents: read
       pull-requests: write
@@ -55,6 +66,7 @@ jobs:
           fetch-depth: 1
 
       - uses: anthropics/claude-code-action@v1
+        timeout-minutes: 15
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           track_progress: true
@@ -135,6 +147,7 @@ action step (shown), the `actions/checkout` that is already step 1, and the
       # empty string, not to a failure.
       - uses: anthropics/claude-code-action@v1
         id: claude
+        timeout-minutes: 15
         with:
           # …unchanged…
 
@@ -205,8 +218,13 @@ action step (shown), the `actions/checkout` that is already step 1, and the
             jq_rc=$?
             url=$(printf '%s' "$comments" \
               | jq -r --arg rid "/actions/runs/${RUN_ID}" "flatten | (${sel}) // {} | .html_url // \"\"" 2>>"$err")
-            if [ "$jq_rc" -ne 0 ]; then
-              rc=$jq_rc; why="jq exited ${jq_rc}"
+            url_rc=$?
+            # BOTH jq statuses matter: an url-extraction CRASH discarded here
+            # would build a green embed from half-read data. Distinct from an
+            # EMPTY url — jq exits 0 on a null/absent field via `// ""` —
+            # which the `reviewed` branch below handles.
+            if [ "$jq_rc" -ne 0 ] || [ "$url_rc" -ne 0 ]; then
+              rc=1; why="jq exited body=${jq_rc} url=${url_rc}"
             fi
           fi
 
@@ -227,6 +245,12 @@ action step (shown), the `actions/checkout` that is already step 1, and the
                 excerpt="…${body: -1200}"
               else
                 excerpt="$body"
+              fi
+              # url can be EMPTY with jq exiting 0 (`.html_url // ""` on a
+              # null/absent field is not a crash). Never ship a dead
+              # `[Read the full review]()` link — fall back to the run log.
+              if [ -z "$url" ]; then
+                url="$RUN_URL"
               fi
               title="Claude review finished · ${REPO}#${PR}"
               color=3066993
@@ -274,8 +298,13 @@ action step (shown), the `actions/checkout` that is already step 1, and the
         uses: ./.github/actions/discord-alert
         with:
           webhook: ${{ secrets.<PR_ALERT_WEBHOOK_SECRET> }}
-          title: ${{ steps.verdict.outputs.title }}
-          description: ${{ steps.verdict.outputs.description }}
+          # `||` fallbacks: if the verdict step itself crashed (a `set -u`
+          # trip, a missing binary), its outputs are empty strings, and the
+          # alert goes out blank at best — an unreadable embed announcing
+          # nothing, precisely when the alert pipeline itself broke. The
+          # fallbacks keep that failure legible in the channel.
+          title: ${{ steps.verdict.outputs.title || 'Claude review verdict step crashed' }}
+          description: ${{ steps.verdict.outputs.description || 'The verdict step itself failed before writing its outputs — read the run log.' }}
           color: ${{ steps.verdict.outputs.color }}
 ```
 
@@ -339,13 +368,31 @@ covering every terminal state:
 | no comments at all | amber |
 | `gh` exits non-zero | red, naming the exit code |
 | `gh` exits 0 with non-JSON | red — a `jq` parse error is not "posted nothing" |
+| the `.html_url` extraction alone exits non-zero | red — a dead link never ships inside a green embed |
+| a comment whose `html_url` is null or absent | green — the link falls back to the run log, never `()` |
 | `REVIEW_OUTCOME` empty | red, naming the missing `id: claude` |
 | `REVIEW_OUTCOME=failure` | red, verdict marked incomplete |
 
-The last three are the ones a four-state list misses, and each is a state
-where an earlier draft of this step reported the wrong colour. Prove each
-fixture load-bearing by mutating the code it covers — dropping the
-`contains($rid)` filter must turn the stale-comment case green.
+The last five are the ones a four-state list misses, and each is a state
+where an earlier draft of this step reported the wrong colour or shipped a
+dead link — the url ones shipped in a downstream repo before a fresh-context
+review caught that the extraction's exit status was simply discarded. Prove
+each fixture load-bearing by mutating the code it covers — dropping the
+`contains($rid)` filter must turn the stale-comment case green, reverting the
+`url_rc` capture must turn the dead-link case green, and deleting the
+empty-url fallback must put a literal `[Read the full review]()` back in the
+null-`html_url` case.
+
+Two of the hardenings above are not reachable by these shell fixtures at all:
+the step-level `timeout-minutes` (an envelope property — no `run:` block test
+can observe where a cap lives) and the `||` fallbacks on the Discord step's
+inputs (GitHub expressions, evaluated by the runner). Reading the parsed YAML
+confirms only their **shape**. The behavioural premise — a step-level timeout
+fails the step with `steps.<id>.outcome = failure` while `cancelled()` stays
+false, so the alert steps still run — is the runner's documented behaviour,
+but the first thing that actually observes it is a live timed-out run: the
+same class of claim as this section's heading — unverifiable until a later
+run supplies the event.
 
 ## Credential
 
