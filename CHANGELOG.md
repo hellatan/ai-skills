@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.11.0](https://github.com/hellatan/ai-skills/compare/v2.10.1...v2.11.0) (2026-09-12)
+
+
+### Features
+
+* **ci-baseline-audit:** add check 14 — `actions: read` wherever a step reads the Actions API ([#225](https://github.com/hellatan/ai-skills/issues/225)) ([a2c3413](https://github.com/hellatan/ai-skills/commit/a2c341370395668ecf05360e88cba54882dc3935))
+* **gh-actions-init:** pair every gh_errors alert with a green recovery notice ([#223](https://github.com/hellatan/ai-skills/issues/223)) ([cf09cb9](https://github.com/hellatan/ai-skills/commit/cf09cb90db3ded63a0e1c061fcde58537f41ea38))
+* **gh-actions-init:** push the PR review verdict to the PR channel ([#226](https://github.com/hellatan/ai-skills/issues/226)) ([44fbc4f](https://github.com/hellatan/ai-skills/commit/44fbc4ffd0d85aaddf880fa078b7a2fe9ab702de))
+
+
+### Chores
+
+* **release:** develop → main ([eb074b6](https://github.com/hellatan/ai-skills/commit/eb074b6ba0e363f9c0a38206cc64a107d751bc5d))
+
 ## [2.10.1](https://github.com/hellatan/ai-skills/compare/v2.10.0...v2.10.1) (2026-09-10)
 
 
