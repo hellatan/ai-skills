@@ -1,6 +1,6 @@
 ---
 name: project-scaffold
-description: Bootstrap a new project repo with prescriptive defaults — opinionated framework picks (Next.js, FastAPI), lean CLAUDE.md, sensible git workflow (main + develop, optional stage), unified pre-commit hooks at root, GitHub Actions CI (consolidated checks/e2e/build pipeline), release-please for automated releases, deploy workflow stub, and a private GitHub repo under the user's authenticated gh account. Use this skill whenever the user wants to scaffold, bootstrap, initialize, or set up a new project, repo, or codebase — even if they don't explicitly say "scaffold." Triggers on phrases like "new repo," "start a new project," "bootstrap [name]," "set up a project," or "init a repo with claude config."
+description: Bootstrap a project repo with prescriptive defaults — Next.js or FastAPI, canonical AGENTS.md plus a Claude adapter, a documented git workflow, pre-commit, GitHub Actions CI, release-please, and a deploy stub. Use when a user asks to scaffold, bootstrap, initialize, or set up a new project or repository.
 ---
 
 # project-scaffold
@@ -41,7 +41,9 @@ Run these steps in order. **Ask questions one at a time.** For decision points w
 
 ### 1. Verify sister skills are installed (fail fast)
 
-Before Step 2, confirm `/testing-init` and `/gh-actions-init` are in the available-skills list. If either is missing, abort with the message in `references/sister-skills-dependency.md` — don't ask the user any questions until the dependency is satisfied.
+Before Step 2, confirm the complete sister-skill set in the active agent's
+discovery interface. See `references/sister-skills-dependency.md`; a missing
+dependency must stop the flow before generation begins.
 
 ### 2. Project name + location
 
@@ -54,7 +56,7 @@ Verify the target directory doesn't already exist before proceeding.
 Compute the **package name** here too: convert the project name to snake_case for Python (e.g. `my-project` → `my_project`). This name will be propagated consistently to:
 - `pyproject.toml` `name` field
 - The actual package directory + `__init__.py`
-- `uvicorn <package>.main:app` references in CLAUDE.md
+- `uvicorn <package>.main:app` references in AGENTS.md
 - Test discovery paths
 
 ### 3. Project type
@@ -88,7 +90,7 @@ Apply the prescriptive-defaults pattern. Don't ask what they want — tell them 
 > Reply with a choice or hit enter for CSS Modules.
 
 CSS Modules is the default and the recommended pick. Tailwind stays available for anyone who prefers it, but never lead with it or present it as the recommendation. Wire the choice through:
-- **CSS Modules** → pass `--no-tailwind` to `create-next-app`; don't install shadcn. Scaffold example UI as `*.module.css` (no inline `style={{...}}`) and include the styling convention in the generated CLAUDE.md / rules (see `references/configs/styling-css-modules.md`).
+- **CSS Modules** → pass `--no-tailwind` to `create-next-app`; don't install shadcn. Scaffold example UI as `*.module.css` (no inline `style={{...}}`) and include the styling convention in generated AGENTS.md (see `references/configs/styling-css-modules.md`).
 - **Vanilla Extract** → pass `--no-tailwind`; don't install shadcn. Add `@vanilla-extract/css` + `@vanilla-extract/next-plugin`, wrap `next.config` with `createVanillaExtractPlugin()`, and co-locate styles as `*.css.ts` (see `references/configs/styling-css-modules.md`).
 - **Tailwind** → omit `--no-tailwind`; don't install shadcn.
 - **Tailwind + shadcn/ui** → omit `--no-tailwind`; run shadcn init.
@@ -214,7 +216,7 @@ gh api user --jq .plan.name 2>/dev/null
 
 If the user picked private and is on free tier, **warn now, not later**:
 
-> Heads up — your account is on the free tier, so branch protection won't apply to a private repo. The local pre-commit hooks and CLAUDE.md git rules still protect you, and CI still runs on PRs (you'll just *be able* to merge a failing PR if you ignore the red X). Want to make it public instead, or proceed?
+> Heads up — your account is on the free tier, so branch protection won't apply to a private repo. The local pre-commit hooks and documented Git workflow still protect you, and CI still runs on PRs (you'll just *be able* to merge a failing PR if you ignore the red X). Want to make it public instead, or proceed?
 
 ### 8. Show summary, halt for confirmation
 
@@ -226,7 +228,10 @@ See `references/step-08-summary-template.md` for the layout and rules.
 
 This is its own dedicated step. **Do not proceed under any circumstances** until the user replies with explicit affirmative confirmation (e.g. "yes", "go", "proceed", "looks good", "ok").
 
-If running in Claude Code with auto-mode enabled, **still halt here** by using a real pausing primitive — ask the user with a question that requires a response, not just instruction text. The user must consciously approve the destructive steps that follow (creating a GitHub repo, applying branch protection, running git commands).
+Use the active harness's real pausing primitive — ask the user with a question
+that requires a response, not just instruction text. The user must consciously
+approve the destructive steps that follow (creating a GitHub repo, applying
+branch protection, running git commands).
 
 If the user says anything other than affirmative confirmation, ask what they'd like to change and loop back to the relevant step.
 
@@ -238,17 +243,25 @@ Once confirmed, proceed through these steps without further halts (unless someth
 
 ### 10. Create directory + base files
 
-`mkdir -p <parent>/<name>`, `cd` in. **For Next.js projects, run `create-next-app` FIRST with `--skip-git`** — see `references/configs/nextjs.md` for the exact flags and post-scaffold cleanup (delete the stub `CLAUDE.md`, keep `AGENTS.md`).
+`mkdir -p <parent>/<name>`, `cd` in. **For Next.js projects, run
+`create-next-app` FIRST with `--skip-git`** — see `references/configs/nextjs.md`
+for exact flags and inspect any generated instruction files before removing a
+known stub. Preserve authored root and nested instructions.
 
 Write to repo root:
-- `CLAUDE.md` — owned by `/claude-md-init`; see its `references/templates.md`. The template includes an `@.claude/rules/git-workflow.md` reference so any Claude session on the project loads the workflow rules automatically.
-- `docs/architecture.html` — starter living system map, owned by `/architecture-doc-init`; write verbatim from its `references/architecture-doc-template.md` (a dependency-free, GitHub-dark HTML file: inline-SVG data-flow diagram, failure-modes table, key-files list — all shipped as clearly-marked `«placeholder»` slots). Substitute `«PROJECT_NAME»`, `«REPO»`, and `«DATE»`; leave the rest for the user to fill in as the system takes shape. (For *existing* repos, `/architecture-doc-init` fills it in from the real codebase instead.) The generated CLAUDE.md's Project map points at it (see `/claude-md-init`'s `references/templates.md`).
+- `AGENTS.md` and a thin `CLAUDE.md` adapter — owned by `claude-md-init`; see
+  its templates. Include essential lifecycle constraints inline and link the
+  shared `docs/development/git-workflow.md` authority.
+- `docs/architecture.html` — starter living system map, owned by `/architecture-doc-init`; write verbatim from its `references/architecture-doc-template.md` (a dependency-free, GitHub-dark HTML file: inline-SVG data-flow diagram, failure-modes table, key-files list — all shipped as clearly-marked `«placeholder»` slots). Substitute `«PROJECT_NAME»`, `«REPO»`, and `«DATE»`; leave the rest for the user to fill in as the system takes shape. (For *existing* repos, `/architecture-doc-init` fills it in from the real codebase instead.) The generated AGENTS.md Project map points at it (see `/claude-md-init`'s `references/templates.md`).
 - `.gitignore` — see `references/gitignores.md`
 - `README.md` — minimal: `# <project-name>` + one-line description placeholder
 - `.editorconfig` — see `references/configs/editorconfig.md`
 - `.env.example` — whenever the project reads **any** env var (a database, auth, an API base URL). First line must name the file to create — ``# Copy this file to `.env` and fill it in.`` It is the only committed artifact that pins the filename, so a project that reads env and ships no template leaves every later session guessing. The `.gitignore` template already keeps it un-ignored via `!.env.example`. **In a `frontend/` + `backend/` layout, write one per side, next to that side's entry point — never a single one at the repo root.** Next.js only reads env files inside the Next project directory and never walks up to a parent, while `python-dotenv`'s `find_dotenv()` *does* walk up — so a lone root `.env` is read by the backend and invisible to the frontend, which is the same two-sources-of-truth split this convention exists to prevent, relocated from the filename to the path.
 - `.pre-commit-config.yaml` — owned by `/precommit-init`; see its `references/precommit-config.md`
-- `.claude/rules/git-workflow.md` — per-repo workflow rules (worktree usage, branch off `develop`, refspec push pattern, draft PRs, release-please flow). Verbatim copy of the template content in `references/configs/git-workflow-rule.md`. The whole skill assumes this workflow; scaffolding the rule into the repo makes it discoverable to anyone (or any Claude session) working on the project later, without requiring global agent memory.
+- `docs/development/git-workflow.md` — per-repo workflow rules (worktree usage,
+  branch off `develop`, explicit refspecs, draft PRs, release flow). Copy the
+  workflow template there and link it from AGENTS.md. Preserve any authored or
+  nested framework instructions rather than deleting or flattening them.
 
 For fullstack: create `frontend/` and `backend/` subdirs. For Python: create `<package_name>/__init__.py` and (if FastAPI) `<package_name>/main.py` — see `references/configs/python-fastapi.md`. For TS without Next.js: stub `src/index.ts` (Node) or `src/main.tsx` (Vite) so `tsc --noEmit` has something to check.
 
@@ -276,7 +289,9 @@ If a database was chosen, run `npm run db:generate` (and the auth CLI generate f
 
 ### 12. Root-level command runner
 
-So users can run lint/test/build from one place without Make (which isn't cross-platform). The canonical command is **`check:all`** — runs everything CI would run.
+`check:all` is the canonical local static-and-test wrapper: lint, format check,
+typecheck, and tests. It does not claim to run build or e2e; run those separately
+when the project configures them.
 
 - **Any project with Node:** root `package.json` with proxying scripts. See `references/configs/root-package-scripts.md` for the full template per stack.
 - **Python-only:** scaffold `scripts/dev.py` instead. See `references/configs/python-dev-script.md`.
@@ -299,28 +314,37 @@ Initialize git, **verify the release-please manifest invariant** (`package.json`
 
 See `references/step-15-git-init.md` for the bash sequence and the version-invariant check.
 
-### 16. Detect pre-push protection before pushing
+### 16. Inspect push constraints before pushing
 
-Before Step 17 pushes to `main`/`develop`, check whether anything will block direct pushes to protected branches. Check **all four** common sources, not just `core.hooksPath`:
+Before Step 17, inspect the repository's configured hook path, Git wrapper, and
+template configuration. These observations cannot establish every local or
+hosted protection, so follow the active agent harness's observed approval
+mechanism and never bypass a control.
 
 1. `git config --global core.hooksPath` (git's own hook directory)
-2. Claude harness hooks at `~/.claude/hooks/*.{py,sh}` (these run *before* git sees the push)
-3. Shell aliases/functions shadowing `git`
-4. `git config --global init.templateDir` (template applied to fresh `git init`)
+2. Shell aliases/functions shadowing `git`
+3. `git config --global init.templateDir` (template applied to fresh `git init`)
 
-If any source produces a hit, surface the verbatim warning that frames this as the skill's **documented bootstrap exception** (not a violation of the user's global rules) and ask about override env var conventions before attempting the push. Surfacing this *before* Step 17 keeps the bootstrap atomic.
+Report what was inspected and what remains unknown. Do not infer that a clean
+scan means no protection exists, and do not use an environment variable to
+override an unverified control.
 
 See `references/step-16-prepush-hooks.md` for the detection commands and the verbatim warning message.
 
-### 17. Create GitHub repo and push (bracketed by auto-mode halts)
+### 17. Create GitHub repo and push with explicit remote-action gates
 
-Create the remote with `gh repo create`, flip on the repo-level setting that lets GitHub Actions create + approve PRs (otherwise release-please and any other PR-creating workflow fails on first run with the `createPullRequest` GraphQL error), then push `main`, `develop`, and (if opted in) `stage` using the override env var Step 16 confirmed. **This is the only step in the entire skill that pushes directly to protected branches** — the exception is push-only, scoped to seeding the remote, and never extends to subsequent operations.
+Create the remote and push only with the user's current, explicit intent. This
+new-remote bootstrap boundary is narrow: report inspected policy, request any
+required harness approval, and do not change hosted settings or bypass controls
+based solely on a local scan.
 
 The push is bracketed by two **real halts** (not text-only notes — text mid-flow gets skipped past):
 
-- **17a — PRE-PUSH GATE.** Surface a verbatim message telling the user that Claude Code's auto-mode classifier will block the bootstrap push without surfacing an approval dialog, and to toggle auto-mode OFF before replying `go`.
+- **17a — PRE-PUSH GATE.** Surface the actual action, target remote, and any
+  harness approval required. Wait for explicit user approval when it is needed.
 - **17b — Push.** Run the `gh repo create` + `gh api … actions/permissions/workflow` + `git push` sequence, then surface the **`RELEASE_PLEASE_TOKEN` secret callout** — every new repo needs this PAT-backed secret (`gh secret set RELEASE_PLEASE_TOKEN`) or the release-please and develop→main workflows fail on first run. User action; don't ask for the PAT value in chat. Also set `RENDER_DEPLOY=false` (a repo **variable**, so no user action) — a brand-new repo has no hosting service and therefore no deploy hook, and without the gate its first tagged release would fail the release workflow on a project that was never deployed. **If staging was opted in at Step 6, set `RENDER_STAGE_DEPLOY=false` in the same breath** — unset reads as *enabled*, so skipping it makes the first pre-release tag off `stage` fail on the missing staging hook, which is the identical failure one environment over. Leave `RELEASE_AUTOMERGE` unset (unset = auto-merge on).
-- **17c — POST-PUSH GATE.** Surface a verbatim message that the bootstrap exception is done and the user can toggle auto-mode back ON. Wait for `continue` before proceeding to Step 18.
+- **17c — POST-PUSH GATE.** Report the completed bootstrap boundary and resume
+  ordinary protected-branch workflow; do not instruct users to change security controls.
 
 See `references/step-17-create-repo-push.md` for the bash sequence, the verbatim gate messages, and the full bootstrap-exception contract.
 
@@ -366,7 +390,8 @@ This is what the scaffold enables out of the box:
 
 ## Why these defaults (one-line each)
 
-- **Lean `CLAUDE.md`** (50–120 lines): bloat weakens the whole file
+- **Lean `AGENTS.md`** (50–120 lines): bloat weakens the whole file; keep a
+  compatibility `CLAUDE.md` adapter thin
 - **`main` + `develop` (+ optional `stage`)**: PRs target `develop`, `main` release-only
 - **Branch protection on all release branches**: hard stops, not soft rules
 - **Pre-commit at root, polyglot**: faster feedback, lower CI cost, one config for fullstack
@@ -403,7 +428,7 @@ These are decided. Do **not** introduce them on a scaffolded project, even when 
   - `editorconfig.md`, `nextjs.md`, `nodejs-backend.md`, `python-fastapi.md`
   - `node-ts.md` — shared Node/TS configs (Prettier, `.prettierignore`, ESLint notes) used by the Next.js and Fastify configs
   - `root-package-scripts.md`, `python-dev-script.md`
-  - `git-workflow-rule.md` — template for the per-repo `.claude/rules/git-workflow.md` Step 10 scaffolds
+  - `git-workflow-rule.md` — template for the per-repo `docs/development/git-workflow.md` Step 10 scaffolds
   - `styling-css-modules.md` — CSS-Modules styling convention (Step 4 default) + how the other styling choices wire up
   - `database-drizzle.md` — opt-in Drizzle + Postgres setup (Step 4 DB question): client, migrations, `db:*` scripts, per-host connection strings
   - `auth-better-auth.md` — opt-in auth (Step 4, DB-gated): Better Auth default + Auth.js alternative, adapter wiring, schema-via-Drizzle
@@ -415,12 +440,14 @@ These are decided. Do **not** introduce them on a scaffolded project, even when 
 - **`/gh-actions-init`** (Step 14) — CI structural jobs + release-please + release verification + the tagged-only deploy. Templates: `skills/gh-actions-init/references/{detection,ci-structure,release-please,release-verification,tagged-deploy,deploy-stub,claude-code-review}.md`.
 - **`/gitflow-init`** (Steps 18 + 19) — branch protection + default-branch setting (+ develop/stage creation for retrofit). Templates: `skills/gitflow-init/references/branch-protection.md`.
 - **`/precommit-init`** (Step 13) — pre-commit at root, polyglot (Python / Node / fullstack). Templates: `skills/precommit-init/references/precommit-config.md`.
-- **`/claude-md-init`** (Step 10) — per-stack CLAUDE.md templates. Templates: `skills/claude-md-init/references/templates.md`.
+- **`/claude-md-init`** (Step 10) — canonical AGENTS.md and compatibility
+  CLAUDE.md templates. Templates: `skills/claude-md-init/references/templates.md`.
 - **`/architecture-doc-init`** (Step 10) — the `docs/architecture.html` system-map template + coordinate-grid editing guide (blank for new repos here; that skill fills it in for existing repos). Templates: `skills/architecture-doc-init/references/architecture-doc-template.md`.
 
 ## When NOT to use this skill
 
-- User wants to add CLAUDE.md to an *existing* repo — just edit the file, no scaffolding
+- User wants to add instructions to an *existing* repo — use `claude-md-init`,
+  which preserves authored files and makes AGENTS.md canonical
 - User is doing a one-off prototype with no GitHub intent — skip gh + protection steps
 - User explicitly says they don't want `develop` — fall back to `main`-only
 - User explicitly says they don't want CI yet — skip workflow creation, leave the rest

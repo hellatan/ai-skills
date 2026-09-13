@@ -164,9 +164,9 @@ of those bugs. Write the search your environment actually needs; it must satisfy
 all four conditions below.
 
 1. **Both homes are covered.** `Guard:` names a memory file, a hook, a skill step
-   **or a `CLAUDE.md` line** as valid guards, so the search reaches your rules
+   **or a canonical `AGENTS.md` / compatible `CLAUDE.md` line** as valid guards, so the search reaches your rules
    store (`$AGENT_RULES_DIR` if set and non-empty, else wherever this agent keeps
-   durable rules) **and** the repo's `CLAUDE.md` — resolved from the repo root, not
+   durable rules) **and** the repo's `AGENTS.md` (falling back to `CLAUDE.md`) — resolved from the repo root, not
    from wherever you happen to be standing.
 2. **Terms are individual distinctive words, alternated — never one phrase.** The
    duplicate you are hunting is worded differently by construction; that is what
@@ -391,7 +391,7 @@ convention). When a retro contains that kind of durable, repo-scoped lesson,
 offer to also surface it where the repo will see it — don't silently duplicate the
 whole retro. Pick the lightest touch that fits:
 
-- Add the gotcha to the repo's `CLAUDE.md` "living doc" section, if it has one.
+- Add the gotcha to the repo's canonical `AGENTS.md` "living doc" section, if it has one.
 - Append a one-line pointer under a `docs/retros/` index, linking back to the
   canonical retro.
 - File an issue/chip for an action item that belongs to the repo, not the retro

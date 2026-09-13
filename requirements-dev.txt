@@ -1,0 +1,2 @@
+# YAML frontmatter parser used by scripts/validate.sh and CI.
+PyYAML>=6.0,<7

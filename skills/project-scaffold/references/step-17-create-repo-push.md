@@ -2,17 +2,23 @@
 
 Creates the remote on GitHub, sets it as `origin`, and pushes the initial scaffold to `main`, `develop`, and (if opted in) `stage`.
 
-The push is bracketed by two **real halts** so the user can toggle Claude Code's auto-mode off before the push and back on after. Don't skip these gates with a text-only note — text gets skipped past mid-flow; the halts force a conscious action.
+The remote creation and push are bracketed by explicit action gates. Do not
+continue from a text-only note: use the active harness's observed approval
+mechanism and wait for the required user authorization.
 
 ## Step 17a — PRE-PUSH GATE (halt for user action)
 
-Print this message **verbatim** and wait for explicit `go` / `ok` / `proceed` before continuing. Don't auto-continue on silence.
+Print this message and wait for the active harness's required approval before
+continuing. Do not auto-continue on silence.
 
-> ⚠️ **Bootstrap push coming up** — the only time this skill pushes directly to `main`/`develop`. After this, every change goes through normal PRs.
+> ⚠️ **Remote bootstrap coming up** — this creates `<owner>/<name>` and seeds
+> `main` and `develop`. After this, every change goes through normal PRs.
 >
-> Claude Code's auto-mode safety classifier will intercept this push and won't surface an approval dialog (it's independent of your personal settings and can't be configured from inside the session). Your local pre-push hook, if you have one, is handled by the override env var Step 16 confirmed — that part is fine.
+> Step 16 inspected: `<sources and observed constraints>`. Remaining unknowns
+> include host and harness policy. I will use the active approval flow and will
+> not disable or override a protection.
 >
-> **Please toggle auto-mode OFF now** (Shift-Tab in the CLI, or `/config`), then reply `go`. After the push, I'll prompt you to turn auto-mode back on.
+> Approve creating this remote and running the listed bootstrap pushes.
 
 If the user replies anything other than affirmative confirmation, stop and surface why they're hesitant — don't push.
 
@@ -31,19 +37,17 @@ gh api repos/<owner>/<name>/actions/permissions/workflow --method PUT \
   --field default_workflow_permissions=write \
   --field can_approve_pull_request_reviews=true
 
-# Bootstrap push — exception: this is the ONLY time pushing directly to
-# protected branches is authorized. After this, all changes go through PRs.
-ALLOW_PUSH_TO_PROTECTED=1 git push -u origin main
-ALLOW_PUSH_TO_PROTECTED=1 git push -u origin develop
+# Bootstrap pushes use explicit source:destination refspecs. After this, all
+# changes go through PRs.
+git push -u origin main:main
+git push -u origin develop:develop
 ```
 
 If staging was opted in:
 
 ```bash
-ALLOW_PUSH_TO_PROTECTED=1 git push -u origin stage
+git push -u origin stage:stage
 ```
-
-If Step 16 detected a non-default override env var name, substitute it for `ALLOW_PUSH_TO_PROTECTED=1`.
 
 If user picked **Public** in Step 7, replace `--private` with `--public`.
 
@@ -98,17 +102,17 @@ gh variable set RENDER_STAGE_DEPLOY --body false --repo <owner>/<name>
 
 Both are documented in `gh-actions-init/references/tagged-deploy.md`. Surface the **go-live checklist** in the Step 21 report so the user knows how to switch deploys on later: create the service from the committed deploy config (it already carries `autoDeploy: false`, so a *fresh* service starts with auto-deploy off — nothing to flip), add the deploy-hook secret, then delete the `RENDER_DEPLOY` variable. The next release deploys automatically.
 
-## Step 17c — POST-PUSH GATE (halt, tell user to re-enable auto-mode)
+## Step 17c — POST-PUSH GATE
 
-Print **verbatim** and wait for explicit reply (`on` / `continue` / `done`) before continuing to Step 18. Don't auto-continue.
+Report the completed remote action before continuing to Step 18. If the active
+harness requires another approval for the next action, request it then.
 
 > ✅ **Bootstrap push done.** `main` and `develop` are seeded on the remote.
 >
 > All subsequent operations (branch protection, default-branch swap, smoke test, future PRs) honor the workflow rules normally — no more direct pushes to protected branches from this skill.
 >
-> **You can toggle auto-mode back ON now** if you had it off. Reply `continue` when ready (or `on` once you've toggled it).
-
-This gate exists because the post-push steps (branch protection, default-branch swap, smoke test) involve plenty of `gh api` and `npm` calls the user may prefer to have auto-mode handle — and there's no other natural pause where they'd remember to flip it back.
+> Subsequent operations (branch protection, default-branch swap, smoke test,
+> and future PRs) use their normal authorization and branch-protection flows.
 
 ## The bootstrap exception (read carefully)
 

@@ -38,7 +38,7 @@ Next steps:
    `.github/ci-baseline-audit/repos.txt` AND to the audit token's repository access
 
 Useful commands (run from repo root):
-- `npm run check:all` — run everything CI would run
+- `npm run check:all` — lint, format check, typecheck, and tests; run build/e2e separately when configured
 - `npm run dev` — start dev servers
 - `pre-commit run --all-files` — manually run all pre-commit hooks
 ```
