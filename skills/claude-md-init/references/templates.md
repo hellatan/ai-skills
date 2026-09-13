@@ -422,6 +422,6 @@ Notes:
 - Linter/formatter rules (the configs themselves enforce them)
 - Style rules inferable from existing code
 - Hotfix-style instructions
-- Path-scoped rules (move to `.claude/rules/<name>.md`)
+- Path-scoped rules (move to a scoped `AGENTS.md` beside the affected code)
 - Workflow procedures (move to `.claude/skills/<name>/SKILL.md`)
 - Anything already in the README or `package.json` / `pyproject.toml`

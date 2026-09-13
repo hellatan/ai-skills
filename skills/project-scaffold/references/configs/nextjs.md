@@ -50,7 +50,9 @@ npx create-next-app@latest frontend \
 `create-next-app` leaves behind files the skill needs to handle:
 
 - **`AGENTS.md`** — Next 16+ ships this as a heads-up about breaking changes for AI tools. Keep it as-is, it's useful context for any LLM working on the project.
-- **`CLAUDE.md`** — Next 16+ ships a stub. **Delete it** — the skill writes its own CLAUDE.md at repo root in Step 10. Keeping the Next stub creates two CLAUDE.md files (subdir vs root) that conflict.
+- **`CLAUDE.md`** — Next 16+ may ship a stub. Inspect it before writing the
+  root compatibility adapter in Step 10. Preserve authored or nested guidance;
+  replace only a known generated root stub when the new adapter is required.
 - **`.git/`** — should not exist if `--skip-git` was passed. If it does (older create-next-app), remove it before the skill's `git init`:
   ```bash
 rm -rf .git

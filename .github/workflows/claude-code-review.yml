@@ -82,10 +82,9 @@ jobs:
               owned content instead of cross-referencing it by path; a
               one-line summary at the point of use is fine, a second full copy
               is not.
-            - `scripts/install.sh` symlinks skills into `~/.claude/skills/` and
-              PRUNES links for skills this repo no longer has. Flag changes to
-              it that could remove or overwrite a link this repo does not own —
-              a second skill manager shares that namespace.
+            - `scripts/install.sh` can route links to Claude and/or Codex
+              skill directories. Flag changes that could remove or overwrite
+              an unowned link, file, directory, or hook in either destination.
             - Shell scripts: flag unquoted expansions, missing `set -euo
               pipefail` intent, and a pipe that masks the exit code of the
               command that matters.

@@ -14,5 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - run: chmod +x scripts/validate.sh
-      - run: ./scripts/validate.sh
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+      - run: chmod +x scripts/*.sh
+      - run: ./scripts/test.sh

@@ -1,6 +1,7 @@
 ---
 name: session-cleanup
-description: Use at the end of a work session to decide whether it is safe to close or archive the conversation. Trigger when the user says "can I archive this", "safe to archive?", "safe to close this out", "anything else before I archive this", "session cleanup", or invokes /session-cleanup. Runs a pre-archive checklist — is the stated work actually verified done, is the git state clean, is a retrospective warranted, are there durable learnings worth saving — then reports a definitive verdict and offers one action per gap. Reports and offers; it does not act without an explicit go. A recurring failure it exists to catch: retro notes or learnings dumped into chat to feel "durable" but never written anywhere that survives the archive.
+description: >-
+  Use at the end of a work session to decide whether it is safe to close or archive the conversation. Trigger when the user says "can I archive this", "safe to archive?", "safe to close this out", "anything else before I archive this", "session cleanup", or invokes /session-cleanup. Runs a pre-archive checklist — is the stated work actually verified done, is the git state clean, is a retrospective warranted, are there durable learnings worth saving — then reports a definitive verdict and offers one action per gap. Reports and offers; it does not act without an explicit go. A recurring failure it exists to catch: retro notes or learnings dumped into chat to feel "durable" but never written anywhere that survives the archive.
 ---
 
 # Session Cleanup

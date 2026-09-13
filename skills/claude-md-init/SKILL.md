@@ -27,7 +27,8 @@ User says any of:
 - **Git workflow rules** are a short, explicit project document at
   `docs/development/git-workflow.md`, linked from `AGENTS.md`.
 - **Style / linting rules** — the configs (ESLint, Prettier, ruff) enforce them; CLAUDE.md doesn't repeat them.
-- **Path-scoped rules** — those go in `.claude/rules/<name>.md`, not the main CLAUDE.md.
+- **Path-scoped rules** — put these in a scoped `AGENTS.md` beside the code,
+  not in the root compatibility adapter.
 - **Workflow procedures** — those become their own skills under `~/.claude/skills/<name>/`.
 
 These exclusions keep the file lean. Bloat weakens what Claude reads on every interaction.
@@ -150,7 +151,8 @@ an equivalent authored workflow document, then link it from `AGENTS.md`.
 
 Re-read the written file and count lines. **Target: 50–120 lines.** If significantly outside that range:
 - Under 50 lines → likely missing template sections; double-check the template was applied fully.
-- Over 120 lines → review for content that belongs in `references/configs/`, `.claude/rules/`, README, or skill-level docs instead.
+- Over 120 lines → review for content that belongs in `references/configs/`, a
+  scoped `AGENTS.md`, README, or skill-level docs instead.
 
 Don't auto-trim. Surface to the user.
 

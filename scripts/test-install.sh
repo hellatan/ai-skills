@@ -3,7 +3,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-fixture="$(mktemp -d /private/tmp/ai-skills-install-test.XXXXXX)"
+fixture="$(mktemp -d "${TMPDIR:-/tmp}/ai-skills-install-test.XXXXXX")"
 trap 'rm -rf "$fixture"' EXIT
 git clone -q --no-hardlinks "$repo_root" "$fixture/repo"
 cp "$repo_root/scripts/install.sh" "$fixture/repo/scripts/install.sh"

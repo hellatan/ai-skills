@@ -216,7 +216,7 @@ gh api user --jq .plan.name 2>/dev/null
 
 If the user picked private and is on free tier, **warn now, not later**:
 
-> Heads up — your account is on the free tier, so branch protection won't apply to a private repo. The local pre-commit hooks and CLAUDE.md git rules still protect you, and CI still runs on PRs (you'll just *be able* to merge a failing PR if you ignore the red X). Want to make it public instead, or proceed?
+> Heads up — your account is on the free tier, so branch protection won't apply to a private repo. The local pre-commit hooks and documented Git workflow still protect you, and CI still runs on PRs (you'll just *be able* to merge a failing PR if you ignore the red X). Want to make it public instead, or proceed?
 
 ### 8. Show summary, halt for confirmation
 
@@ -228,7 +228,10 @@ See `references/step-08-summary-template.md` for the layout and rules.
 
 This is its own dedicated step. **Do not proceed under any circumstances** until the user replies with explicit affirmative confirmation (e.g. "yes", "go", "proceed", "looks good", "ok").
 
-If running in Claude Code with auto-mode enabled, **still halt here** by using a real pausing primitive — ask the user with a question that requires a response, not just instruction text. The user must consciously approve the destructive steps that follow (creating a GitHub repo, applying branch protection, running git commands).
+Use the active harness's real pausing primitive — ask the user with a question
+that requires a response, not just instruction text. The user must consciously
+approve the destructive steps that follow (creating a GitHub repo, applying
+branch protection, running git commands).
 
 If the user says anything other than affirmative confirmation, ask what they'd like to change and loop back to the relevant step.
 
@@ -311,22 +314,24 @@ Initialize git, **verify the release-please manifest invariant** (`package.json`
 
 See `references/step-15-git-init.md` for the bash sequence and the version-invariant check.
 
-### 16. Detect pre-push protection before pushing
+### 16. Inspect push constraints before pushing
 
-Before Step 17 pushes to `main`/`develop`, check whether anything will block direct pushes to protected branches. Check **all four** common sources, not just `core.hooksPath`:
+Before Step 17, inspect the repository's configured hook path, Git wrapper, and
+template configuration. These observations cannot establish every local or
+hosted protection, so follow the active agent harness's observed approval
+mechanism and never bypass a control.
 
 1. `git config --global core.hooksPath` (git's own hook directory)
-2. Claude harness hooks at `~/.claude/hooks/*.{py,sh}` (these run *before* git sees the push)
-3. Shell aliases/functions shadowing `git`
-4. `git config --global init.templateDir` (template applied to fresh `git init`)
+2. Shell aliases/functions shadowing `git`
+3. `git config --global init.templateDir` (template applied to fresh `git init`)
 
-If any source produces a hit, report what was inspected and what remains
-unknown. Follow the active harness's actual approval mechanism and observed
-refusal behavior; never assume an environment override grants authorization.
+Report what was inspected and what remains unknown. Do not infer that a clean
+scan means no protection exists, and do not use an environment variable to
+override an unverified control.
 
 See `references/step-16-prepush-hooks.md` for the detection commands and the verbatim warning message.
 
-### 17. Create GitHub repo and push (bracketed by auto-mode halts)
+### 17. Create GitHub repo and push with explicit remote-action gates
 
 Create the remote and push only with the user's current, explicit intent. This
 new-remote bootstrap boundary is narrow: report inspected policy, request any
@@ -422,7 +427,7 @@ These are decided. Do **not** introduce them on a scaffolded project, even when 
   - `editorconfig.md`, `nextjs.md`, `nodejs-backend.md`, `python-fastapi.md`
   - `node-ts.md` — shared Node/TS configs (Prettier, `.prettierignore`, ESLint notes) used by the Next.js and Fastify configs
   - `root-package-scripts.md`, `python-dev-script.md`
-  - `git-workflow-rule.md` — template for the per-repo `.claude/rules/git-workflow.md` Step 10 scaffolds
+  - `git-workflow-rule.md` — template for the per-repo `docs/development/git-workflow.md` Step 10 scaffolds
   - `styling-css-modules.md` — CSS-Modules styling convention (Step 4 default) + how the other styling choices wire up
   - `database-drizzle.md` — opt-in Drizzle + Postgres setup (Step 4 DB question): client, migrations, `db:*` scripts, per-host connection strings
   - `auth-better-auth.md` — opt-in auth (Step 4, DB-gated): Better Auth default + Auth.js alternative, adapter wiring, schema-via-Drizzle
