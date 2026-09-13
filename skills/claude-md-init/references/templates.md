@@ -21,23 +21,27 @@ create an empty workflow document just to satisfy a template.
 
 ## Architecture-doc reference (every template)
 
-When the project ships with `docs/architecture.html` (which `/project-scaffold` Step 10 writes by default, and `/architecture-doc-init` retrofits onto existing repos — template in `architecture-doc-init/references/architecture-doc-template.md`), add this bullet to the CLAUDE.md `## Project map` section:
+When the project ships with `docs/architecture.html` (which `project-scaffold`
+writes by default and `architecture-doc-init` can retrofit), add this bullet to
+the canonical `AGENTS.md` `## Project map` section:
 
 ```markdown
 - `docs/architecture.html` — living system map (open in a browser). Update it when components, flows, or failure modes change.
 ```
 
-This makes the visual map discoverable to any contributor or Claude session working on the repo. Skip the bullet when retrofitting a CLAUDE.md into a repo that has no `docs/architecture.html`.
+This makes the visual map discoverable to every contributor. Skip the bullet
+when retrofitting a project that has no `docs/architecture.html`.
 
 ## Living-doc note (every template)
 
-Add this line right under the project one-liner (after the `@.claude/rules/git-workflow.md` directive, when present) in every generated CLAUDE.md:
+Add this line right under the project one-liner (after the workflow read
+instruction, when present) in every generated `AGENTS.md`:
 
 ```markdown
 > **Living doc:** when you learn a durable, non-obvious fact about this repo (a gotcha, convention, or footgun), add it to the matching section of this file in the same PR — don't leave it in chat.
 ```
 
-Without it, hard-won repo knowledge surfaces in a session, gets used once, and evaporates; this line makes CLAUDE.md the designated landing place. The same lean rules still apply — durable and non-obvious only, and the 50–120 line budget is the backstop against the note becoming a dumping-ground license.
+Without it, hard-won repo knowledge surfaces in a session, gets used once, and evaporates; this line makes AGENTS.md the designated landing place. The universal preamble below is included in every per-stack template. The same lean rules still apply — durable and non-obvious only, and the 50–120 line budget is the backstop against the note becoming a dumping-ground license.
 
 ## Conventions every template should include
 
@@ -60,6 +64,8 @@ For frontend/Next.js templates, also include the **styling convention** matching
 <One-line description of what this repo is and what stack.>
 
 Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
+
+> **Living doc:** when you learn a durable, non-obvious fact about this repo, add it to this file in the same PR — don't leave it in chat.
 
 > **Living doc:** when you learn a durable, non-obvious fact about this repo (a gotcha, convention, or footgun), add it to the matching section of this file in the same PR — don't leave it in chat.
 
@@ -126,7 +132,10 @@ Read `docs/development/git-workflow.md` before changing branches, commits, pushe
 - Imports use the `@/` alias for `src/`.
 - **Styling: CSS Modules.** Co-locate a `*.module.css` per component; reference `className={styles.x}`. No inline `style={{...}}` (beyond truly dynamic values), no Tailwind utility classes. (Replace this line with the chosen styling approach if not CSS Modules.)
 - **Env-reading modules are lazy** — throw on first use, not at module eval, or `next build` crashes in CI where env vars are unset.
-- **The local env file is `.env`** (copy `.env.example` to it). Delete any `.env.local`: Next loads it *in preference to* `.env`, while drizzle-kit and every non-Next script read only `.env`, so a stray copy silently splits the app and the tooling across two databases.
+- **Confirm the local env filename before changing it.** A newly scaffolded
+  mixed-stack project uses `.env`; a retrofit may intentionally use
+  `.env.local`. Only remove `.env.local` after inspection proves it is a stray,
+  because Next loads it in preference to `.env`.
 - **`typecheck` must keep its `next typegen &&` prefix.** `layout.tsx`/`page.tsx` reference globally-generated route types (`LayoutProps`, `PageProps`) that only exist once Next writes `.next/types`. Trimming the prefix passes locally (stale `.next/` on disk) and fails on CI's clean checkout with `TS2304: Cannot find name 'LayoutProps'`.
 - **Don't write `BREAKING CHANGE:` / `feat!:` in commit-body prose** unless you mean them — parsers will corrupt the CHANGELOG. Paraphrase instead.
 - Conventional commits required (release-please drives off them).
@@ -256,7 +265,9 @@ Read `docs/development/git-workflow.md` before changing branches, commits, pushe
 - Frontend talks to backend via `NEXT_PUBLIC_API_URL` env var.
 - API routes are versioned (`/api/v1/...`).
 - **Env-reading modules are lazy** — throw on first use, not at module eval; `next build` and pytest collection run in CI with no prod env vars set.
-- **The local env file is `.env` on both sides** (copy each `.env.example` to it). `python-dotenv` finds only `.env`; Next reads `.env` too but prefers a stray `.env.local` over it, so delete any `.env.local` rather than letting the two halves disagree.
+- **Confirm each local env filename before changing it.** New mixed-stack
+  scaffolds use `.env` beside each entry point. A retrofit may intentionally
+  use `.env.local`; remove it only after inspection proves it is a stray.
 - **The frontend's `typecheck` must keep its `next typegen &&` prefix** — `layout.tsx`/`page.tsx` reference route types Next only generates into `.next/types`. Trimming it passes locally and fails on CI's clean checkout (`TS2304: Cannot find name 'LayoutProps'`).
 - **Don't write `BREAKING CHANGE:` / `feat!:` in commit-body prose** unless you mean them — parsers will corrupt the CHANGELOG. Paraphrase instead.
 - Conventional commits required.
@@ -299,7 +310,10 @@ Read `docs/development/git-workflow.md` before changing branches, commits, pushe
 - Conventional commits required.
 - TypeScript strict mode in both workspaces.
 - **Env-reading modules are lazy** — throw on first use, not at module eval, or builds/typechecks crash in CI where env vars are unset.
-- **The local env file is `.env`** in each workspace (copy that workspace's `.env.example` to it). Next reads env files only from its own project directory, so a repo-root `.env` is invisible to it. Delete any `.env.local`: Next loads it *in preference to* `.env`, while the backend's `--env-file=.env` and every other script read only `.env`.
+- **Confirm each workspace env filename before changing it.** New scaffolds
+  use `.env` beside each entry point. Next reads only its own project
+  directory and may intentionally use `.env.local`; remove it only after
+  inspection proves it is a stray.
 - **The frontend's `typecheck` must keep its `next typegen &&` prefix** — `layout.tsx`/`page.tsx` reference route types Next only generates into `.next/types`. Trimming it passes locally and fails on CI's clean checkout (`TS2304: Cannot find name 'LayoutProps'`).
 - **Don't write `BREAKING CHANGE:` / `feat!:` in commit-body prose** unless you mean them — parsers will corrupt the CHANGELOG. Paraphrase instead.
 ```
