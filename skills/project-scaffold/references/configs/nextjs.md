@@ -53,7 +53,9 @@ npx create-next-app@latest frontend \
 - **`CLAUDE.md`** — Next 16+ ships a stub. **Delete it** — the skill writes its own CLAUDE.md at repo root in Step 10. Keeping the Next stub creates two CLAUDE.md files (subdir vs root) that conflict.
 - **`.git/`** — should not exist if `--skip-git` was passed. If it does (older create-next-app), remove it before the skill's `git init`:
   ```bash
-  rm -rf .git AGENTS.md CLAUDE.md  # adjust based on which exist
+rm -rf .git
+# Preserve AGENTS.md and CLAUDE.md unless inspection proves either is the known
+# generated Next stub. Never run bootstrap cleanup in an existing repository.
   ```
 - **`.gitignore`** — `create-next-app` writes a blanket `.env*` rule, which silently gitignores `.env.example` too. If the project will commit a `.env.example` (it should — documents required env vars), append the carve-out so it's tracked:
   ```bash
@@ -63,8 +65,9 @@ npx create-next-app@latest frontend \
 
 For the **subdir** install path, this cleanup happens in `frontend/`:
 ```bash
-rm -rf frontend/.git frontend/CLAUDE.md
-# Keep frontend/AGENTS.md — it's useful Next-specific context
+rm -rf frontend/.git
+# Preserve frontend/AGENTS.md and frontend/CLAUDE.md: nested framework rules
+# remain scoped to the frontend and must be merged around, never deleted.
 ```
 
 ## REQUIRED: pin `package.json` version to `0.1.0`

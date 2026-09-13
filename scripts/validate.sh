@@ -33,14 +33,23 @@ for skill_path in "$SKILLS_DIR"/*/; do
     continue
   fi
 
-  # 3. Has a name field in frontmatter
+  # 3. Frontmatter is closed before the body. A missing closing delimiter used
+  # to make the remaining document look like frontmatter and pass validation.
+  frontmatter_end=$(awk 'NR > 1 && /^---$/{print NR; exit}' "$skill_md")
+  if [[ -z "$frontmatter_end" ]]; then
+    echo "  ❌ Frontmatter is missing its closing delimiter"
+    EXIT_CODE=1
+    continue
+  fi
+
+  # 4. Has a name field in frontmatter
   if ! awk '/^---$/{c++; next} c==1' "$skill_md" | grep -q '^name:'; then
     echo "  ❌ Frontmatter missing 'name' field"
     EXIT_CODE=1
     continue
   fi
 
-  # 4. name field matches folder name
+  # 5. name field matches folder name
   declared_name=$(awk '/^---$/{c++; next} c==1 && /^name:/{sub(/^name:[[:space:]]*/, ""); print; exit}' "$skill_md")
   if [[ "$declared_name" != "$skill_name" ]]; then
     echo "  ❌ Frontmatter name '$declared_name' doesn't match folder name '$skill_name'"
@@ -48,14 +57,14 @@ for skill_path in "$SKILLS_DIR"/*/; do
     continue
   fi
 
-  # 5. Has a description field
+  # 6. Has a description field
   if ! awk '/^---$/{c++; next} c==1' "$skill_md" | grep -q '^description:'; then
     echo "  ❌ Frontmatter missing 'description' field"
     EXIT_CODE=1
     continue
   fi
 
-  # 6. Description is at least 50 chars (catches lazy descriptions)
+  # 7. Description is at least 50 chars (catches lazy descriptions)
   desc_length=$(awk '/^---$/{c++; next} c==1 && /^description:/{sub(/^description:[[:space:]]*/, ""); print length; exit}' "$skill_md")
   if [[ "$desc_length" -lt 50 ]]; then
     echo "  ⚠️  Description is short ($desc_length chars). Make it more 'pushy' — explicit trigger contexts."

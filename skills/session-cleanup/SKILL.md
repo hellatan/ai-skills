@@ -111,7 +111,8 @@ Three hard limits on what you run:
   the user sees. Prefer the session's own worktree-exit mechanism if one exists, but
   emit the command regardless — do not leave the removal as a vague "hand it off."
 - **Follow the project's and the user's own git-workflow conventions** — don't
-  invent your own. Those rules live in the project's `CLAUDE.md` and, if the agent
+  invent your own. Those rules live in the project's canonical `AGENTS.md` (or
+  compatible `CLAUDE.md` adapter) and, if the agent
   has one, the user's global memory: how branches are pushed, which pushes are
   allowed, how local vs. remote branches are cleaned up, when cleanup includes
   pruning. Read those first and defer to them; when a convention is unstated, ask.
@@ -177,7 +178,7 @@ each, offer the lightest home that fits:
 
 - A note in the user's memory, if the agent keeps one (follow the user's own
   memory conventions — do not save what the repo already records).
-- A line in the project's `CLAUDE.md` living-doc section, if the repo has that
+- A line in the project's canonical `AGENTS.md` living-doc section, if the repo has that
   convention and the lesson is repo-specific.
 - A filed issue/chip for a follow-up that belongs to the repo.
 

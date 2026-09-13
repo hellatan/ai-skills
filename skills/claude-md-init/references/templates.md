@@ -1,18 +1,23 @@
-# CLAUDE.md Templates
+# Project instruction templates
 
-Pick the template that matches the project type/stack. All templates inherit the global rules from `~/.claude/CLAUDE.md` (git workflow, link formatting), so the per-repo file only adds **project identity**, **canonical commands**, and **non-obvious gotchas**.
+Pick the template that matches the project type/stack. Generate it as
+`AGENTS.md`, add a thin `CLAUDE.md` adapter that reads it, and keep any nested
+framework instructions in their existing scope. The project file contains the
+workflow link and does not depend on a personal global instruction file.
 
 Aim for 50–120 lines total.
 
 ## Workflow-rule reference (every template)
 
-When the project ships with `.claude/rules/git-workflow.md` (which `/project-scaffold` Step 10 writes by default), include this line near the top of the CLAUDE.md, right under the project description:
+When the project ships with `docs/development/git-workflow.md`, include this
+line near the top of `AGENTS.md`, right under the project description:
 
 ```markdown
-@.claude/rules/git-workflow.md
+Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 ```
 
-The `@<path>` directive tells Claude sessions to load the referenced file as additional context, so the per-repo workflow rules apply automatically without depending on the user's global agent memory. Skip this line when retrofitting a CLAUDE.md into a repo that doesn't already have the workflow rule file.
+Use a plain read instruction so every agent can recover the workflow. Do not
+create an empty workflow document just to satisfy a template.
 
 ## Architecture-doc reference (every template)
 
@@ -54,7 +59,7 @@ For frontend/Next.js templates, also include the **styling convention** matching
 
 <One-line description of what this repo is and what stack.>
 
-@.claude/rules/git-workflow.md
+Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
 > **Living doc:** when you learn a durable, non-obvious fact about this repo (a gotcha, convention, or footgun), add it to the matching section of this file in the same PR — don't leave it in chat.
 
@@ -73,7 +78,7 @@ For frontend/Next.js templates, also include the **styling convention** matching
 
 Run from the repo root:
 
-- `npm run check:all` — runs everything CI would run (lint + typecheck + tests)
+- `npm run check:all` — lint, format check, typecheck, and tests; run build and e2e separately when configured
 - `npm run lint` / `npm run format` / `npm run test` / `npm run build` — individual steps
 - `npm run dev` — start dev server(s)
 - `pre-commit run --all-files` — manually run all pre-commit hooks
@@ -90,7 +95,7 @@ Run from the repo root:
 
 <One-liner: e.g., "Trading dashboard. Next.js 15 + TypeScript.">
 
-@.claude/rules/git-workflow.md
+Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
 ## Lifecycle
 
@@ -110,7 +115,7 @@ Run from the repo root:
 ## Canonical commands
 
 - `npm run dev` — dev server (frontend + API routes together)
-- `npm run check:all` — full CI suite locally
+- `npm run check:all` — lint, format check, typecheck, and tests; build/e2e are separate when configured
 - `npm run lint` / `npm run typecheck` / `npm run test` / `npm run build`
 - `npm run test:e2e` — Playwright end-to-end tests
 
@@ -136,7 +141,7 @@ Run from the repo root:
 
 <One-liner: e.g., "Charting API. FastAPI + pandas. Python 3.12.">
 
-@.claude/rules/git-workflow.md
+Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
 ## Lifecycle
 
@@ -155,7 +160,7 @@ Run from the repo root:
 ## Canonical commands
 
 - `uvicorn <package_name>.main:app --reload` — dev server (interactive docs at http://localhost:8000/docs)
-- `python scripts/dev.py check:all` — full CI suite locally
+- `python scripts/dev.py check:all` — lint, typecheck, and tests; build/e2e are separate when configured
 - `python scripts/dev.py lint` / `format` / `test` / `typecheck`
 
 ## Conventions
@@ -179,7 +184,7 @@ Use this only when the user explicitly opted out of the Next.js-only fullstack d
 
 <One-liner: e.g., "Order execution service. Fastify + TypeScript.">
 
-@.claude/rules/git-workflow.md
+Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
 ## Lifecycle
 
@@ -198,7 +203,7 @@ Use this only when the user explicitly opted out of the Next.js-only fullstack d
 ## Canonical commands
 
 - `npm run dev` — dev server with hot reload
-- `npm run check:all` — full CI suite locally
+- `npm run check:all` — lint, format check, typecheck, and tests; build/e2e are separate when configured
 - `npm run lint` / `npm run typecheck` / `npm run test` / `npm run build`
 - `npm start` — production server
 
@@ -224,7 +229,7 @@ Use this only when the user explicitly opted out of the Next.js-only fullstack d
 
 <One-liner: e.g., "Trading dashboard. Next.js frontend + FastAPI Python backend.">
 
-@.claude/rules/git-workflow.md
+Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
 ## Lifecycle
 
@@ -242,7 +247,7 @@ Use this only when the user explicitly opted out of the Next.js-only fullstack d
 ## Canonical commands (run from repo root)
 
 - `npm run dev` — starts both frontend and backend dev servers
-- `npm run check:all` — full CI suite locally (lint + typecheck + tests, both stacks)
+- `npm run check:all` — lint, format check, typecheck, and tests for both stacks; build/e2e are separate when configured
 - `npm run lint` / `format` / `test` / `typecheck` / `build` — runs against both stacks
 - `npm run lint:frontend` / `lint:backend` (and same for other commands) — single side
 
@@ -266,7 +271,7 @@ Use this only when the user explicitly opted out of the Next.js-only fullstack d
 
 <One-liner: e.g., "Trading platform. Next.js frontend + Fastify backend, npm workspaces.">
 
-@.claude/rules/git-workflow.md
+Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
 ## Lifecycle
 
@@ -285,7 +290,7 @@ Use this only when the user explicitly opted out of the Next.js-only fullstack d
 
 - `npm install` — installs everything across workspaces
 - `npm run dev` — starts both
-- `npm run check:all` — full CI suite locally
+- `npm run check:all` — lint, format check, typecheck, and tests; build/e2e are separate when configured
 - `npm run lint` / `format` / `test` / `typecheck` / `build`
 
 ## Conventions
@@ -317,7 +322,7 @@ Use the matching backend template above as a starting point and:
 
 <One-liner: e.g., "Exploratory backtest research for MNQ breakout strategies.">
 
-@.claude/rules/git-workflow.md
+Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
 ## Lifecycle
 
