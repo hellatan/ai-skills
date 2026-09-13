@@ -56,7 +56,7 @@ Verify the target directory doesn't already exist before proceeding.
 Compute the **package name** here too: convert the project name to snake_case for Python (e.g. `my-project` → `my_project`). This name will be propagated consistently to:
 - `pyproject.toml` `name` field
 - The actual package directory + `__init__.py`
-- `uvicorn <package>.main:app` references in CLAUDE.md
+- `uvicorn <package>.main:app` references in AGENTS.md
 - Test discovery paths
 
 ### 3. Project type
@@ -90,7 +90,7 @@ Apply the prescriptive-defaults pattern. Don't ask what they want — tell them 
 > Reply with a choice or hit enter for CSS Modules.
 
 CSS Modules is the default and the recommended pick. Tailwind stays available for anyone who prefers it, but never lead with it or present it as the recommendation. Wire the choice through:
-- **CSS Modules** → pass `--no-tailwind` to `create-next-app`; don't install shadcn. Scaffold example UI as `*.module.css` (no inline `style={{...}}`) and include the styling convention in the generated CLAUDE.md / rules (see `references/configs/styling-css-modules.md`).
+- **CSS Modules** → pass `--no-tailwind` to `create-next-app`; don't install shadcn. Scaffold example UI as `*.module.css` (no inline `style={{...}}`) and include the styling convention in generated AGENTS.md (see `references/configs/styling-css-modules.md`).
 - **Vanilla Extract** → pass `--no-tailwind`; don't install shadcn. Add `@vanilla-extract/css` + `@vanilla-extract/next-plugin`, wrap `next.config` with `createVanillaExtractPlugin()`, and co-locate styles as `*.css.ts` (see `references/configs/styling-css-modules.md`).
 - **Tailwind** → omit `--no-tailwind`; don't install shadcn.
 - **Tailwind + shadcn/ui** → omit `--no-tailwind`; run shadcn init.
@@ -252,7 +252,7 @@ Write to repo root:
 - `AGENTS.md` and a thin `CLAUDE.md` adapter — owned by `claude-md-init`; see
   its templates. Include essential lifecycle constraints inline and link the
   shared `docs/development/git-workflow.md` authority.
-- `docs/architecture.html` — starter living system map, owned by `/architecture-doc-init`; write verbatim from its `references/architecture-doc-template.md` (a dependency-free, GitHub-dark HTML file: inline-SVG data-flow diagram, failure-modes table, key-files list — all shipped as clearly-marked `«placeholder»` slots). Substitute `«PROJECT_NAME»`, `«REPO»`, and `«DATE»`; leave the rest for the user to fill in as the system takes shape. (For *existing* repos, `/architecture-doc-init` fills it in from the real codebase instead.) The generated CLAUDE.md's Project map points at it (see `/claude-md-init`'s `references/templates.md`).
+- `docs/architecture.html` — starter living system map, owned by `/architecture-doc-init`; write verbatim from its `references/architecture-doc-template.md` (a dependency-free, GitHub-dark HTML file: inline-SVG data-flow diagram, failure-modes table, key-files list — all shipped as clearly-marked `«placeholder»` slots). Substitute `«PROJECT_NAME»`, `«REPO»`, and `«DATE»`; leave the rest for the user to fill in as the system takes shape. (For *existing* repos, `/architecture-doc-init` fills it in from the real codebase instead.) The generated AGENTS.md Project map points at it (see `/claude-md-init`'s `references/templates.md`).
 - `.gitignore` — see `references/gitignores.md`
 - `README.md` — minimal: `# <project-name>` + one-line description placeholder
 - `.editorconfig` — see `references/configs/editorconfig.md`
@@ -390,7 +390,8 @@ This is what the scaffold enables out of the box:
 
 ## Why these defaults (one-line each)
 
-- **Lean `CLAUDE.md`** (50–120 lines): bloat weakens the whole file
+- **Lean `AGENTS.md`** (50–120 lines): bloat weakens the whole file; keep a
+  compatibility `CLAUDE.md` adapter thin
 - **`main` + `develop` (+ optional `stage`)**: PRs target `develop`, `main` release-only
 - **Branch protection on all release branches**: hard stops, not soft rules
 - **Pre-commit at root, polyglot**: faster feedback, lower CI cost, one config for fullstack
@@ -439,12 +440,14 @@ These are decided. Do **not** introduce them on a scaffolded project, even when 
 - **`/gh-actions-init`** (Step 14) — CI structural jobs + release-please + release verification + the tagged-only deploy. Templates: `skills/gh-actions-init/references/{detection,ci-structure,release-please,release-verification,tagged-deploy,deploy-stub,claude-code-review}.md`.
 - **`/gitflow-init`** (Steps 18 + 19) — branch protection + default-branch setting (+ develop/stage creation for retrofit). Templates: `skills/gitflow-init/references/branch-protection.md`.
 - **`/precommit-init`** (Step 13) — pre-commit at root, polyglot (Python / Node / fullstack). Templates: `skills/precommit-init/references/precommit-config.md`.
-- **`/claude-md-init`** (Step 10) — per-stack CLAUDE.md templates. Templates: `skills/claude-md-init/references/templates.md`.
+- **`/claude-md-init`** (Step 10) — canonical AGENTS.md and compatibility
+  CLAUDE.md templates. Templates: `skills/claude-md-init/references/templates.md`.
 - **`/architecture-doc-init`** (Step 10) — the `docs/architecture.html` system-map template + coordinate-grid editing guide (blank for new repos here; that skill fills it in for existing repos). Templates: `skills/architecture-doc-init/references/architecture-doc-template.md`.
 
 ## When NOT to use this skill
 
-- User wants to add CLAUDE.md to an *existing* repo — just edit the file, no scaffolding
+- User wants to add instructions to an *existing* repo — use `claude-md-init`,
+  which preserves authored files and makes AGENTS.md canonical
 - User is doing a one-off prototype with no GitHub intent — skip gh + protection steps
 - User explicitly says they don't want `develop` — fall back to `main`-only
 - User explicitly says they don't want CI yet — skip workflow creation, leave the rest

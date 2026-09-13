@@ -77,7 +77,8 @@ Note: the plugin loader caches `SKILL.md` content at session start. Use `/reload
 
 1. Branch off `develop`: `git checkout -b feat/<skill-name>`
 2. Create `skills/<skill-name>/SKILL.md` (see the repository conventions in `AGENTS.md`)
-3. Run `./scripts/validate.sh` to confirm the SKILL.md is well-formed
+3. Run `python3 -m pip install -r requirements-dev.txt` once, then
+   `./scripts/validate.sh` to confirm the SKILL.md is well-formed
 4. Run `./scripts/install.sh --target=claude|agents|both` to symlink it locally
 5. Test with Claude Code
 6. Commit with `feat: add <skill-name> skill`, open PR to develop

@@ -239,7 +239,7 @@
     </div>
     <div>
       <ul>
-        <li><span class="m">.github/workflows/ci.yml</span> — CI: runs validate.sh on PRs &amp; pushes</li>
+        <li><span class="m">.github/workflows/ci.yml</span> — CI: runs the portable validation and fixture suite on PRs &amp; pushes</li>
         <li><span class="m">.github/workflows/release-please.yml</span> + <span class="m">develop-to-main-pr.yml</span> — the release train</li>
         <li><span class="m">.claude-plugin/plugin.json</span> — <code>ht-skills</code> plugin metadata</li>
         <li><span class="m">docs/architecture.html</span> — this file (keep it current)</li>
@@ -248,7 +248,7 @@
   </div>
 
   <div class="note">
-    <b>Operate it:</b> <code>./scripts/validate.sh</code> before every PR ·
+    <b>Operate it:</b> <code>python3 -m pip install -r requirements-dev.txt &amp;&amp; ./scripts/test.sh</code> before every PR ·
     <code>./scripts/install.sh</code> to symlink skills for live development ·
     comment <code>/rebuild</code> on a PR to re-run CI.
     To release: merge the auto-opened develop → main PR, then merge release-please's versioned release PR (that merge tags).

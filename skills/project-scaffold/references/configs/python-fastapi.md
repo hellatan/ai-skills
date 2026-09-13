@@ -10,7 +10,7 @@ When asking for project name in Step 1, also compute the **snake_case package na
 - The actual package directory: `<package_name>/`
 - The `__init__.py` inside that directory: `<package_name>/__init__.py`
 - The FastAPI entry point: `<package_name>/main.py`
-- The uvicorn command in CLAUDE.md and root scripts: `uvicorn <package_name>.main:app`
+- The uvicorn command in AGENTS.md and root scripts: `uvicorn <package_name>.main:app`
 - Test imports: `from <package_name>.foo import bar`
 
 Without this, hatchling fails on build ("no source layout") and the project has a confusing mismatch between PyPI name and import name.
