@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.12.0](https://github.com/hellatan/ai-skills/compare/v2.11.0...v2.12.0) (2026-09-13)
+
+
+### Features
+
+* add agent-neutral skill installation ([#229](https://github.com/hellatan/ai-skills/issues/229)) ([911b4b0](https://github.com/hellatan/ai-skills/commit/911b4b02b46b3cfd2bd7c4f084c00477c74fdc34))
+
+
+### Bug Fixes
+
+* **gh-actions-init:** harden claude-code-review template alerting envelope ([#228](https://github.com/hellatan/ai-skills/issues/228)) ([caaecad](https://github.com/hellatan/ai-skills/commit/caaecad66db94d1b54cba5d62c78e3a246186d44))
+
+
+### Chores
+
+* **release:** develop → main ([ce215ca](https://github.com/hellatan/ai-skills/commit/ce215ca01b10bcad77e9f0b64d90a97a76ea2e54))
+
 ## [2.11.0](https://github.com/hellatan/ai-skills/compare/v2.10.1...v2.11.0) (2026-09-12)
 
 
