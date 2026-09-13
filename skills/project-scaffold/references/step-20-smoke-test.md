@@ -30,7 +30,7 @@ pytest                      # if Python
 npm run build               # if Node
 python -m build             # if Python
 
-# 7. Verify check:all (the canonical "run everything CI would run") passes
+# 7. Verify check:all (lint, format check, typecheck, and tests) passes
 npm run check:all           # if Node
 python scripts/dev.py check:all   # if Python-only
 ```

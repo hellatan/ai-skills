@@ -1,18 +1,19 @@
 # ai-skills
 
-Personal monorepo of Claude Code skills, published as the `ht-skills` plugin.
+Reusable project skills with agent-neutral project-instruction templates and
+Claude Code compatibility, published as the `ht-skills` plugin.
 
 ## Skills
 
 | Skill | Description |
 |---|---|
-| [project-scaffold](skills/project-scaffold) | Bootstrap a new project with prescriptive defaults — Next.js / FastAPI, lean CLAUDE.md, git workflow, pre-commit, GitHub Actions CI, release-please, deploy stub. Orchestrates the init skills below for new projects. |
+| [project-scaffold](skills/project-scaffold) | Bootstrap a project with prescriptive defaults — Next.js / FastAPI, canonical AGENTS.md plus a Claude adapter, git workflow, pre-commit, GitHub Actions CI, release-please, and deploy stub. |
 | [release-workflow-init](skills/release-workflow-init) | Bring the git + release workflow (gitflow branches + protection, release-please, trimmed CI) to a **bare or framework-less** repo — `git init` + private GitHub repo if needed, then orchestrates `gitflow-init` + `gh-actions-init`. The framework-less sibling of `project-scaffold`. |
 | [testing-init](skills/testing-init) | Add a testing pipeline (Vitest / Playwright / pytest) + test stubs + scripts + optional CI test job to an existing project. |
 | [gh-actions-init](skills/gh-actions-init) | Add `.github/workflows/` to an existing project — CI structure, release-please, deploy stub. |
 | [gitflow-init](skills/gitflow-init) | Set up `main` + `develop` (+ optional `stage`), branch protection, and `develop` as the default branch on an existing repo. |
 | [precommit-init](skills/precommit-init) | Add pre-commit hooks at the repo root, polyglot (Python / Node / fullstack). |
-| [claude-md-init](skills/claude-md-init) | Write a per-stack CLAUDE.md to an existing project. |
+| [claude-md-init](skills/claude-md-init) | Write canonical per-stack AGENTS.md instructions and a thin Claude adapter to an existing project. The historical name remains compatible. |
 | [architecture-doc-init](skills/architecture-doc-init) | Add a `docs/architecture.html` living system map to an existing repo — inline-SVG data-flow diagram, failure-modes table, key-files list, filled in with the repo's real components. |
 | [ci-baseline-audit](skills/ci-baseline-audit) | Audit one or more repos for deviation from the CI baseline — duplicate `push` triggers, missing Playwright browser cache, missing `workflow_dispatch` or `/rebuild`, unexpected job names. Read-only by default. |
 | [session-cleanup](skills/session-cleanup) | End-of-session pre-archive checklist — is the stated work verified done, is the git state clean, is a retrospective warranted, are there durable learnings worth saving. Reports a verdict; never acts without an explicit go. |
@@ -30,9 +31,22 @@ cd ~/projects/ai-skills
 ./scripts/install.sh
 ```
 
-This symlinks each `skills/<skill-name>/` into `~/.claude/skills/<skill-name>`. Invocation is the bare skill name: `/project-scaffold`, `/testing-init`, etc.
+This preserves the legacy Claude-only default and symlinks each skill into
+`~/.claude/skills/<skill-name>`. Select agent-neutral discovery or both roots
+explicitly when needed:
 
-It also installs `.githooks/{post-merge,post-checkout,post-rewrite}`, so **you only run this script once per clone**. After that, `git pull`, `git pull --rebase`, and branch switches re-sync the symlinks on their own: a new skill gets linked, and a renamed or deleted one gets its dead link pruned. Editing an existing skill never needed a re-run — the symlink makes those changes live immediately.
+```bash
+./scripts/install.sh --target=agents  # ~/.agents/skills
+./scripts/install.sh --target=both    # Claude and agent-neutral roots
+```
+
+The selection is saved in this clone and non-blocking Git hooks replay that
+same selection. The installer never infers `both` from directories that happen
+to exist, and it preserves unowned symlinks, files, directories, and hooks.
+
+Opt in to repository hooks explicitly with `./scripts/install.sh --install-hooks`.
+This avoids changing a custom or shared `core.hooksPath` by default. After an
+opt-in, `git pull`, rebases, and branch switches re-sync the selected roots.
 
 A hook run prints only what changed, and never fails the git operation. Re-running by hand is always safe:
 
@@ -41,7 +55,9 @@ A hook run prints only what changed, and never fails the git operation. Re-runni
 ./scripts/install.sh --quiet  # changes and warnings only
 ```
 
-Two things it deliberately won't do: replace a real directory sitting where a symlink belongs, or remove a dangling link that points at some other repo. Both are reported with the `rm` command to run yourself.
+It never replaces an unowned symlink, file, directory, or hook. Owned stale
+links are pruned only when their normalized target is exactly under this
+checkout's `skills/` directory.
 
 Note that a **linked worktree can't install** — `~/.claude/skills` has to point at the primary checkout, or `git worktree remove` would break every skill. Run it from `~/projects/ai-skills` instead.
 
@@ -60,9 +76,10 @@ Note: the plugin loader caches `SKILL.md` content at session start. Use `/reload
 ## Adding a new skill
 
 1. Branch off `develop`: `git checkout -b feat/<skill-name>`
-2. Create `skills/<skill-name>/SKILL.md` (see Anthropic conventions in `CLAUDE.md`)
-3. Run `./scripts/validate.sh` to confirm the SKILL.md is well-formed
-4. Run `./scripts/install.sh` to symlink it locally
+2. Create `skills/<skill-name>/SKILL.md` (see the repository conventions in `AGENTS.md`)
+3. Run `python3 -m pip install -r requirements-dev.txt` once, then
+   `./scripts/validate.sh` to confirm the SKILL.md is well-formed
+4. Run `./scripts/install.sh --target=claude|agents|both` to symlink it locally
 5. Test with Claude Code
 6. Commit with `feat: add <skill-name> skill`, open PR to develop
 

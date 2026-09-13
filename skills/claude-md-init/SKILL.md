@@ -1,11 +1,13 @@
 ---
 name: claude-md-init
-description: Add a CLAUDE.md to an existing repo — detects the project's stack from `package.json` / `pyproject.toml` / framework deps, picks the matching template (Next.js, FastAPI, Fastify, fullstack variants, library, research notebooks, manifest-less toolbox/scripts repos), and writes a lean 50-120 line CLAUDE.md scoped to project identity, canonical commands, and non-obvious gotchas. Use when the user wants to "add CLAUDE.md", "scaffold a CLAUDE.md", "set up Claude Code config", or otherwise bring a CLAUDE.md to a repo that doesn't have one. Refuses to overwrite an existing CLAUDE.md without consent.
+description: Add canonical AGENTS.md project instructions plus a thin CLAUDE.md adapter to an existing repo — detects the stack, selects a lean per-stack template, and preserves authored instructions. Use when the user asks for AGENTS.md, CLAUDE.md, agent-neutral project instructions, or Claude Code configuration. Refuses to overwrite authored instruction files without consent.
 ---
 
 # claude-md-init
 
-Adds a CLAUDE.md to an existing repo, picking the right per-stack template. Scoped to **project identity, canonical commands, and non-obvious gotchas** — leans on the user's global `~/.claude/CLAUDE.md` for git workflow, link formatting, etc., so the per-repo file stays at 50–120 lines.
+Adds canonical `AGENTS.md` instructions and a thin `CLAUDE.md` adapter, picking the
+right per-stack template. Project workflow requirements are written into the
+repository and linked explicitly; no global personal instruction file is assumed.
 
 ## When to trigger
 
@@ -22,9 +24,11 @@ User says any of:
 
 ## What this skill does NOT include
 
-- **Git workflow rules** (branching, committing, push refspecs) — those live in the user's global CLAUDE.md.
+- **Git workflow rules** are a short, explicit project document at
+  `docs/development/git-workflow.md`, linked from `AGENTS.md`.
 - **Style / linting rules** — the configs (ESLint, Prettier, ruff) enforce them; CLAUDE.md doesn't repeat them.
-- **Path-scoped rules** — those go in `.claude/rules/<name>.md`, not the main CLAUDE.md.
+- **Path-scoped rules** — put these in a scoped `AGENTS.md` beside the code,
+  not in the root compatibility adapter.
 - **Workflow procedures** — those become their own skills under `~/.claude/skills/<name>/`.
 
 These exclusions keep the file lean. Bloat weakens what Claude reads on every interaction.
@@ -46,8 +50,8 @@ These exclusions keep the file lean. Bloat weakens what Claude reads on every in
 Read these without asking:
 
 ```bash
-# Existing CLAUDE.md?
-[[ -f CLAUDE.md ]] && existing=true
+# Existing authored instructions? Preserve all of them, including nested scope.
+find . -name AGENTS.md -o -name CLAUDE.md
 
 # Stack signals
 [[ -f package.json ]] && stack_node=true
@@ -72,9 +76,11 @@ ls -a .env .env.local .env.example */.env */.env.local */.env.example 2>/dev/nul
 grep -rn -- "--env-file\|env-file-if-exists\|dotenv" package.json */package.json *.config.* 2>/dev/null
 ```
 
-### 2. Handle existing CLAUDE.md
+### 2. Handle existing instructions
 
-If `CLAUDE.md` already exists, **stop**:
+If root `AGENTS.md` or `CLAUDE.md` already exists and is authored rather than a
+known generated adapter, **stop**. Preserve nested instruction files because
+they provide narrower framework scope.
 
 > Found an existing CLAUDE.md. Three options:
 > 1. Show me the current file — I'll read it and suggest additions/changes you can review by hand.
@@ -129,9 +135,12 @@ Same gate as other skills.
 
 Add `CLAUDE.md.bak` to `.gitignore` if not already ignored.
 
-### 7. Write CLAUDE.md from the template
+### 7. Write canonical instructions and adapter
 
-See `references/templates.md` for the per-stack template. Substitute:
+See `references/templates.md` for the per-stack `AGENTS.md` template. Write a
+thin root `CLAUDE.md` that tells Claude to read `AGENTS.md`; it must not restate
+durable rules. Write `docs/development/git-workflow.md` when the project lacks
+an equivalent authored workflow document, then link it from `AGENTS.md`.
 
 - `<PROJECT_NAME>` — repo name (or the `name` field from `package.json` / `pyproject.toml`).
 - One-line description — derive from existing README first paragraph if available; otherwise leave a `<placeholder>` for the user to fill.
@@ -142,7 +151,8 @@ See `references/templates.md` for the per-stack template. Substitute:
 
 Re-read the written file and count lines. **Target: 50–120 lines.** If significantly outside that range:
 - Under 50 lines → likely missing template sections; double-check the template was applied fully.
-- Over 120 lines → review for content that belongs in `references/configs/`, `.claude/rules/`, README, or skill-level docs instead.
+- Over 120 lines → review for content that belongs in `references/configs/`, a
+  scoped `AGENTS.md`, README, or skill-level docs instead.
 
 Don't auto-trim. Surface to the user.
 
@@ -155,9 +165,9 @@ Don't auto-trim. Surface to the user.
 
 ```
 Next steps:
-1. Open CLAUDE.md and replace any <placeholder> markers with project-specific values
+1. Open AGENTS.md and replace any <placeholder> markers with project-specific values
 2. Skim the file — anything that's wrong or missing is much better fixed now than after the file goes stale
-3. Commit it: `git add CLAUDE.md && git commit -m "chore: add CLAUDE.md"`
+3. Commit the instruction set after reviewing every preserved root and nested file
 ```
 
 ---
@@ -169,6 +179,7 @@ Next steps:
 ## Why these defaults
 
 - **Lean target (50–120 lines)** — bloat weakens what Claude reads. The file is loaded into every conversation in the repo; bigger isn't better.
-- **Lean against the global CLAUDE.md** — the user's `~/.claude/CLAUDE.md` already covers git workflow, link formatting, link rules, etc. Per-repo files only add what's repo-specific.
+- **Agent-neutral authority** — `AGENTS.md` carries the durable project contract;
+  the Claude file is an adapter, not a competing authority.
 - **Refuse to overwrite silently** — CLAUDE.md is hand-curated context. Auto-merging risks losing important user-written notes.
 - **Templates are starting points, not contracts** — the user is expected to edit the file. Surfacing line count helps them notice when their edits make it bloat.

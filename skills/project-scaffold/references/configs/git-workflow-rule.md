@@ -1,6 +1,9 @@
 # Git workflow rule template (scaffolded into each new project)
 
-This file is the **template content** that `project-scaffold` Step 10 writes to `.claude/rules/git-workflow.md` in the new project. It captures the workflow conventions the rest of the scaffold (protected branches, release-please, deploy on tag, etc.) assumes.
+This file is the **template content** that `project-scaffold` Step 10 writes to
+`docs/development/git-workflow.md` in the new project. It captures the workflow
+conventions the rest of the scaffold (protected branches, release-please,
+deploy on tag, etc.) assumes.
 
 Write it verbatim. Replace `<PROJECT_NAME>` with the project name only if the template uses it (it currently doesn't).
 
@@ -13,13 +16,13 @@ The "Release flow" and "Reverting a release" sections describe the **tagged-only
 ````markdown
 # Git workflow
 
-Conventions for this repo, intended for both humans and Claude sessions. The CI/CD pipeline, branch protection, and release flow all assume these rules — bypassing them risks accidental production deploys.
+Conventions for this repo, intended for both humans and agent sessions. The CI/CD pipeline, branch protection, and release flow all assume these rules — bypassing them risks accidental production deploys.
 
 ## Always work in an isolated branch
 
 Never edit files directly on `develop` or `main`. Always create a feature branch first.
 
-**Automated / AI agent sessions (e.g. Claude): always work in a git worktree — no exceptions.** Don't edit files in the primary checkout, even on a feature branch. Working in the primary checkout pollutes the user's branch list and causes working-directory-reset confusion across tool calls. Create an isolated worktree as the first action of any code task; if you catch yourself committing in the primary checkout, stop and move the work to a worktree.
+**Automated / AI agent sessions: always work in a git worktree — no exceptions.** Don't edit files in the primary checkout, even on a feature branch. Working in the primary checkout pollutes the user's branch list and causes working-directory-reset confusion across tool calls. Create an isolated worktree as the first action of any code task; if you catch yourself committing in the primary checkout, stop and move the work to a worktree.
 
 Run `git branch --show-current` before every commit. If the result is `develop` or `main`, **stop** — uncommit nothing, but move the changes to a feature branch before committing.
 
@@ -111,8 +114,9 @@ Always `--force-with-lease`, never plain `--force`. Never force-push to `main`/`
 
 ## How this is used
 
-`project-scaffold` Step 10 copies the **template content** (everything between the outer `````markdown` fences) verbatim to `<project-root>/.claude/rules/git-workflow.md` in the new project.
+`project-scaffold` Step 10 copies the **template content** (everything between the outer `````markdown` fences) verbatim to `<project-root>/docs/development/git-workflow.md` in the new project.
 
-The CLAUDE.md template (in `claude-md-init`) references this file with `@.claude/rules/git-workflow.md`, so any Claude session working in the project picks it up automatically.
+The canonical AGENTS.md template in `claude-md-init` tells contributors to read
+this document; the thin CLAUDE.md adapter points at AGENTS.md.
 
 For retrofitting an existing repo with these rules: run `cp` of the template content directly, no skill needed — though `claude-md-init` could optionally do it if invoked with `--with-workflow-rule`.

@@ -8,7 +8,8 @@
 - **`/gh-actions-init`** (Step 14) — owns the `checks` job structure (lint + format:check + typecheck) + the `build` job, release-please config + workflow, the deploy stub, and `claude-code-review.yml`.
 - **`/gitflow-init`** (Steps 18 + 19) — owns branch-protection setup and default-branch configuration.
 - **`/precommit-init`** (Step 13) — owns pre-commit installation, polyglot config generation, and hook activation.
-- **`/claude-md-init`** (Step 10) — owns per-stack CLAUDE.md template selection and writing.
+- **`/claude-md-init`** (Step 10) — owns canonical AGENTS.md templates and the Claude adapter.
+- **`/architecture-doc-init`** (Step 10) — owns the starter living system map.
 
 All ship as part of the same `ai-skills` repo. Running `scripts/install.sh` installs every skill together, so the dependency is already satisfied for anyone installing from the repo. The check below mainly guards against:
 
@@ -18,10 +19,13 @@ All ship as part of the same `ai-skills` repo. Running `scripts/install.sh` inst
 
 ## Upfront availability check (Flow Step 1)
 
-Before asking the user any project-shape questions in Step 1, verify all sister skills appear in the list of available skills (visible to Claude in system reminders / the available-skills section).
+Before asking project-shape questions, verify all required sister skills through
+the active agent's discovery interface. Accept direct and namespaced forms such
+as `project-scaffold` and `ht-skills:project-scaffold`; resolve sibling source
+relative to this package when available. If any are missing, stop before writes.
 
 If any is missing, abort immediately — don't proceed to Step 1 — with this message:
 
-> `/project-scaffold` delegates several steps to sister skills (`/testing-init`, `/gh-actions-init`, `/gitflow-init`, `/precommit-init`, `/claude-md-init`). One or more isn't installed in this Claude Code instance. Install the full skill family — they ship together in the `ai-skills` repo — then retry. (For the typical setup: `~/projects/ai-skills/scripts/install.sh`.)
+> `project-scaffold` delegates to `testing-init`, `gh-actions-init`, `gitflow-init`, `precommit-init`, `claude-md-init`, and `architecture-doc-init`. One or more is unavailable to this agent. Install or expose the complete skill family, then retry before generating project files.
 
 Reasoning: a partial scaffold that gets several steps in and dead-ends at a delegation point is much worse than a fast upfront refusal. Failing before user time is invested keeps the failure cheap.

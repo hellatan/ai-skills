@@ -2,7 +2,8 @@
 
 Cross-platform command runner for any project with a Node component. Replaces Make (which isn't Windows-friendly). Lives at repo root regardless of stack.
 
-The canonical "run everything CI would run" command is **`npm run check:all`**.
+`npm run check:all` runs lint, format check, typecheck, and tests. Build and
+end-to-end checks remain separate commands when configured.
 
 The convenience wrapper for hooks is **`npm run pre-commit`** — runs `pre-commit run --all-files` from anywhere in the project.
 

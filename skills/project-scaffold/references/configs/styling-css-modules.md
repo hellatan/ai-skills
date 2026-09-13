@@ -1,6 +1,6 @@
 # Styling convention — CSS Modules (default)
 
-Written into the new project's CLAUDE.md `## Conventions` (or `.claude/rules/styling.md`) when the user picks **CSS Modules** at Step 4. CSS Modules is the scaffold's default styling approach.
+Written into the new project's canonical `AGENTS.md` `## Conventions` when the user picks **CSS Modules** at Step 4. CSS Modules is the scaffold's default styling approach.
 
 ## What to scaffold
 
@@ -8,7 +8,7 @@ Written into the new project's CLAUDE.md `## Conventions` (or `.claude/rules/sty
 - Co-locate a `*.module.css` next to each component (`Foo.tsx` → `Foo.module.css`).
 - `create-next-app --no-tailwind` already ships `src/app/page.module.css` + global `src/app/globals.css` — keep that pattern as the reference shape.
 
-## Convention text (drop into CLAUDE.md `## Conventions`)
+## Convention text (drop into AGENTS.md `## Conventions`)
 
 > **Styling: CSS Modules.** Each component gets a co-located `*.module.css` file; import it as `styles` and reference `className={styles.foo}`. No inline `style={{...}}` for anything beyond truly dynamic values (computed positions, etc.). No Tailwind utility classes. Define design tokens as CSS custom properties scoped to a component-root class (mirror `src/app/page.module.css`); put genuinely global tokens/resets in `src/app/globals.css`.
 
