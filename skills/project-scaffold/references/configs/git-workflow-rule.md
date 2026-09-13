@@ -113,6 +113,7 @@ Always `--force-with-lease`, never plain `--force`. Never force-push to `main`/`
 
 `project-scaffold` Step 10 copies the **template content** (everything between the outer `````markdown` fences) verbatim to `<project-root>/.claude/rules/git-workflow.md` in the new project.
 
-The CLAUDE.md template (in `claude-md-init`) references this file with `@.claude/rules/git-workflow.md`, so any Claude session working in the project picks it up automatically.
+The canonical AGENTS.md template in `claude-md-init` tells contributors to read
+this document; the thin CLAUDE.md adapter points at AGENTS.md.
 
 For retrofitting an existing repo with these rules: run `cp` of the template content directly, no skill needed — though `claude-md-init` could optionally do it if invoked with `--with-workflow-rule`.

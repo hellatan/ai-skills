@@ -14,6 +14,10 @@ for those rules.
 - Start feature branches from `develop`; never commit work directly to `main`.
 - Target pull requests at `develop` and wait for the repository's required
   checks before merge.
+- Use an explicit source and destination for the first push:
+  `git push -u origin <local-branch>:<remote-branch>`.
+- Before handing off a change, run `./scripts/validate.sh` and the focused
+  fixture that covers any changed runnable reference or installer behavior.
 - A release is a `develop` to `main` pull request. release-please prepares the
   release PR and its merge creates the version tag.
 - Keep public artifacts free of private paths, credentials, private repository

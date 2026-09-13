@@ -411,9 +411,9 @@ Notes:
   sharp edges are not.
 - Include the `BREAKING CHANGE:` / `feat!:` convention bullet only if the repo runs release
   tooling; drop it otherwise.
-- Same retrofit rules as every template: skip `@.claude/rules/git-workflow.md` unless the
-  file exists, and add the architecture-doc Project-map bullet only when
-  `docs/architecture.html` exists.
+- Same retrofit rules as every template: link the workflow document only when
+  an equivalent authored document exists, and add the architecture-map bullet
+  only when `docs/architecture.html` exists.
 
 ---
 

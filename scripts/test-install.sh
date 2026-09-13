@@ -37,4 +37,35 @@ SKILLS_CLAUDE_DIR="$fixture/claude skills" \
 SKILLS_AGENTS_DIR="$fixture/agents skills" \
   "$fixture/repo/scripts/install.sh" --agents --quiet
 test ! -L "$fixture/agents skills/missing-skill"
+
+# A source archive has no Git metadata but still installs selected roots.
+mkdir -p "$fixture/archive/scripts"
+cp -R "$fixture/repo/skills" "$fixture/archive/skills"
+cp "$repo_root/scripts/install.sh" "$fixture/archive/scripts/install.sh"
+chmod +x "$fixture/archive/scripts/install.sh"
+SKILLS_CLAUDE_DIR="$fixture/archive claude" \
+SKILLS_AGENTS_DIR="$fixture/archive agents" \
+  "$fixture/archive/scripts/install.sh" --both --quiet
+test -L "$fixture/archive claude/project-scaffold"
+test -L "$fixture/archive agents/project-scaffold"
+
+# Linked worktrees refuse installation before any selected root is created.
+git -C "$fixture/repo" worktree add -q -b fixture-linked "$fixture/linked"
+cp "$repo_root/scripts/install.sh" "$fixture/linked/scripts/install.sh"
+chmod +x "$fixture/linked/scripts/install.sh"
+SKILLS_CLAUDE_DIR="$fixture/worktree claude" \
+SKILLS_AGENTS_DIR="$fixture/worktree agents" \
+  "$fixture/linked/scripts/install.sh" --both --quiet
+test ! -e "$fixture/worktree claude/project-scaffold"
+test ! -e "$fixture/worktree agents/project-scaffold"
+git -C "$fixture/repo" worktree remove --force "$fixture/linked"
+
+# An explicitly requested custom hooks path still preserves a foreign hook.
+mkdir -p "$fixture/shared hooks"
+printf '%s\n' foreign-hook > "$fixture/shared hooks/post-merge"
+git -C "$fixture/repo" config core.hooksPath "$fixture/shared hooks"
+SKILLS_CLAUDE_DIR="$fixture/claude skills" \
+SKILLS_AGENTS_DIR="$fixture/agents skills" \
+  "$fixture/repo/scripts/install.sh" --agents --install-hooks --quiet
+test "$(cat "$fixture/shared hooks/post-merge")" = foreign-hook
 echo "installer fixtures passed"
