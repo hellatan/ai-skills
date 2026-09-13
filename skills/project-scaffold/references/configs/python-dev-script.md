@@ -19,7 +19,7 @@ Available commands:
     test        - Run pytest
     build       - Build distribution
     dev         - Start dev server (FastAPI: uvicorn <package>.main:app --reload)
-    check:all   - Run everything CI would run (lint + typecheck + test)
+    check:all   - Run lint, format check, typecheck, and tests (build is separate)
 """
 
 from __future__ import annotations

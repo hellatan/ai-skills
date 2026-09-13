@@ -1,57 +1,34 @@
-# Step 16 — Detect global pre-push hooks before pushing
+# Step 16 — Inspect push constraints before pushing
 
-The bootstrap push in Step 17 pushes directly to `main` and `develop` (the only time this skill ever does that — see Step 17 notes). If the user has a global pre-push hook that blocks pushes to protected branches, the bootstrap will fail unless we either:
+The bootstrap in Step 17 creates a remote and seeds its initial branches. Inspect
+the local Git configuration before that action so a known constraint does not
+surprise the user mid-run. This inspection is informative: it cannot prove that
+no harness, host, or organization policy will intervene.
 
-- Pass an override env var the hook recognizes, or
-- Surface the situation and let the user decide.
-
-This step detects the hook and asks before attempting the push.
-
-## Detect
-
-Pre-push protection can come from any of four places. Check all of them — missing one and the bootstrap push fails mid-flow:
+## Inspect
 
 ```bash
-# 1. git's own global hook directory
-git config --global core.hooksPath
-# If set, also check it contains a pre-push hook:
-HOOKS_PATH=$(git config --global core.hooksPath)
-[[ -n "$HOOKS_PATH" ]] && ls -la "${HOOKS_PATH/#\~/$HOME}/pre-push" 2>/dev/null
+# Git's configured global hook directory, if any.
+git config --global core.hooksPath || true
 
-# 2. Claude Code harness hooks — these run BEFORE git ever sees the push,
-#    so git's own hook chain doesn't include them. Common location:
-grep -lE 'push.*protected|pre[-_]?push|block.*push' \
-  ~/.claude/hooks/*.py ~/.claude/hooks/*.sh 2>/dev/null
+# A shell wrapper can change what a Git invocation does.
+type git || true
 
-# 3. Shell aliases / functions shadowing git
-type git 2>/dev/null | grep -qE 'alias|function' && {
-  echo "git is wrapped — inspect the alias/function definition"
-  type git
-}
-
-# 4. init.templateDir — applies to every repo this user creates,
-#    including the one we just did `git init` on
-git config --global init.templateDir
+# A template directory can seed hooks into freshly initialized repositories.
+git config --global init.templateDir || true
 ```
 
-If **all four** are empty/absent, no protection is in place — proceed to Step 17 without warning.
+If a configured hook directory is present, inspect its `pre-push` file without
+modifying it. Do not scan personal agent directories as a substitute for the
+active harness's policy, and do not infer that an empty result means protection
+is absent.
 
-## Warn (if ANY of the four found something)
+## Report and gate
 
-Surface this message **verbatim** so the user (and any other agent reading the session) understands this is the documented exception, not a violation:
+Before Step 17, report the sources inspected, any observed constraint, and the
+remaining unknowns. Use the active agent harness's actual approval mechanism
+for the remote creation and push. Do not disable hooks, invent an override
+environment variable, or treat a local scan as authorization.
 
-> 🛡 **Detected pre-push protection:** `<list each source: e.g., "Claude harness hook ~/.claude/hooks/block-push-to-protected.py">`
->
-> **This is the skill's documented bootstrap exception.** Seeding `main` + `develop` on a brand-new remote requires one direct push — there is no other way, since PRs need an existing target branch. After this single push, every future change goes through the normal PR flow and the protection re-engages naturally.
->
-> Your global git-workflow rules **stay in force** for everything that follows; we're only suppressing the protection for the two `git push` calls in Step 17b.
->
-> If your hook supports an override env var (commonly `ALLOW_PUSH_TO_PROTECTED=1`), I'll use it for the bootstrap push only. Confirm the env var name your hook expects, reply `ok` to use the default, or say `skip remote` if you'd rather finish locally and push manually later.
-
-Wait for the user's confirmation before proceeding to Step 17. Don't guess at the env var name — different hooks use different conventions, and a wrong guess silently fails.
-
-**On any user other than the skill author:** the "your global rules stay in force" sentence is the part that matters. Users with their own git-workflow protections shouldn't feel like the skill is asking them to weaken their security posture — it's asking them to allow one specific, scoped, documented exception that the rest of the workflow depends on.
-
-## Why this is its own step
-
-Discovering the hook *during* the bootstrap push (Step 17) means a partial push: maybe `main` got there, `develop` got blocked, the repo state is now inconsistent, and the user has to clean up. Detecting up front and getting permission for the override keeps Step 17 atomic.
+If a constraint prevents the action, leave the local scaffold intact and give
+the user the observed reason and the exact next action they can take.
