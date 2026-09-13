@@ -368,20 +368,20 @@ covering every terminal state:
 | no comments at all | amber |
 | `gh` exits non-zero | red, naming the exit code |
 | `gh` exits 0 with non-JSON | red — a `jq` parse error is not "posted nothing" |
-| the `.html_url` extraction alone exits non-zero | red — a dead link never ships inside a green embed |
+| the `.html_url` extraction alone exits non-zero | red — a genuine `jq` failure is never silently masked as a green reviewed state |
 | a comment whose `html_url` is null or absent | green — the link falls back to the run log, never `()` |
 | `REVIEW_OUTCOME` empty | red, naming the missing `id: claude` |
 | `REVIEW_OUTCOME=failure` | red, verdict marked incomplete |
 
 The last five are the ones a four-state list misses, and each is a state
-where an earlier draft of this step reported the wrong colour or shipped a
-dead link — the url ones shipped in a downstream repo before a fresh-context
-review caught that the extraction's exit status was simply discarded. Prove
-each fixture load-bearing by mutating the code it covers — dropping the
+where an earlier draft of this step reported the wrong colour, silently
+masked a lookup failure, or shipped a dead link. The URL fixes shipped in a
+downstream repo before a fresh-context review caught both issues. Prove each
+fixture load-bearing by mutating the code it covers — dropping the
 `contains($rid)` filter must turn the stale-comment case green, reverting the
-`url_rc` capture must turn the dead-link case green, and deleting the
-empty-url fallback must put a literal `[Read the full review]()` back in the
-null-`html_url` case.
+`url_rc` check must turn a URL-extraction crash into a green reviewed state
+with the run-log fallback, and deleting the empty-url fallback must put a
+literal `[Read the full review]()` back in the null-`html_url` case.
 
 Two of the hardenings above are not reachable by these shell fixtures at all:
 the step-level `timeout-minutes` (an envelope property — no `run:` block test
