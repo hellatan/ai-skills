@@ -369,20 +369,18 @@ Write the file to the retro directory, resolved in this order:
 2. `$CLAUDE_RETRO_DIR` if set and non-empty — the former name, still honored so
    existing setups keep working. Use it, then mention once that `AGENT_RETRO_DIR`
    is the current name; a silent compat branch is one nobody ever migrates off.
-3. Otherwise fall back to `~/Documents/retros/` and create it if missing. Tell the
-   user you used the fallback and that they can set `AGENT_RETRO_DIR` to point at
-   their preferred directory.
+3. Otherwise stop and ask the user where retros should be written. Do not create,
+   choose, or infer a fallback directory. Once they answer, offer to persist the
+   choice as `AGENT_RETRO_DIR` so later sessions do not need to ask again.
 
 Prefer `AGENT_RETRO_DIR` whenever you tell a user what to set: the retros are
 theirs and outlive whichever agent wrote them. Treat an empty value as unset at
 both levels — an exported empty string means "not configured", not "write to the
 empty path".
 
-```bash
-RETRO_DIR="${AGENT_RETRO_DIR:-${CLAUDE_RETRO_DIR:-$HOME/Documents/retros}}"
-mkdir -p "$RETRO_DIR"
-# write to "$RETRO_DIR/$(date +%F)-<slug>-retro.md"
-```
+Create the resolved directory if it does not exist, then write
+`YYYY-MM-DD-<slug>-retro.md` inside it. A directory is resolved only by a
+non-empty configured variable or the user's answer in the current conversation.
 
 ### Optional repo pointer
 
