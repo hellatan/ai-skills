@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.12.1](https://github.com/hellatan/ai-skills/compare/v2.12.0...v2.12.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* ask for retrospective destination ([#232](https://github.com/hellatan/ai-skills/issues/232)) ([66685d4](https://github.com/hellatan/ai-skills/commit/66685d41508f8e5054175d1ef496a63e9ee3a5a4))
+
+
+### Chores
+
+* **release:** develop → main ([5a0913c](https://github.com/hellatan/ai-skills/commit/5a0913ce44002504d72a001ca28fbb3eec25d693))
+
 ## [2.12.0](https://github.com/hellatan/ai-skills/compare/v2.11.0...v2.12.0) (2026-09-13)
 
 
