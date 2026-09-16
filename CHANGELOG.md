@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.13.0](https://github.com/hellatan/ai-skills/compare/v2.12.1...v2.13.0) (2026-09-16)
+
+
+### Features
+
+* **handoff-doc:** add the handoff-doc skill ([#235](https://github.com/hellatan/ai-skills/issues/235)) ([1095f15](https://github.com/hellatan/ai-skills/commit/1095f15722c8113650d54a85fc9db7000be367d0))
+
+
+### Chores
+
+* **release:** develop → main ([b8e0ee3](https://github.com/hellatan/ai-skills/commit/b8e0ee3c46d46feccee7ef838888f6fa8b356dd7))
+
 ## [2.12.1](https://github.com/hellatan/ai-skills/compare/v2.12.0...v2.12.1) (2026-09-14)
 
 
