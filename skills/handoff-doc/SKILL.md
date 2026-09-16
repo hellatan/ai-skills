@@ -19,8 +19,12 @@ someone open this file cold and take the next action correctly?
   session, a different CLI, a colleague, or future-you.
 - The session is ending with real work unfinished: context is running out,
   credits are low, or the task is blocked on something outside this session.
-- Skip it when the work is finished and verified with nothing to resume. That is
-  a retrospective (`task-retrospective`), not a handoff.
+- Finished work still gets a handoff when it changes hands — a new owner needs
+  state, gotchas, and how to run it even when nothing is left to build.
+- Skip it only when nobody else will touch the work and there is nothing to
+  resume. If the goal is to capture what went wrong for the same reader, that is
+  a retrospective (`task-retrospective`), not a handoff. The two compose: a
+  session can warrant both.
 
 ## What you produce
 
@@ -31,11 +35,18 @@ YYYY-MM-DD-<slug>-handoff.md
 ```
 
 `YYYY-MM-DD` is today (`date +%F`). `<slug>` is a short kebab-case handle naming
-the project **and** the topic — `walter-claude-activation`, not `handoff` or
-`session-2`. The reader scans a directory of these; the filename is the index.
+the project **and** the topic — `checkout-rewrite-stripe-migration`, not
+`handoff` or `session-2`. The reader scans a directory of these; the filename is
+the index.
 
-Never overwrite. If the name is taken, append `-2`, `-3`, and say which file you
-wrote.
+This is the kebab form `task-retrospective` uses, chosen for consistency with
+its sibling. If the user's handoff directory already follows a different naming
+convention, match the directory — one directory, one convention — and say which
+form you used.
+
+Never overwrite. Before writing, list the destination directory. If the name is
+taken, suffix the whole basename — `YYYY-MM-DD-<slug>-handoff-2.md`, then `-3` —
+and tell the user which file you wrote.
 
 ## The template
 
@@ -45,8 +56,8 @@ an empty heading is noise — but do not drop **Current state**, **Next actions*
 or **Traps that already cost time**. Those three are the document.
 
 Order matters. Front-load what is needed to resume; push supporting detail down
-or link it. Some existing handoffs run 700 lines and bury the next action at
-line 300; that document has failed at its one job.
+or link it. A handoff long enough to bury the next action below the first screen
+has failed at its one job, however complete it is.
 
 ## Sourcing the content
 
@@ -83,13 +94,17 @@ Write from what you can point at, not from recollection of the conversation.
 Write the file to the handoff directory, resolved in this order:
 
 1. A destination the user names explicitly in this conversation, or one the
-   project's own instructions establish for handoff documents. An explicit
-   project destination wins for this document only — it does not change the
-   configured default.
+   project's own instructions establish for handoff documents. Either wins for
+   this document only — it does not change the configured default, and it needs
+   no further confirmation, because the user or the project already chose it.
 2. `$AGENT_HANDOFF_DIR` if set and non-empty.
 3. Otherwise stop and ask the user where handoffs should be written. Do not
-   create, choose, or infer a fallback. Once they answer, offer to persist the
-   choice as `AGENT_HANDOFF_DIR` so later sessions do not need to ask.
+   choose or infer a destination for them. Once they answer, offer to persist
+   the choice as `AGENT_HANDOFF_DIR` — either by exporting it from their shell
+   profile, or, if they cannot set environment variables, by recording it
+   wherever they keep agent configuration or memory. Persisting means an actual
+   write somewhere that outlives the session; saying "saved" without one is the
+   failure this step exists to prevent.
 
 Treat an empty value as unset — an exported empty string means "not configured",
 not "write to the empty path". An existing but *empty directory* is a valid
@@ -99,13 +114,19 @@ The mere presence of a `docs/` directory in the current repo is not a
 destination. Some projects do keep handoffs in-repo, but that has to come from
 the project's instructions or the user, not from the directory existing.
 
-Write one canonical copy. If the work spans a repo and the handoff directory,
-put the document in the resolved directory and add a pointer from the repo —
-never two drifting copies. Confirm before writing anything into a repo.
+Write one canonical copy, in the resolved destination, wherever that is. Never
+two drifting copies. If the destination resolved to the handoff directory but
+the repo would also benefit from knowing the document exists, add a one-line
+pointer from the repo rather than a second copy — and confirm that pointer with
+the user first, since it writes into their repo.
 
-If the resolved destination does not exist or is not writable, say so and ask
-for a usable one. Do not invent a fallback path, and do not report a save that
-did not happen.
+Create the resolved directory if it does not exist — a user naming the directory
+they intend to start using is a normal first run, not an error. What you must
+never do is pick the path yourself.
+
+If the resolved destination cannot be created or written to, say so and ask for
+a usable one. Do not invent a fallback path, and do not report a save that did
+not happen.
 
 After writing, read the file back and give the user its **absolute** path.
 
