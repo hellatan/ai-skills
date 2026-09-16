@@ -18,6 +18,7 @@ Claude Code compatibility, published as the `ht-skills` plugin.
 | [ci-baseline-audit](skills/ci-baseline-audit) | Audit one or more repos for deviation from the CI baseline — duplicate `push` triggers, missing Playwright browser cache, missing `workflow_dispatch` or `/rebuild`, unexpected job names. Read-only by default. |
 | [session-cleanup](skills/session-cleanup) | End-of-session pre-archive checklist — is the stated work verified done, is the git state clean, is a retrospective warranted, are there durable learnings worth saving. Reports a verdict; never acts without an explicit go. |
 | [task-retrospective](skills/task-retrospective) | Generate a retrospective after a substantial task — failure signal and root causes, not just wins, plus action items and time calibration. |
+| [handoff-doc](skills/handoff-doc) | Write the dated handoff another agent, provider, or person needs to resume the work without the conversation — current state, evidence, ordered next actions, and the traps that already cost time. |
 
 ## Install
 
