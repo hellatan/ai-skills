@@ -141,6 +141,13 @@ When one is warranted, offer to invoke `task-retrospective` (in this repo:
 `skills/task-retrospective/SKILL.md`), which owns the retro format and the
 "force the failure signal" discipline. Do not write a retro inline — hand off.
 
+**If real work is unfinished, a handoff is the other half.** A retro captures
+what went wrong for the same reader; it does not tell a *different* reader how to
+resume. When Phase 1 leaves work in flight and the conversation is about to be
+archived anyway, offer `handoff-doc` (`skills/handoff-doc/SKILL.md`) alongside
+the retro. Both, one, or neither can be warranted. The same durability rule
+applies: a handoff printed into chat is not a handoff.
+
 **Chat is not durable.** Printing retro notes into the conversation does not save
 them — they are lost the moment the session is archived, which is the exact thing
 this skill guards against. A retro counts as done only when it is written to a file

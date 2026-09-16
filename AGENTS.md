@@ -31,8 +31,11 @@ for those rules.
   clone so Git hooks can repeat only that selection.
 - `.githooks/` — non-blocking post-merge, post-checkout, and post-rewrite
   synchronization hooks.
-- `scripts/validate.sh` — checks SKILL.md frontmatter and authored local
-  Markdown references.
+- `scripts/validate.sh` — checks each skill's SKILL.md frontmatter only: the
+  file exists, the frontmatter parses as a YAML mapping, `name` matches the
+  folder name, and `description` is long enough to be a usable trigger. It
+  does **not** resolve Markdown links or `assets/` and `references/` paths, so
+  a green run is no evidence that a file a skill points at still exists.
 - `docs/architecture.html` — the living system map; update it when the
   components, flows, or failure modes change.
 
