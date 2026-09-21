@@ -19,6 +19,24 @@ Read `docs/development/git-workflow.md` before changing branches, commits, pushe
 Use a plain read instruction so every agent can recover the workflow. Do not
 create an empty workflow document just to satisfy a template.
 
+## Cloud-session contract line (every template)
+
+A cloud session starts from a fresh clone and nothing else, so a shared workflow
+contract that lives in its own private repository is absent until the session
+attaches it. The preamble carries one line saying so. It names the repositories
+through the `<CONTRACT_REPOS>` placeholder, never literally: this skill is
+public, and the repositories are the user's private ones. Keep the line short;
+the attach mechanics, the bootstrap command and any enforcement belong to the
+contract repository and the cloud environment, not to every project file.
+
+Placement: directly after the workflow read instruction and before the
+living-doc note, in every template including the toolbox one. Filling it: ask
+the user which repositories, in attach order; never guess and never copy names
+from another project's file. A project with no contract repositories deletes
+the line. Whoever writes the file owns this step, `claude-md-init` and
+`project-scaffold` alike, and a written file must not contain the literal
+placeholder.
+
 ## Architecture-doc reference (every template)
 
 When the project ships with `docs/architecture.html` (which `project-scaffold`
@@ -65,6 +83,8 @@ For frontend/Next.js templates, also include the **styling convention** matching
 
 Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
+
 > **Living doc:** when you learn a durable, non-obvious fact about this repo, add it to this file in the same PR — don't leave it in chat.
 
 > **Living doc:** when you learn a durable, non-obvious fact about this repo (a gotcha, convention, or footgun), add it to the matching section of this file in the same PR — don't leave it in chat.
@@ -102,6 +122,8 @@ Run from the repo root:
 <One-liner: e.g., "Trading dashboard. Next.js 15 + TypeScript.">
 
 Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
+
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
 
 ## Lifecycle
 
@@ -152,6 +174,8 @@ Read `docs/development/git-workflow.md` before changing branches, commits, pushe
 
 Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
+
 ## Lifecycle
 
 - Feature branches off `develop`, never `main`.
@@ -194,6 +218,8 @@ Use this only when the user explicitly opted out of the Next.js-only fullstack d
 <One-liner: e.g., "Order execution service. Fastify + TypeScript.">
 
 Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
+
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
 
 ## Lifecycle
 
@@ -240,6 +266,8 @@ Read `docs/development/git-workflow.md` before changing branches, commits, pushe
 
 Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
+
 ## Lifecycle
 
 - Feature branches off `develop`. PRs target `develop`. CI runs the full check suite across both sides.
@@ -283,6 +311,8 @@ Read `docs/development/git-workflow.md` before changing branches, commits, pushe
 <One-liner: e.g., "Trading platform. Next.js frontend + Fastify backend, npm workspaces.">
 
 Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
+
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
 
 ## Lifecycle
 
@@ -338,6 +368,8 @@ Use the matching backend template above as a starting point and:
 
 Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
+
 ## Lifecycle
 
 - Feature branches off `develop` for non-trivial work. Trivial notebook tweaks can go on `develop` directly.
@@ -382,6 +414,8 @@ names it — don't bury it mid-file.
 
 <One-liner: what the repo holds and where its output lands.>
 
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
+
 ## Lifecycle
 
 - <Branch model. Many toolbox repos are main-only: feature branches off `main`, PRs target
@@ -413,7 +447,8 @@ Notes:
   tooling; drop it otherwise.
 - Same retrofit rules as every template: link the workflow document only when
   an equivalent authored document exists, and add the architecture-map bullet
-  only when `docs/architecture.html` exists.
+  only when `docs/architecture.html` exists. The cloud-session contract line
+  stays, filled or deleted by the same rule as everywhere else.
 
 ---
 
