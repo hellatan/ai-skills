@@ -83,7 +83,7 @@ For frontend/Next.js templates, also include the **styling convention** matching
 
 Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
-Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions already have the contract installed and attach nothing.
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
 
 > **Living doc:** when you learn a durable, non-obvious fact about this repo, add it to this file in the same PR — don't leave it in chat.
 
@@ -123,7 +123,7 @@ Run from the repo root:
 
 Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
-Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions already have the contract installed and attach nothing.
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
 
 ## Lifecycle
 
@@ -174,7 +174,7 @@ Cloud sessions load the shared workflow contract before other work: attach `<CON
 
 Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
-Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions already have the contract installed and attach nothing.
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
 
 ## Lifecycle
 
@@ -219,7 +219,7 @@ Use this only when the user explicitly opted out of the Next.js-only fullstack d
 
 Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
-Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions already have the contract installed and attach nothing.
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
 
 ## Lifecycle
 
@@ -266,7 +266,7 @@ Cloud sessions load the shared workflow contract before other work: attach `<CON
 
 Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
-Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions already have the contract installed and attach nothing.
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
 
 ## Lifecycle
 
@@ -312,7 +312,7 @@ Cloud sessions load the shared workflow contract before other work: attach `<CON
 
 Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
-Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions already have the contract installed and attach nothing.
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
 
 ## Lifecycle
 
@@ -368,7 +368,7 @@ Use the matching backend template above as a starting point and:
 
 Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 
-Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions already have the contract installed and attach nothing.
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
 
 ## Lifecycle
 
@@ -414,7 +414,7 @@ names it — don't bury it mid-file.
 
 <One-liner: what the repo holds and where its output lands.>
 
-Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions already have the contract installed and attach nothing.
+Cloud sessions load the shared workflow contract before other work: attach `<CONTRACT_REPOS>` yourself (in Claude Code cloud, with `add_repo`), one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
 
 ## Lifecycle
 
