@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.14.0](https://github.com/hellatan/ai-skills/compare/v2.13.0...v2.14.0) (2026-09-21)
+
+
+### Features
+
+* **claude-md-init:** add the cloud-session contract line to every template ([#238](https://github.com/hellatan/ai-skills/issues/238)) ([ee7b511](https://github.com/hellatan/ai-skills/commit/ee7b5115dc49bfe3c4f2ffd50fbe215db32c0b84))
+
+
+### Chores
+
+* **release:** develop → main ([1dc33a3](https://github.com/hellatan/ai-skills/commit/1dc33a3dd29337c234825eadb5ded7700513c5b6))
+
 ## [2.13.0](https://github.com/hellatan/ai-skills/compare/v2.12.1...v2.13.0) (2026-09-16)
 
 
