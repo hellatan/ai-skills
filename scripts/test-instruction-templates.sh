@@ -54,8 +54,8 @@ grep -Fq 'docs/development/git-workflow.md' "$project/AGENTS.md"
 grep -Fq 'shared workflow contract' "$project/AGENTS.md"
 grep -Fq '<CONTRACT_REPOS>' "$project/AGENTS.md"
 test "$(grep -n -F 'docs/development/git-workflow.md' "$project/AGENTS.md" | head -1 | cut -d: -f1)" -lt \
-  "$(grep -n -F 'shared workflow contract' "$project/AGENTS.md" | cut -d: -f1)"
-test "$(grep -n -F 'shared workflow contract' "$project/AGENTS.md" | cut -d: -f1)" -lt \
+  "$(grep -n -F 'shared workflow contract' "$project/AGENTS.md" | head -1 | cut -d: -f1)"
+test "$(grep -n -F 'shared workflow contract' "$project/AGENTS.md" | head -1 | cut -d: -f1)" -lt \
   "$(grep -n -F 'Living doc' "$project/AGENTS.md" | head -1 | cut -d: -f1)"
 grep -Fq 'npm run check:all' "$project/AGENTS.md"
 grep -Fq 'thin `CLAUDE.md` adapter' "$templates"
