@@ -54,6 +54,10 @@ End the message with: *"Reply 'yes' / 'go' / 'looks good' to proceed, or tell me
                                                  ← include instead when staging was opted IN
 📐 Docs:
    - docs/architecture.html — starter system map (fill-in SVG diagram + failure-modes table)
+🔗 Contract repos:                              ← always shown; asked in Step 8 before this summary
+   - <the private repositories a cloud session attaches, in order — never a placeholder>
+   (none — you said no, so the contract line is dropped from AGENTS.md)
+                                                 ← show this line instead when the answer was "none"
 🐙 GitHub:
    - <Public|Private> repo under @<user>
    - Branch protection: <applied|skipped (reason, e.g. "free tier on private repo")>
