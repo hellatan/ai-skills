@@ -251,7 +251,12 @@ known stub. Preserve authored root and nested instructions.
 Write to repo root:
 - `AGENTS.md` and a thin `CLAUDE.md` adapter — owned by `claude-md-init`; see
   its templates. Include essential lifecycle constraints inline and link the
-  shared `docs/development/git-workflow.md` authority.
+  shared `docs/development/git-workflow.md` authority. The template's
+  cloud-session contract line carries a `<CONTRACT_REPOS>` placeholder that
+  detection cannot fill: ask the user which private repositories a cloud
+  session attaches, in order, or delete the line if none. This is the one
+  question that survives the Step 8 halt, so ask it there; never write the
+  literal placeholder into the repo.
 - `docs/architecture.html` — starter living system map, owned by `/architecture-doc-init`; write verbatim from its `references/architecture-doc-template.md` (a dependency-free, GitHub-dark HTML file: inline-SVG data-flow diagram, failure-modes table, key-files list — all shipped as clearly-marked `«placeholder»` slots). Substitute `«PROJECT_NAME»`, `«REPO»`, and `«DATE»`; leave the rest for the user to fill in as the system takes shape. (For *existing* repos, `/architecture-doc-init` fills it in from the real codebase instead.) The generated AGENTS.md Project map points at it (see `/claude-md-init`'s `references/templates.md`).
 - `.gitignore` — see `references/gitignores.md`
 - `README.md` — minimal: `# <project-name>` + one-line description placeholder

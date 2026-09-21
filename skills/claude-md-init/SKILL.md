@@ -115,7 +115,11 @@ Render the plan as a code block with emoji headers:
 📝 Template:        <picked variant>
 📂 File to write:   CLAUDE.md (50-120 lines)
 🛡️  Existing file:  <none | overwrite-with-backup | append-suggestions>
+🔗 Contract repos:  <the private repositories cloud sessions attach, in order, or "none">
 ```
+
+The contract-repos row is the one answer detection cannot supply. Ask for it
+before rendering the summary; "none" is a valid answer and deletes the line.
 
 End with: *"Reply 'yes' / 'go' / 'looks good' to proceed, or tell me what to change."*
 
@@ -150,7 +154,7 @@ an equivalent authored workflow document, then link it from `AGENTS.md`.
 
 ### 8. Verify length
 
-Re-read the written file and count lines. **Target: 50–120 lines.** If significantly outside that range:
+Re-read the written file and count lines. **Target: 50–120 lines.** Also grep it for `<CONTRACT_REPOS>`: if the placeholder survived, the fill step was skipped; fix it before reporting, do not hand it to the user as a next step. If significantly outside that range:
 - Under 50 lines → likely missing template sections; double-check the template was applied fully.
 - Over 120 lines → review for content that belongs in `references/configs/`, a
   scoped `AGENTS.md`, README, or skill-level docs instead.

@@ -49,6 +49,14 @@ printf '%s\n' 'authored nested AGENTS sentinel' > "$project/frontend/AGENTS.md"
 printf '%s\n' 'authored nested CLAUDE sentinel' > "$project/frontend/CLAUDE.md"
 printf '%s\n' '# Git workflow' > "$project/docs/development/git-workflow.md"
 grep -Fq 'docs/development/git-workflow.md' "$project/AGENTS.md"
+# The cloud-session contract line: present in every extracted template, placed
+# after the workflow read line and before the living-doc note, placeholder only.
+grep -Fq 'shared workflow contract' "$project/AGENTS.md"
+grep -Fq '<CONTRACT_REPOS>' "$project/AGENTS.md"
+test "$(grep -n -F 'docs/development/git-workflow.md' "$project/AGENTS.md" | head -1 | cut -d: -f1)" -lt \
+  "$(grep -n -F 'shared workflow contract' "$project/AGENTS.md" | cut -d: -f1)"
+test "$(grep -n -F 'shared workflow contract' "$project/AGENTS.md" | cut -d: -f1)" -lt \
+  "$(grep -n -F 'Living doc' "$project/AGENTS.md" | head -1 | cut -d: -f1)"
 grep -Fq 'npm run check:all' "$project/AGENTS.md"
 grep -Fq 'thin `CLAUDE.md` adapter' "$templates"
 grep -Fq 'canonical project instruction file' "$project/CLAUDE.md"
@@ -58,9 +66,11 @@ grep -Fxq 'authored nested CLAUDE sentinel' "$project/frontend/CLAUDE.md"
 # Stack templates retain their own runnable guidance.
 extract_template '## Backend — Python (FastAPI)' "$fixture/python-AGENTS.md"
 grep -Fq 'python scripts/dev.py check:all' "$fixture/python-AGENTS.md"
+grep -Fq 'shared workflow contract' "$fixture/python-AGENTS.md"
 ! grep -Fq 'npm run check:all' "$fixture/python-AGENTS.md"
 extract_template '## Toolbox / scripts repo (no manifest)' "$fixture/toolbox-AGENTS.md"
 grep -Fq '## How work ships' "$fixture/toolbox-AGENTS.md"
+grep -Fq 'shared workflow contract' "$fixture/toolbox-AGENTS.md"
 ! grep -Fq 'npm run check:all' "$fixture/toolbox-AGENTS.md"
 
 # Execute the exact changed cleanup snippets against root and nested generated
