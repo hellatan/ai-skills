@@ -85,6 +85,73 @@ grep -Fxq '## Before working' "$fixture/toolbox-AGENTS.md"
 grep -q '^- Cloud sessions load the shared workflow contract' "$fixture/toolbox-AGENTS.md"
 ! grep -Fq 'npm run check:all' "$fixture/toolbox-AGENTS.md"
 
+# Pinning the bullet order in the universal preamble alone left a swapped pair
+# in any per-stack block green, so check every template block instead: extract
+# each ```markdown fence, then assert the shape of every "## Before working"
+# section it contains.
+blocks="$fixture/blocks"
+mkdir -p "$blocks"
+awk -v dir="$blocks" '
+  !in_fence && /^```markdown$/ { n++; file = sprintf("%s/block-%02d.md", dir, n); in_fence=1; next }
+  in_fence && /^```$/ { in_fence=0; next }
+  in_fence { print > file }
+' "$templates"
+
+section="$fixture/before-working-section.txt"
+bullets="$fixture/before-working-bullets.txt"
+checked=0
+for block in "$blocks"/block-*.md; do
+  grep -Fxq '## Before working' "$block" || continue
+  checked=$((checked + 1))
+  name="$(basename "$block")"
+  if test "$(grep -c -Fx '## Before working' "$block")" -ne 1; then
+    echo "$name: expected exactly one '## Before working' heading" >&2
+    exit 1
+  fi
+  if test "$(grep -c -F 'Living doc' "$block")" -gt 1; then
+    echo "$name: more than one living-doc note" >&2
+    exit 1
+  fi
+  # The section body, tagged line by line and terminated by whichever heading
+  # follows it, so both ordering and adjacency stay visible.
+  awk '
+    $0 == "## Before working" { in_section=1; next }
+    in_section && /^## / { print "NEXT:" $0; exit }
+    in_section { print "BODY:" $0 }
+  ' "$block" > "$section"
+  if test "$(tail -n 1 "$section")" != 'NEXT:## Lifecycle'; then
+    echo "$name: '## Before working' is not immediately followed by '## Lifecycle'" >&2
+    exit 1
+  fi
+  if grep -qvE '^(BODY:$|BODY:- |BODY:[[:space:]]|NEXT:## Lifecycle$)' "$section"; then
+    echo "$name: '## Before working' carries something other than bullets" >&2
+    exit 1
+  fi
+  grep -n '^BODY:- ' "$section" > "$bullets" || true
+  if ! head -n 1 "$bullets" | grep -q '^[0-9][0-9]*:BODY:- Cloud sessions load the shared workflow contract'; then
+    echo "$name: the cloud-session line is not the first bullet" >&2
+    exit 1
+  fi
+  # Where the block links the workflow document, that line is the bullet
+  # immediately after the cloud-session one, with no blank line between them.
+  if grep -Fq 'Read `docs/development/git-workflow.md`' "$block"; then
+    first_bullet="$(head -n 1 "$bullets" | cut -d: -f1)"
+    second_bullet="$(sed -n '2p' "$bullets")"
+    if ! printf '%s\n' "$second_bullet" | grep -q '^[0-9][0-9]*:BODY:- Read `docs/development/git-workflow.md`'; then
+      echo "$name: the workflow read line is not the second bullet" >&2
+      exit 1
+    fi
+    if test "$(printf '%s\n' "$second_bullet" | cut -d: -f1)" -ne "$((first_bullet + 1))"; then
+      echo "$name: a blank line separates the first two bullets" >&2
+      exit 1
+    fi
+  fi
+done
+if test "$checked" -ne 8; then
+  echo "expected 8 template blocks with a '## Before working' section, found $checked" >&2
+  exit 1
+fi
+
 # Execute the exact changed cleanup snippets against root and nested generated
 # fixtures. They remove only the nested Git directory, preserving instructions.
 mkdir -p "$fixture/next-root/.git" "$fixture/next-nested/frontend/.git"

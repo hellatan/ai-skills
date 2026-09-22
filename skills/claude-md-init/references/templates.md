@@ -13,7 +13,7 @@ When the project ships with `docs/development/git-workflow.md`, include this
 line as the second bullet of the `## Before working` section in `AGENTS.md`:
 
 ```markdown
-Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
+- Read `docs/development/git-workflow.md` before changing branches, commits, pushes, pull requests, or releases.
 ```
 
 Use a plain read instruction so every agent can recover the workflow. Do not
@@ -34,9 +34,11 @@ Placement: the first bullet of the `## Before working` section, which sits
 after the living-doc note and before `## Lifecycle`, in every template
 including the toolbox one. Filling it: ask the user which repositories, in
 attach order; never guess and never copy names from another project's file. A
-project with no contract repositories deletes the line. Whoever writes the file
-owns this step, `claude-md-init` and `project-scaffold` alike, and a written
-file must not contain the literal placeholder.
+project with no contract repositories deletes the line; when that leaves
+`## Before working` with no bullets — as in the toolbox template, where the
+cloud line is the section's only content — delete the heading too. Whoever
+writes the file owns this step, `claude-md-init` and `project-scaffold` alike,
+and a written file must not contain the literal placeholder.
 
 ## Architecture-doc reference (every template)
 

@@ -149,7 +149,7 @@ an equivalent authored workflow document, then link it from `AGENTS.md`.
 - `<PROJECT_NAME>` — repo name (or the `name` field from `package.json` / `pyproject.toml`).
 - One-line description — derive from existing README first paragraph if available; otherwise leave a `<placeholder>` for the user to fill.
 - `<package_name>` (Python) — snake_case version of the project name.
-- `<CONTRACT_REPOS>` — the private repositories a cloud session must attach to load the shared workflow contract, in attach order (for example a contract repo, then a tool-config repo). Ask the user; never guess, and never copy names from another project's file. If the user has none, delete that line.
+- `<CONTRACT_REPOS>` — the private repositories a cloud session must attach to load the shared workflow contract, in attach order (for example a contract repo, then a tool-config repo). Ask the user; never guess, and never copy names from another project's file. If the user has none, delete that line; if that leaves `## Before working` with no bullets, delete the heading too.
 - Project-specific paths — adjust `src/app/api/` etc. to match the actual layout if it differs.
 
 ### 8. Verify length
