@@ -222,9 +222,11 @@ If the user picked private and is on free tier, **warn now, not later**:
 
 Before rendering the summary, ask the one question detection cannot answer: which
 private repositories a cloud session attaches to load the shared workflow contract,
-in attach order, or "none". It fills the `<CONTRACT_REPOS>` placeholder in the
-`AGENTS.md` template at Step 10, and "none" deletes that line. Show the answer as
-the summary's `🔗 Contract repos` row so the user confirms it at the Step 9 gate;
+in attach order, or "none". With the Step 7 public-or-private answer it decides
+the `<CONTRACT_REPOS>` line in the `AGENTS.md` template at Step 10: "none" deletes
+the line, public or private; a private repository gets the names; a public
+repository gets the public form, never the names. Show that outcome as the
+summary's `🔗 Contract repos` row so the user confirms it at the Step 9 gate;
 nothing after that gate asks again.
 
 Render the plan as a fenced code block with emoji-prefixed group headers (not a markdown bullet section). Show only choices made for *this* user's project. End with: *"Reply 'yes' / 'go' / 'looks good' to proceed, or tell me what to change."*
@@ -258,10 +260,18 @@ known stub. Preserve authored root and nested instructions.
 Write to repo root:
 - `AGENTS.md` and a thin `CLAUDE.md` adapter — owned by `claude-md-init`; see
   its templates. Include essential lifecycle constraints inline and link the
-  shared `docs/development/git-workflow.md` authority. Fill the template's
-  `<CONTRACT_REPOS>` placeholder from the Step 8 answer, or delete that line
-  when the answer was "none"; never write the literal placeholder into the
-  repo, and do not ask again here (execution has no halts).
+  shared `docs/development/git-workflow.md` authority. Resolve the template's
+  `<CONTRACT_REPOS>` line from the Step 8 answer and the Step 7 public-or-private
+  answer (the repository does not exist yet, so `gh repo view` cannot answer):
+  delete the line when the answer was "none", public or private — deleting the
+  heading too if that leaves `## Before working` with no bullets; fill in the
+  names for a private repository; write the public form from `claude-md-init`'s
+  templates, never the names, for a public one. Never write the literal
+  placeholder into the repo, and do not ask again here (execution has no halts).
+  Then re-read the written line before moving on, because Step 15 commits and
+  Step 17 pushes it: it must be exactly one of the names (private repository),
+  the public form (public repository), or no line (no contract repositories). A
+  surviving literal `<CONTRACT_REPOS>` is always a failure; fix it here.
 - `docs/architecture.html` — starter living system map, owned by `/architecture-doc-init`; write verbatim from its `references/architecture-doc-template.md` (a dependency-free, GitHub-dark HTML file: inline-SVG data-flow diagram, failure-modes table, key-files list — all shipped as clearly-marked `«placeholder»` slots). Substitute `«PROJECT_NAME»`, `«REPO»`, and `«DATE»`; leave the rest for the user to fill in as the system takes shape. (For *existing* repos, `/architecture-doc-init` fills it in from the real codebase instead.) The generated AGENTS.md Project map points at it (see `/claude-md-init`'s `references/templates.md`).
 - `.gitignore` — see `references/gitignores.md`
 - `README.md` — minimal: `# <project-name>` + one-line description placeholder
