@@ -4,10 +4,20 @@ This public repository contains reusable agent skills. Each skill lives in
 `skills/<skill-name>/` and follows the SKILL.md convention with optional
 `references/`, `scripts/`, and `assets/` directories.
 
-Read [the Git workflow](docs/development/git-workflow.md) before changing the
-repository. It is the project-specific authority for branches, commits, pushes,
-pull requests, and releases. Do not rely on a personal global instruction file
-for those rules.
+## Before working
+
+- Cloud sessions load the shared workflow contract before other work: attach
+  the contract repositories named by whoever started the session, doing it
+  yourself (in Claude Code cloud, with `add_repo`) and one at a time since
+  concurrent clones fail, then follow the contract repository's own cloud
+  setup instructions before starting the task. This public repository does not
+  list them; if none were named, say so and stop. If an attach is refused, say
+  which and stop. Local sessions attach nothing and use the contract installed
+  on the machine; if it is not installed there, say so before starting.
+- Read [the Git workflow](docs/development/git-workflow.md) before changing
+  the repository. It is the project-specific authority for branches,
+  commits, pushes, pull requests, and releases. Do not rely on a personal
+  global instruction file for those rules.
 
 ## Lifecycle
 
