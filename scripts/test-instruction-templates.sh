@@ -78,32 +78,57 @@ extract_template '## Backend — Python (FastAPI)' "$fixture/python-AGENTS.md"
 grep -Fq 'python scripts/dev.py check:all' "$fixture/python-AGENTS.md"
 grep -Fxq '## Before working' "$fixture/python-AGENTS.md"
 grep -q '^- Cloud sessions load the shared workflow contract' "$fixture/python-AGENTS.md"
-! grep -Fq 'npm run check:all' "$fixture/python-AGENTS.md"
+# A negated command is exempt from errexit, so absence checks are explicit.
+if grep -Fq 'npm run check:all' "$fixture/python-AGENTS.md"; then
+  echo "python template: carries the Node 'npm run check:all' command" >&2
+  exit 1
+fi
 extract_template '## Toolbox / scripts repo (no manifest)' "$fixture/toolbox-AGENTS.md"
 grep -Fq '## How work ships' "$fixture/toolbox-AGENTS.md"
 grep -Fxq '## Before working' "$fixture/toolbox-AGENTS.md"
 grep -q '^- Cloud sessions load the shared workflow contract' "$fixture/toolbox-AGENTS.md"
-! grep -Fq 'npm run check:all' "$fixture/toolbox-AGENTS.md"
+if grep -Fq 'npm run check:all' "$fixture/toolbox-AGENTS.md"; then
+  echo "toolbox template: carries the Node 'npm run check:all' command" >&2
+  exit 1
+fi
 
 # Pinning the bullet order in the universal preamble alone left a swapped pair
 # in any per-stack block green, so check every template block instead: extract
 # each ```markdown fence, then assert the shape of every "## Before working"
-# section it contains.
+# section it contains. Each block also records the templates.md heading it sits
+# under, so a block is identified by its template name rather than its index.
 blocks="$fixture/blocks"
 mkdir -p "$blocks"
 awk -v dir="$blocks" '
-  !in_fence && /^```markdown$/ { n++; file = sprintf("%s/block-%02d.md", dir, n); in_fence=1; next }
+  !in_fence && /^## / { heading = $0 }
+  !in_fence && /^```markdown$/ {
+    n++
+    file = sprintf("%s/block-%02d.md", dir, n)
+    printf "%s\n", heading > sprintf("%s/block-%02d.heading", dir, n)
+    in_fence=1
+    next
+  }
   in_fence && /^```$/ { in_fence=0; next }
   in_fence { print > file }
 ' "$templates"
 
 section="$fixture/before-working-section.txt"
 bullets="$fixture/before-working-bullets.txt"
+# The toolbox template is the one block whose section legitimately holds only
+# the cloud-session bullet; every other block must carry the workflow read line.
+toolbox_heading='## Toolbox / scripts repo (no manifest)'
 checked=0
+toolbox_seen=0
 for block in "$blocks"/block-*.md; do
   grep -Fxq '## Before working' "$block" || continue
   checked=$((checked + 1))
-  name="$(basename "$block")"
+  heading="$(cat "${block%.md}.heading")"
+  name="$(basename "$block") ($heading)"
+  is_toolbox=0
+  if test "$heading" = "$toolbox_heading"; then
+    is_toolbox=1
+    toolbox_seen=$((toolbox_seen + 1))
+  fi
   if test "$(grep -c -Fx '## Before working' "$block")" -ne 1; then
     echo "$name: expected exactly one '## Before working' heading" >&2
     exit 1
@@ -132,9 +157,10 @@ for block in "$blocks"/block-*.md; do
     echo "$name: the cloud-session line is not the first bullet" >&2
     exit 1
   fi
-  # Where the block links the workflow document, that line is the bullet
-  # immediately after the cloud-session one, with no blank line between them.
-  if grep -Fq 'Read `docs/development/git-workflow.md`' "$block"; then
+  # Every block except the toolbox one must carry the workflow read line, and
+  # wherever it appears it is the bullet immediately after the cloud-session
+  # one, with no blank line between them.
+  if test "$is_toolbox" -eq 0 || grep -Fq 'Read `docs/development/git-workflow.md`' "$block"; then
     first_bullet="$(head -n 1 "$bullets" | cut -d: -f1)"
     second_bullet="$(sed -n '2p' "$bullets")"
     if ! printf '%s\n' "$second_bullet" | grep -q '^[0-9][0-9]*:BODY:- Read `docs/development/git-workflow.md`'; then
@@ -149,6 +175,10 @@ for block in "$blocks"/block-*.md; do
 done
 if test "$checked" -ne 8; then
   echo "expected 8 template blocks with a '## Before working' section, found $checked" >&2
+  exit 1
+fi
+if test "$toolbox_seen" -ne 1; then
+  echo "expected exactly one block under '$toolbox_heading', found $toolbox_seen" >&2
   exit 1
 fi
 

@@ -30,9 +30,10 @@ ones. Keep the line short; the attach mechanics, the bootstrap command and any
 enforcement belong to the contract repository and the cloud environment, not to
 every project file.
 
-Placement: the first bullet of the `## Before working` section, which sits
-after the living-doc note and before `## Lifecycle`, in every template
-including the toolbox one. Filling it: ask the user which repositories, in
+Placement: the first bullet of the `## Before working` section, in every
+template including the toolbox one. The section sits after the living-doc note
+where a template has one, otherwise directly after the one-liner, and before
+`## Lifecycle`. Filling it: ask the user which repositories, in
 attach order; never guess and never copy names from another project's file. A
 project with no contract repositories deletes the line; when that leaves
 `## Before working` with no bullets — as in the toolbox template, where the
@@ -415,7 +416,8 @@ deploying. There's no install/build/test loop to document, so this template swap
 
 If the repo has one rule that most often bites (a deploy model, a two-lane commit
 convention, a "never edit X directly"), promote it to its own section with a heading
-that names it, placed right after `## Before working` — don't bury it mid-file.
+that names it, placed right after `## Before working` (or right after the one-liner when
+that section was deleted) — don't bury it mid-file.
 
 ```markdown
 # <PROJECT_NAME>
