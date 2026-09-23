@@ -115,11 +115,13 @@ Render the plan as a code block with emoji headers:
 📝 Template:        <picked variant>
 📂 File to write:   CLAUDE.md (50-120 lines)
 🛡️  Existing file:  <none | overwrite-with-backup | append-suggestions>
-🔗 Contract repos:  <the private repositories cloud sessions attach, in order, or "none">
+🔗 Contract repos:  <the names in attach order (private) | "public form — names given to cloud sessions, not written" (public) | "none">
 ```
 
 The contract-repos row is the one answer detection cannot supply. Ask for it
 before rendering the summary; "none" is a valid answer and deletes the line.
+When there are repositories, settle the visibility first (step 7 says how), so
+the row shows what will actually be written.
 
 End with: *"Reply 'yes' / 'go' / 'looks good' to proceed, or tell me what to change."*
 
@@ -149,12 +151,12 @@ an equivalent authored workflow document, then link it from `AGENTS.md`.
 - `<PROJECT_NAME>` — repo name (or the `name` field from `package.json` / `pyproject.toml`).
 - One-line description — derive from existing README first paragraph if available; otherwise leave a `<placeholder>` for the user to fill.
 - `<package_name>` (Python) — snake_case version of the project name.
-- `<CONTRACT_REPOS>` — the private repositories a cloud session must attach to load the shared workflow contract, in attach order (for example a contract repo, then a tool-config repo). Ask the user; never guess, and never copy names from another project's file. If the user has none, delete that line; if that leaves `## Before working` with no bullets, delete the heading too.
+- `<CONTRACT_REPOS>` — the private repositories a cloud session must attach to load the shared workflow contract, in attach order (for example a contract repo, then a tool-config repo). Ask the user; never guess, and never copy names from another project's file. If the user has none, delete that line, in public and private repositories alike; if that leaves `## Before working` with no bullets, delete the heading too. If the user has some, check `gh repo view --json visibility`: `PRIVATE` fills in the names; any other answer (`PUBLIC`, or `INTERNAL` on GitHub Enterprise) replaces the line with the public form in `references/templates.md`, never the names. If `gh` cannot answer (no remote, no authentication, or the repository is not created yet), ask the user whether the repository is public or private; never guess.
 - Project-specific paths — adjust `src/app/api/` etc. to match the actual layout if it differs.
 
 ### 8. Verify length
 
-Re-read the written file and count lines. **Target: 50–120 lines.** Also grep it for `<CONTRACT_REPOS>`: if the placeholder survived, the fill step was skipped; fix it before reporting, do not hand it to the user as a next step. If significantly outside that range:
+Re-read the written file and count lines. **Target: 50–120 lines.** Also check the cloud-session line: it must be exactly one of the names (private repository), the public form (public repository), or no line (no contract repositories). A surviving literal `<CONTRACT_REPOS>` is always a failure: the fill step was skipped; fix it before reporting, do not hand it to the user as a next step. If significantly outside that range:
 - Under 50 lines → likely missing template sections; double-check the template was applied fully.
 - Over 120 lines → review for content that belongs in `references/configs/`, a
   scoped `AGENTS.md`, README, or skill-level docs instead.

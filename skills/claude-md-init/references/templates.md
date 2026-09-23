@@ -34,12 +34,34 @@ Placement: the first bullet of the `## Before working` section, in every
 template including the toolbox one. The section sits after the living-doc note
 where a template has one, otherwise directly after the one-liner, and before
 `## Lifecycle`. Filling it: ask the user which repositories, in
-attach order; never guess and never copy names from another project's file. A
-project with no contract repositories deletes the line; when that leaves
-`## Before working` with no bullets — as in the toolbox template, where the
-cloud line is the section's only content — delete the heading too. Whoever
-writes the file owns this step, `claude-md-init` and `project-scaffold` alike,
-and a written file must not contain the literal placeholder.
+attach order; never guess and never copy names from another project's file.
+The answer and the repository's visibility decide what the line becomes:
+
+- No contract repositories: delete the line, in public and private repositories
+  alike. When that leaves `## Before working` with no bullets — as in the
+  toolbox template, where the cloud line is the section's only content — delete
+  the heading too.
+- Contract repositories in a private repository: fill in their names.
+- Contract repositories in any repository that is not private (public, or
+  internal on GitHub Enterprise): write the public form below,
+  never the names. A public file must not name private repositories, and the
+  literal placeholder cannot be followed.
+
+The two skills learn the visibility differently. `claude-md-init` works on an
+existing repository and checks `gh repo view --json visibility`; when that
+cannot answer (no remote, no authentication, or the repository is not created
+yet), it asks the user and never guesses. `project-scaffold` writes `AGENTS.md`
+before the repository exists, so it uses its Step 7 public-or-private answer
+instead. Whoever writes the file owns this step, `claude-md-init` and
+`project-scaffold` alike. A written file carries exactly one outcome: the names
+(private), the public form (public), or no line (no contract repositories). A
+surviving literal `<CONTRACT_REPOS>` is always a failure.
+
+The public form:
+
+```markdown
+- Cloud sessions load the shared workflow contract before other work: attach the contract repositories named by whoever started the session, doing it yourself (in Claude Code cloud, with `add_repo`) and one at a time since concurrent clones fail, then follow the contract repository's own cloud setup instructions before starting the task. This public repository does not list them; if none were named, say so and stop. If an attach is refused, say which and stop. Local sessions attach nothing and use the contract installed on the machine; if it is not installed there, say so before starting.
+```
 
 ## Architecture-doc reference (every template)
 
@@ -460,7 +482,8 @@ Notes:
 - Same retrofit rules as every template: link the workflow document only when
   an equivalent authored document exists, and add the architecture-map bullet
   only when `docs/architecture.html` exists. The cloud-session contract line
-  stays, filled or deleted by the same rule as everywhere else.
+  stays, and is named, given the public form, or deleted by the same rule as
+  everywhere else.
 
 ---
 

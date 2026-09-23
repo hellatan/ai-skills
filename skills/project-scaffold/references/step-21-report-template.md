@@ -36,8 +36,9 @@ Next steps:
 6. (Only if you run a CI baseline audit) Discovery mode picks this repo up automatically on
    the next run. Explicit-list mode: add it to the audit host's
    `.github/ci-baseline-audit/repos.txt` AND to the audit token's repository access
-7. Skim AGENTS.md once: the cloud-session contract line must name your repositories or be
-   gone; a literal `<CONTRACT_REPOS>` there means the interview skipped it
+7. AGENTS.md's cloud-session contract line was checked at Step 10: it names your
+   repositories (private repo), uses the public form (public repo), or is gone (no
+   contract repos)
 
 Useful commands (run from repo root):
 - `npm run check:all` — lint, format check, typecheck, and tests; run build/e2e separately when configured
