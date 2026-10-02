@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.14.1](https://github.com/hellatan/ai-skills/compare/v2.14.0...v2.14.1) (2026-10-02)
+
+
+### Documentation
+
+* **agents:** add the cloud-session contract line ([#241](https://github.com/hellatan/ai-skills/issues/241)) ([2f62f0b](https://github.com/hellatan/ai-skills/commit/2f62f0ba6eba67ec5e8fd3bef2d7f65d3c6e1abd))
+* **claude-md-init:** put the preamble instructions in a Before working section ([#242](https://github.com/hellatan/ai-skills/issues/242)) ([2a8f830](https://github.com/hellatan/ai-skills/commit/2a8f8301856ceb703b67e0774db231165d2c77d3))
+
+
+### Chores
+
+* **release:** develop → main ([1afb9d6](https://github.com/hellatan/ai-skills/commit/1afb9d6db2260538abd98f2c48a5f03d84a7447f))
+
 ## [2.14.0](https://github.com/hellatan/ai-skills/compare/v2.13.0...v2.14.0) (2026-09-21)
 
 
