@@ -55,9 +55,14 @@ End the message with: *"Reply 'yes' / 'go' / 'looks good' to proceed, or tell me
 📐 Docs:
    - docs/architecture.html — starter system map (fill-in SVG diagram + failure-modes table)
 🔗 Contract repos:                              ← always shown; asked in Step 8 before this summary
-   - <the private repositories a cloud session attaches, in order — never a placeholder>
-   (none — you said no, so the contract line is dropped from AGENTS.md)
-                                                 ← show this line instead when the answer was "none"
+   - <the repository names, in attach order — never a placeholder>
+                                                 ← private repo (Step 7) with contract repos
+   - public form — names given to cloud sessions, not written
+                                                 ← show this instead for a public repo (Step 7)
+                                                   with contract repos
+   - none
+                                                 ← show this instead when the answer was "none",
+                                                   public or private; the line is dropped
 🐙 GitHub:
    - <Public|Private> repo under @<user>
    - Branch protection: <applied|skipped (reason, e.g. "free tier on private repo")>
