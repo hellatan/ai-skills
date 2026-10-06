@@ -13,7 +13,7 @@ only copy of a decision does.
 The first line is one of three verdicts:
 
 - **Yes** — some fact exists only in this conversation and the context is under
-  pressure, so it must be persisted before work continues. Where each fact goes
+  pressure, so it should be persisted before work continues. Where each fact goes
   (a handoff document, the project's own files, the tracker) is the routing step
   below; a Yes does not always mean a handoff document.
 - **Not yet** — some fact exists only here, but nothing presses on it. Nothing
@@ -102,8 +102,9 @@ reader would look first:
   failed. Use `handoff-doc` to write it, including its rules for choosing a
   destination. Do not hand-roll a handoff here.
 - **The tracker.** Follow-up tasks belong in the user's issue tracker or task
-  list, not buried in a handoff. If no tracker is configured, ask; do not invent
-  one.
+  list, not buried in a handoff. If no tracker is configured, route the item to
+  "tracker (destination asked after go)" and ask where it goes only once the
+  user has said go; do not invent one.
 
 If no item is handoff-bound, no handoff document is needed. Say so; the verdict
 does not change, and the deliverable is the project-file or tracker change.
@@ -115,13 +116,24 @@ write a handoff, edit the repository, or file tracker items, and the handoff
 destination may itself be inside the repository.
 
 Instead, the routing list *is* the proposal, and the **Next** line asks for one
-go that covers it: "Say go to persist these N items as routed above." One
-approval for the whole plan costs a single short reply, which is cheaper than a
-confirmation per item. On go, write the handoff through `handoff-doc` (it may
-still ask for a destination) and make the project-file and tracker changes
-through the project's own change process. If the user approves only part of the
-plan, do only that part, and say which items still exist only in this
-conversation.
+go that names exactly what it covers:
+
+- On **Yes**, every at-risk item: "Say go to persist these N items as routed
+  above."
+- On **Not yet**, only the items routed to project files or the tracker. Mark
+  handoff-bound items "stays here for now" in the list, and do not write a
+  handoff on this go.
+
+One approval for the whole plan costs a single short reply, which is cheaper
+than a confirmation per item. On go, write the handoff through `handoff-doc`
+(Yes only; it may still ask for a destination) and make the project-file and
+tracker changes through the project's own change process.
+
+After the go, or a partial go, or a no: do exactly what was approved, then
+report in one line what landed where and which items still exist only in this
+conversation. The next action is then to continue the original task. A declined
+go is the user's decision; name the items still at risk once, and do not ask
+again in the same turn.
 
 A single named next action is not an open-ended "want me to…?". It is the one
 step the user approves or declines.
