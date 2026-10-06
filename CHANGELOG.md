@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.15.0](https://github.com/hellatan/ai-skills/compare/v2.14.1...v2.15.0) (2026-10-06)
+
+
+### Features
+
+* **context-check:** decide whether a handoff is needed now ([#245](https://github.com/hellatan/ai-skills/issues/245)) ([3e4493d](https://github.com/hellatan/ai-skills/commit/3e4493d858bf8b8f4f81a057a9f49c5af756dc70))
+
+
+### Chores
+
+* **release:** develop → main ([94bfa62](https://github.com/hellatan/ai-skills/commit/94bfa62f3379e7f21ebc6443e506ba200f2b1d66))
+
 ## [2.14.1](https://github.com/hellatan/ai-skills/compare/v2.14.0...v2.14.1) (2026-10-02)
 
 
