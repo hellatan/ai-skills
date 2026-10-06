@@ -1,6 +1,6 @@
 ---
 name: handoff-doc
-description: Use when work needs to continue somewhere the current conversation cannot follow — handing a project to another agent, another provider, a cloud session, a teammate, or to yourself next week. Trigger when the user says "write a handoff", "handoff doc", "hand this off", "write this up for another agent", "I'm running out of credits/context", "document where we are so someone else can pick it up", or invokes /handoff-doc. Produces one dated markdown document that lets a fresh reader resume without the transcript — current state, evidence, ordered next actions, settled decisions, and the traps that already cost time.
+description: Use when work needs to continue somewhere the current conversation cannot follow — handing a project to another agent, another provider, a cloud session, a teammate, or to yourself next week. Trigger when the user says "write a handoff", "handoff doc", "hand this off", "write this up for another agent", "I'm running out of credits/context", "document where we are so someone else can pick it up", or invokes /handoff-doc. To decide whether a handoff is needed yet, use context-check instead. Produces one dated markdown document that lets a fresh reader resume without the transcript — current state, evidence, ordered next actions, settled decisions, and the traps that already cost time.
 ---
 
 # Handoff Doc
@@ -21,6 +21,9 @@ someone open this file cold and take the next action correctly?
   credits are low, or the task is blocked on something outside this session.
 - Finished work still gets a handoff when it changes hands — a new owner needs
   state, gotchas, and how to run it even when nothing is left to build.
+- If the question is *whether* a handoff is needed yet ("is your context getting
+  full?"), run `context-check` first. It makes that call and routes here when
+  in-flight state needs carrying over.
 - Skip it only when nobody else will touch the work and there is nothing to
   resume. If the goal is to capture what went wrong for the same reader, that is
   a retrospective (`task-retrospective`), not a handoff. The two compose: a
