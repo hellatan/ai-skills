@@ -1,6 +1,6 @@
 ---
 name: context-check
-description: Use when the user asks whether the conversation is running out of room and whether work needs to move to a fresh session — "is your context getting full?", "do we need a handoff?", "should we start a new conversation?", "are we close to compacting?", "context check", or invokes /context-check. Decides whether a handoff is needed; it does not write one by default. Answers yes or no in the first line from signals the agent can actually observe, never an invented percentage, using one test — what a fresh session could not recover if this conversation vanished now. On yes, routes each at-risk fact to the project's own files, the tracker, or handoff-doc.
+description: Use when the user asks whether the conversation is running out of room and whether work needs to move to a fresh session — "is your context getting full?", "do we need a handoff?", "should we start a new conversation?", "are we close to compacting?", "context check", or invokes /context-check. Decides whether a handoff is needed and proposes where each at-risk fact goes; it writes nothing until the user says go. Answers yes or no in the first line from signals the agent can actually observe, never an invented percentage, using one test — what a fresh session could not recover if this conversation vanished now. On yes, routes each at-risk fact to the project's own files, the tracker, or handoff-doc.
 ---
 
 # Context Check
@@ -10,10 +10,16 @@ The size of the context is not the question. A long, many-times-compacted
 conversation whose state is all on disk needs no handoff. A short one holding the
 only copy of a decision does.
 
-**Yes** means some fact exists only in this conversation and is under pressure,
-so it must be persisted before work continues. Where each fact goes (a handoff
-document, the project's own files, the tracker) is the routing step below; a yes
-does not always mean a handoff document. **No** means nothing needs to move yet.
+The first line is one of three verdicts:
+
+- **Yes** — some fact exists only in this conversation and the context is under
+  pressure, so it must be persisted before work continues. Where each fact goes
+  (a handoff document, the project's own files, the tracker) is the routing step
+  below; a yes does not always mean a handoff document.
+- **Not yet** — some fact exists only here, but nothing presses on it. Nothing
+  has to move now; persisting the facts that belong in the project is still the
+  cheapest time to do it.
+- **No** — nothing a fresh session would need exists only here.
 
 This skill owns the *decision* and the *routing*. Producing the handoff document
 belongs to `handoff-doc`; deciding whether a session can be archived belongs to
@@ -77,10 +83,10 @@ instruction files?
 | Unrecoverable items | Pressure | Verdict and next action |
 |---|---|---|
 | None | Any | **No.** Size alone never warrants a handoff. |
-| Some | Present | **Yes.** Persist them now; compaction can drop detail without warning. |
-| Some | Absent | **No, not yet.** The next action persists whichever items belong in the project's own files. If none do, the next action is to continue and run this check again when pressure appears. |
+| Some | Present | **Yes.** Propose persisting them now; compaction can drop detail without warning. |
+| Some | Absent | **Not yet.** Propose persisting the items that belong in the project's own files or the tracker. If none do, the next action is to continue; the user can run this check again later. |
 
-When the answer is no but pressure is high, say whether a fresh conversation
+When the answer is no but pressure is present, say whether a fresh conversation
 would still help: degradation symptoms are a reason to restart even when nothing
 needs carrying over. In that case the new session needs only a one-line pointer
 (the repository and the next task), not a document. If the user is about to
@@ -106,18 +112,20 @@ Route each unrecoverable item to the place a future reader would look first:
 If every item belongs in the project's files, no handoff document is needed. Say
 so: the verdict is still yes, and the deliverable is the project-file change.
 
-### What to do without asking, and what to confirm
+### One go covers the whole plan
 
-- **Handoff document:** write it in the same turn when `handoff-doc` resolves a
-  destination without asking (the user or the project already named one). The
-  user asked because context is scarce, and a confirmation round trip spends
-  more of it. When no destination is configured, `handoff-doc` asks; follow it.
-- **Project-file and tracker writes:** do not start them unasked. They change
-  the user's repository or tracker, and a branch-and-review cycle spends the
-  context this check exists to protect. Make the write the single **Next**
-  action and wait for a go. If the handoff is being written anyway, list these
-  items in it under the file they belong in, so they survive even if the
-  session ends first.
+The check itself writes nothing. A question about context is not permission to
+write a handoff, edit the repository, or file tracker items, and the handoff
+destination may itself be inside the repository.
+
+Instead, the routing table *is* the proposal, and the **Next** line asks for one
+go that covers all of it: "Say go to persist all N items as routed above."
+One approval for the whole plan costs a single short reply, which is cheaper
+than a confirmation per item. On go, write the handoff through `handoff-doc`
+(it may still ask for a destination) and make the project-file and tracker
+changes through the project's own change process. If the user approves only
+part of the plan, list the declined project-file items in the handoff under the
+file they belong in, so they survive the session.
 
 A single named next action is not an open-ended "want me to…?". It is the one
 step the user approves or declines.
@@ -127,21 +135,21 @@ step the user approves or declines.
 Lead with the verdict. Keep the whole report on one screen.
 
 ```
-<Yes|No|No, not yet> — <one clause: why>
+<Yes|Not yet|No> — <one clause: why>
 
 Signals
 - Context size: not observable   (or: <figure> — observed, <source, when>)
 - Compaction: <none visible | N visible, a lower bound> (observed)
 - Threads / rounds: <N threads, ~M rounds> (observed | partly inferred)
 - Degradation: <instances | none observed>
-- Transcript-only: <N items> (observed: checked <where>)
+- Transcript-only: <N items> (observed: checked <where>; inferred for items recalled from before a compaction)
 - Pressure: <present | absent> (inferred: <which signal>)
 
 At risk → home                    (only when there are items)
 1. <fact> → <README | AGENTS.md | handoff | tracker>
 2. ...
 
-Next: <the single action — under way if it is a handoff with a resolved destination>
+Next: <the single action — on a yes, "say go to persist all N items as routed above">
 ```
 
 Cap the at-risk list at five. If there are more, show the five most costly to
