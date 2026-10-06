@@ -21,6 +21,8 @@ someone open this file cold and take the next action correctly?
   credits are low, or the task is blocked on something outside this session.
 - Finished work still gets a handoff when it changes hands — a new owner needs
   state, gotchas, and how to run it even when nothing is left to build.
+- If the question is *whether* a handoff is needed yet ("is your context getting
+  full?"), run `context-check` first. It makes that call and routes here on a yes.
 - Skip it only when nobody else will touch the work and there is nothing to
   resume. If the goal is to capture what went wrong for the same reader, that is
   a retrospective (`task-retrospective`), not a handoff. The two compose: a
