@@ -19,7 +19,7 @@ Claude Code compatibility, published as the `ht-skills` plugin.
 | [session-cleanup](skills/session-cleanup) | End-of-session pre-archive checklist — is the stated work verified done, is the git state clean, is a retrospective warranted, are there durable learnings worth saving. Reports a verdict; never acts without an explicit go. |
 | [task-retrospective](skills/task-retrospective) | Generate a retrospective after a substantial task — failure signal and root causes, not just wins, plus action items and time calibration. |
 | [handoff-doc](skills/handoff-doc) | Write the dated handoff another agent, provider, or person needs to resume the work without the conversation — current state, evidence, ordered next actions, and the traps that already cost time. |
-| [context-check](skills/context-check) | Answer "is your context getting full — do we need a handoff?" with a definitive yes/no, from observable signals (compaction, threads, degradation, transcript-only state) rather than an invented percentage. On yes, routes each at-risk fact to the project's own files, the tracker, or `handoff-doc`. |
+| [context-check](skills/context-check) | Answer "is your context getting full — do we need a handoff?" with a definitive verdict (Yes / Not yet / No), from observable signals (compaction, threads, degradation, transcript-only state) rather than an invented percentage. On Yes or Not yet, proposes a home for each at-risk fact (the project's own files, the tracker, or `handoff-doc`) and writes only after one go. |
 
 ## Install
 
