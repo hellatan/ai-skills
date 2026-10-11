@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.16.1](https://github.com/hellatan/ai-skills/compare/v2.16.0...v2.16.1) (2026-10-11)
+
+
+### Chores
+
+* **release:** develop → main ([942236b](https://github.com/hellatan/ai-skills/commit/942236ba99945b5131c9fac1b649add668242fb8))
+
+
+### Continuous Integration
+
+* **review:** skip the automated review on PRs labelled session-reviewed ([#251](https://github.com/hellatan/ai-skills/issues/251)) ([79e82e4](https://github.com/hellatan/ai-skills/commit/79e82e4496bce8c5b3df1abf83a31f0747ca65b0))
+
 ## [2.16.0](https://github.com/hellatan/ai-skills/compare/v2.15.0...v2.16.0) (2026-10-11)
 
 
