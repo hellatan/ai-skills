@@ -31,12 +31,21 @@ jobs:
     # so without it the action step would fail with an empty token on every
     # outside contribution — a red X that looks like the contributor's fault.
     # Skipping cleanly is the honest outcome.
+    #
+    # session-reviewed: a PR carrying this label was already given an
+    # independent fresh-context review by the session that opened it, so
+    # this run would pay twice for the weaker pass. Add it only after that
+    # review ran on the exact diff; remove it BEFORE any unreviewed push
+    # (it survives `synchronize`). A skipped job posts no Discord verdict.
+    # Rationale: ai-skills skills/gh-actions-init/references/claude-code-review.md
+    # § "Skipping PRs reviewed in-session".
     if: >-
       github.event.pull_request.draft == false &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.head_ref != 'develop' &&
       github.head_ref != 'main' &&
-      !startsWith(github.head_ref, 'release-please')
+      !startsWith(github.head_ref, 'release-please') &&
+      !contains(github.event.pull_request.labels.*.name, 'session-reviewed')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
