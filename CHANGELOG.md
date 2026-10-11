@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.16.0](https://github.com/hellatan/ai-skills/compare/v2.15.0...v2.16.0) (2026-10-11)
+
+
+### Features
+
+* **gh-actions-init:** skip the automated review on PRs reviewed in-session ([#248](https://github.com/hellatan/ai-skills/issues/248)) ([7239f55](https://github.com/hellatan/ai-skills/commit/7239f55f9c7cb0f61da06e73c41a3e42b1b7eee4))
+
+
+### Chores
+
+* **release:** develop → main ([8533916](https://github.com/hellatan/ai-skills/commit/853391611f3d7375d1adbe9a7c79dd1415a0f335))
+
 ## [2.15.0](https://github.com/hellatan/ai-skills/compare/v2.14.1...v2.15.0) (2026-10-06)
 
 
