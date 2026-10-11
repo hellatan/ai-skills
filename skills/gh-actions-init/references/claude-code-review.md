@@ -37,11 +37,16 @@ jobs:
     # construction already-reviewed code, and it re-fires on every
     # synchronize as the source branch advances. A release-please PR is
     # generated — a changelog and a version bump.
+    #
+    # session-reviewed: a PR carrying this label was already given an
+    # independent review by the session that opened it, so this run would be
+    # paid for twice. See § "Skipping PRs reviewed in-session".
     if: >-
       github.event.pull_request.draft == false &&
       github.head_ref != 'develop' &&
       github.head_ref != 'main' &&
-      !startsWith(github.head_ref, 'release-please')
+      !startsWith(github.head_ref, 'release-please') &&
+      !contains(github.event.pull_request.labels.*.name, 'session-reviewed')
     runs-on: ubuntu-latest
     # The review cap lives on the ACTION STEP below, not here. A job-level
     # timeout CANCELS the job, `!cancelled()` then skips the verdict-alert
@@ -99,7 +104,8 @@ operator and an invalid expression.
       github.head_ref != 'develop' &&
       github.head_ref != 'stage' &&
       github.head_ref != 'main' &&
-      !startsWith(github.head_ref, 'release-please')
+      !startsWith(github.head_ref, 'release-please') &&
+      !contains(github.event.pull_request.labels.*.name, 'session-reviewed')
 ```
 
 ### Repo-specific checks
@@ -128,6 +134,62 @@ There is no on-demand escape hatch unless the repo also has a `claude.yml`
 a mention trigger fires on `issue_comment`, which is a different security
 surface and a different decision. If someone wants review during drafting,
 that is the file to add.
+
+## Skipping PRs reviewed in-session
+
+The last `if:` term skips the review when the PR carries the
+`session-reviewed` label.
+
+It exists for PRs opened by an agent session that has **already** run its own
+independent review of the full diff (a fresh-context reviewer, not the
+authoring context) before pushing. That review can read what this job cannot —
+the deploy target, sibling repositories, local configuration — so repeating it
+here pays twice for the weaker of the two passes. PRs opened any other way (a
+hand push, a dependency bot, a session that skipped its review) carry no label
+and are still reviewed.
+
+**A label, not a marker in the PR body.** `contains()` on a string is a
+case-insensitive substring test, so a body that merely *quotes* a marker — a PR
+about this workflow, a body assembled from commit messages — would skip its own
+review. A label cannot match by accident, and only users with triage or write
+access can set one. Create it once per repository:
+
+```bash
+gh label create session-reviewed --repo <owner>/<repo> --color 0E8A16 \
+  --description "Reviewed in-session before push; claude-code-review skips it" --force
+```
+
+`--force` makes the command idempotent: it creates the label, or updates it in
+place if it already exists.
+
+The rules for the session that sets it:
+
+- **Add it only after the independent review ran on the exact diff being
+  pushed.** Open the PR as a draft with `--label session-reviewed`; the label is
+  then in place long before `ready_for_review` fires. On a PR opened non-draft,
+  `gh` applies labels in a follow-up call after creating the PR, so the
+  `opened` run usually does not see the label — one extra review, which fails
+  safe.
+- **Remove it BEFORE pushing anything the review did not cover:**
+  `gh pr edit <number> --remove-label session-reviewed`, then push. The label
+  survives `synchronize`, and removing it afterwards fires no run (`unlabeled`
+  is not a trigger, and a re-run replays the same labelled payload), so a
+  labelled unreviewed push gets no automated review until the next push.
+
+A label without a review means no review at all — that is the trade, and the
+reason it is set per PR rather than as a repo-wide switch.
+
+What the label does not change:
+
+- **A PR that edits this workflow file** is still skipped by the action itself
+  (it validates the file against the default branch), label or not.
+- **A skipped job posts no verdict.** The alert steps in § *A finished review is
+  silent* live in this job, so a labelled PR leaves only a grey `SKIPPED` check;
+  the session that reviewed it reports its own verdict.
+- **Fork PRs** get no secrets on `pull_request`, so a public repository should
+  already AND `github.event.pull_request.head.repo.full_name == github.repository`
+  into this `if:`. With that guard only same-repository authors — who have write
+  access anyway — ever reach the label term.
 
 ## A finished review is silent — push the verdict
 
