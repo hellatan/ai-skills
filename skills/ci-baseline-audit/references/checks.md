@@ -761,6 +761,11 @@ Two shapes are **not** findings:
 - Secret set, no workflow → harmless. Don't report it.
 - No `.github/workflows/` at all → already reported by check 0 as "no CI gate". Don't
   double-count; a repo with no workflows has no review workflow by definition.
+- A `!contains(github.event.pull_request.labels.*.name, 'session-reviewed')` term in the `if:` is
+  canonical, not a deviation (`gh-actions-init/references/claude-code-review.md`
+  § *Skipping PRs reviewed in-session*). The draft-gate test above greps the resolved
+  `if:` for `pull_request.draft == false`, so the extra term never trips it, and its
+  absence is not a finding either.
 
 **Token requirement.** Part 3 needs `Secrets: Read` on the audit PAT, the same grant
 check 10 needs (`references/audit-token.md`). When the call 403s, report
