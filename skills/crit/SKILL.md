@@ -1,0 +1,74 @@
+---
+name: crit
+description: Use when the user invokes /crit, says "use CRIT", "let's CRIT this", or asks to apply the CRIT prompt framework (Context, Role, Interview, Task) — including when they paste a prompt with Context, Role, Interview, and Task fields. Not for ordinary requests that merely need a clarifying question.
+---
+
+# CRIT
+
+CRIT is Geoff Woods' four-part prompt framework: give the AI **Context**, assign
+it a **Role**, let it **Interview** you, then do the **Task**. The interview is
+the point. It draws out what the user would not have thought to say, and each
+answer shapes the next question.
+
+**Core rule: one interview question per turn.** A numbered list of questions is
+the failure this skill exists to prevent.
+
+## Turn 1: setup plus the first question
+
+Fill all four fields before asking anything, from what is already available.
+Never re-ask something the user has already said.
+
+| Field | Take it from, in order | If nothing is there |
+|---|---|---|
+| Context | `/crit` arguments, this conversation, files the user pointed at | Ask for it, in one question, before the interview starts |
+| Role | The user's Role field | Propose a specific expert with a stance ("pricing advisor for small agencies, blunt about scope creep"), never "a helpful assistant" |
+| Task | The user's Task field | Propose the deliverable **and its shape**: sections, length, format |
+| Interview | The user's Interview field (count, areas to probe) | Plan 3–5 questions and name the areas they will probe |
+
+The Task comes before the Interview because questions exist to close the gap
+between the Context and the deliverable. An interview that doesn't know the
+deliverable asks generic questions.
+
+Send one message containing:
+
+1. A compact setup block: Context (bullets of what you have), Role, Task
+   (deliverable and shape), Interview (how many questions, on which areas).
+2. One line inviting corrections to the setup while they answer.
+3. Question 1, and nothing after it.
+
+Do not start on the deliverable yet.
+
+## Interview turns
+
+- Ask exactly one question per turn: one question mark, no sub-questions, no
+  "and also".
+- Ask it as the Role would. Choose the question whose answer would change the
+  deliverable most, given everything said so far.
+- Prefix it with progress, e.g. `Q2 of 4 —`.
+- Acknowledge the previous answer in one line at most. No advice yet.
+
+Stop interviewing when the first of these happens:
+
+- the planned number of questions is reached (at most 5, unless the user's
+  Interview field sets a different count);
+- the user signals they are done ("that's enough", "go ahead");
+- the remaining unknowns would not change the deliverable. Say so, then deliver.
+
+## Task turn
+
+Produce the deliverable in the agreed shape, built visibly on the interview
+answers. Output that could have been written without the interview is a failed
+CRIT. Close by listing the assumptions you made for anything left unanswered.
+
+## Rationalizations
+
+| Thought | Reality |
+|---|---|
+| "There's a deadline, batching saves time" | A deadline is a reason to start the interview now, not to batch it. A batch fixes every question before any answer arrives. |
+| "Short answers are fine, in any order" | That is still a questionnaire. Ask one question. |
+| "This question has a few related parts" | Then it is several questions. Ask the part that matters most. |
+| "The user wrote 'ask me 5 questions'" | That sets the count, not the format. Ask them one at a time. |
+| "A few more questions would make it thorough" | Past five it becomes a survey. Stop and deliver. |
+
+The one exception: if the user explicitly asks for all the questions at once,
+send them numbered, at most five, then deliver once they answer.
