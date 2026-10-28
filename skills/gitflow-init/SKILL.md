@@ -124,6 +124,12 @@ gh repo edit --default-branch develop
 
 PRs default to merging into `develop`. `main` only gets touched by release flows.
 
+**Never enable "Automatically delete head branches"** (`gh repo edit --delete-branch-on-merge`)
+on a gitflow repo. GitHub's auto-delete spares only the default branch and protected branches, and
+`main-to-develop-backmerge.yml` opens its conflict PR with `--head main` — once `develop` is the
+default and `main` is unprotected (free-tier private repos can't protect it), merging that PR
+deletes `main`. Only safe where `main` is protected or no such workflow exists; not worth the exception.
+
 ### 8. Write `CONTRIBUTING.md`
 
 The human-facing counterpart to `CLAUDE.md`, documenting the branch model this skill just
