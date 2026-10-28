@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.17.0](https://github.com/hellatan/ai-skills/compare/v2.16.1...v2.17.0) (2026-10-28)
+
+
+### Features
+
+* add crit skill ([#254](https://github.com/hellatan/ai-skills/issues/254)) ([27784a5](https://github.com/hellatan/ai-skills/commit/27784a5c7cc4ad83f9d0eec5b712e6735ce87dd3))
+
+
+### Documentation
+
+* **gitflow-init:** warn against auto-deleting head branches ([#255](https://github.com/hellatan/ai-skills/issues/255)) ([703244a](https://github.com/hellatan/ai-skills/commit/703244a9b992704f85f74ca6be510b74dad9d4f9))
+
+
+### Chores
+
+* **release:** develop → main ([4d409a7](https://github.com/hellatan/ai-skills/commit/4d409a79fd875c0f7d8360cb0af05a6096fa5e6b))
+
 ## [2.16.1](https://github.com/hellatan/ai-skills/compare/v2.16.0...v2.16.1) (2026-10-11)
 
 
