@@ -20,6 +20,7 @@ Claude Code compatibility, published as the `ht-skills` plugin.
 | [task-retrospective](skills/task-retrospective) | Generate a retrospective after a substantial task — failure signal and root causes, not just wins, plus action items and time calibration. |
 | [handoff-doc](skills/handoff-doc) | Write the dated handoff another agent, provider, or person needs to resume the work without the conversation — current state, evidence, ordered next actions, and the traps that already cost time. |
 | [context-check](skills/context-check) | Answer "is your context getting full — do we need a handoff?" with a definitive verdict (Yes / Not yet / No), from observable signals (compaction, threads, degradation, transcript-only state) rather than an invented percentage. On Yes or Not yet, proposes a home for each at-risk fact (the project's own files, the tracker, or `handoff-doc`) and writes only after one go. |
+| [crit](skills/crit) | Run Geoff Woods' CRIT prompt framework (Context, Role, Interview, Task). Takes Context from what's already been said, proposes a Role and the deliverable's shape when they're missing, interviews the user one question at a time (3–5 by default), then produces the deliverable. |
 
 ## Install
 
